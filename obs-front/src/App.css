@@ -1,0 +1,147 @@
+table {
+  border: 2px solid darkblue;  
+}
+
+th {
+  border-bottom: 1px solid black;
+}
+
+td {
+  text-align: center;
+}
+
+#cy {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
+
+/* Key Value visualization */
+.key-value-container {
+  display: flex;
+  flex-direction: column;
+  max-width: 580px;  
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+.key-value-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+
+.key {
+  font-weight: bold;
+  color: #555;
+  min-width: 100px; /* Ensure some space for the key */
+  text-align: right;
+  padding-right: 20px;
+}
+
+.value {
+  flex-grow: 1;
+  color: #333;
+  text-align: left;
+}
+
+@media (max-width: 600px) {
+  .key-value-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .key {
+    text-align: left;
+    padding-right: 0;
+    margin-bottom: 5px;
+  }
+}
+
+/* Styles for CREATE button */
+.create-button {
+  background: linear-gradient(135deg, #6e8efb, #a777e3); /* Gradient background */
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  padding: 12px 24px;
+  border-radius: 30px; /* Rounded corners */
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0px 8px 15px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.create-button:hover {
+  background: linear-gradient(135deg, #a777e3, #6e8efb); /* Gradient reversed on hover */
+  box-shadow: 0px 12px 20px rgba(0, 0, 0, 0.3); /* Larger shadow on hover */
+  transform: translateY(-2px); /* Slight lift on hover */
+}
+
+.create-button:active {
+  transform: translateY(0); /* Remove lift on click */
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2); /* Smaller shadow on click */
+}
+
+.create-button:focus {
+  outline: none; /* Remove default focus outline */
+}
+
+/* Styles for COLLAPSE button */
+/* Container for the collapse panel */
+.collapse-panel-container {
+  width: 100%;
+  margin: 20px auto;
+}
+
+/* Style the toggle button */
+.collapse-toggle-btn {
+  display: inline-block;
+  padding: 10px 20px;
+  background-color: #4caf50;
+  color: white;
+  cursor: pointer;
+  border-radius: 5px;
+  font-size: 16px;
+  transition: background-color 0.3s ease;
+}
+
+/* Button hover effect */
+.collapse-toggle-btn:hover {
+  background-color: #45a049;
+}
+
+/* Collapsible panel styling */
+.collapse-panel {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.5s ease-out;
+  background-color: #f9f9f9;
+  border: 1px solid #ddd;
+  margin-top: 10px;
+  border-radius: 5px;
+  padding: 0 20px;
+}
+
+/* Panel content */
+.collapse-panel-content {
+  padding: 20px 0;
+}
+
+/* When the panel is open, expand to fit content */
+.collapse-panel.open {
+  max-height: 800px; /* Large max-height to fit long content */
+  transition: max-height 0.5s ease-in;
+}
+
+/* Optional scrollbar for very long content */
+.collapse-panel {
+  overflow-y: auto;
+  max-height: 600px; /* Adjust this to control height for very long content */
+}

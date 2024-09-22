@@ -1,0 +1,15 @@
+curl -i -X GET http://localhost:8080/metrics && echo && echo
+curl -i -X GET http://localhost:8080/metrics/not-existent-metric && echo && echo
+curl -i -X POST http://localhost:8080/metrics/new-metric?value=10 && echo && echo
+curl -i -X POST http://localhost:8080/metrics/new-metric?value=10 && echo && echo
+curl -i -X GET http://localhost:8080/metrics/new-metric && echo && echo
+curl -i -X PATCH http://localhost:8080/metrics/new-metric?value=12 && echo && echo
+curl -i -X PATCH http://localhost:8080/metrics/not-existent-metric&value=13 && echo && echo
+curl -i -X DELETE http://localhost:8080/metrics/new-metric && echo && echo
+curl -i -X DELETE http://localhost:8080/metrics/new-metric && echo && echo
+curl -i -X DELETE http://localhost:8080/metrics/not-existent-metric && echo && echo
+curl -i -X POST http://localhost:8080/metrics/metric-1?value=20 && echo && echo
+curl -i -X POST http://localhost:8080/metrics/metric-2?value=30 && echo && echo
+curl -i -X POST http://localhost:8080/metrics/metric-3?value=40 && echo && echo
+curl -i -X POST http://localhost:8080/metrics/metric-4?value=50 && echo && echo
+curl -i -X GET http://localhost:8080/metrics && echo && echo

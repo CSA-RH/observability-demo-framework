@@ -1,0 +1,19 @@
+{
+  "name": "obs-client-api-node",
+  "version": "1.0.0",
+  "description": "API of RH CSA Observability Demo for NodeJS clients",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "author": "RH CSA",
+  "license": "ISC",
+  "dependencies": {
+    "@opentelemetry/exporter-prometheus": "^0.3.3",
+    "@opentelemetry/metrics": "^0.3.3",
+    "axios": "^1.7.7",
+    "express": "^4.19.2",
+    "uuid": "^10.0.0"
+  }
+}

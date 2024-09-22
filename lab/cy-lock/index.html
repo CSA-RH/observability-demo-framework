@@ -1,0 +1,170 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>LOCK</title>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js'></script>
+    <script src='./app.js'></script>
+
+    <style>
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .box {
+            width: 600px;
+            height: 400px;
+            background-color: lightblue;
+            margin-bottom: 20px;
+        }
+
+        .button-container {
+            width: 600px;
+            text-align: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+    </style>
+
+
+
+</head>
+
+<body>
+    <div class="container">
+        <div id="cy" class="box"></div>
+        <div class="button-container">
+            <button id="cmdBlock" class="button" onclick=handleClick()>BLOCK</button>
+        </div>
+
+
+    </div>
+
+
+</body>
+<script>
+    var cy = cytoscape({
+        container: document.getElementById('cy'),
+        style: [
+            {
+                selector: 'node',
+                style: {
+                    shape: 'hexagon',
+                    'background-color': 'red',
+                    label: 'data(id)'
+                }
+            },
+            {
+                selector: 'node:selected',
+                style: {
+                    'background-color': '#FF5733', // Color when the node is selected
+                    'border-color': '#000',
+                    'border-width': 3
+                }
+            },
+            {
+                selector: 'edge',
+                style: {
+                    'width': 2,
+                    'line-color': '#ccc',
+                    'target-arrow-color': '#ccc',
+                    'target-arrow-shape': 'triangle',
+                    'curve-style': 'bezier'
+                }
+            }
+        ],
+        layout: {
+            name: 'grid',
+            rows: 1
+        }
+    });
+
+    let nodeId = 0;
+    let selectedNodes = [];
+    let blocked = false;
+
+    function addNode(position) {
+        nodeId++;
+        cy.add({
+            group: 'nodes',
+            data: { id: 'Node' + nodeId },
+            position: { x: position.x, y: position.y }
+        });
+    }
+
+    function handleClick() {
+        console.log("clicked!!")
+        blocked=!blocked
+        if (blocked) {
+            document.getElementById("cmdBlock").innerText = "UNBLOCK";
+            cy.nodes().ungrabify(); // Prevent nodes from being moved
+        }
+        else 
+        {
+            document.getElementById("cmdBlock").innerText = "BLOCK";
+            cy.nodes().grabify(); // Allow nodes to be moved
+
+        }
+
+    }
+
+    // Right-click (context tap) event listener for nodes
+    cy.on('cxttap', 'node', function (event) {
+        if (blocked) return;
+        var node = event.target;
+        node.remove();  // Removes the clicked node
+    });
+
+    // Right-click (context tap) event listener for edges
+    cy.on('cxttap', 'edge', function (event) {
+        if (blocked) return;
+        var edge = event.target;
+        edge.remove();  // Removes the clicked edge
+    });
+
+    // Function to check if an edge with a specific name exists
+    function edgeExists(name) {
+        return cy.edges(`[id = "${name}"]`).length > 0;
+    }
+
+    cy.on('tap', function (evt) {
+        if (blocked) return;
+        const position = evt.position;
+        if (evt.target === cy)
+            addNode(position);
+    })
+
+    cy.on('tap', 'node', function (evt) {
+        if (blocked) return;
+        const clickedNode = evt.target;
+
+        selectedNodes.push(clickedNode);
+
+        if (selectedNodes.length === 2) {
+            const sourceNode = selectedNodes[0];
+            const targetNode = selectedNodes[1];
+
+            const edgeId = 'edge_' + sourceNode.id() + '_' + targetNode.id();
+            if (!edgeExists(edgeId)) {
+                cy.add({
+                    group: 'edges',
+                    data: {
+                        id: edgeId,
+                        source: sourceNode.id(),
+                        target: targetNode.id()
+                    }
+                });
+                targetNode.unselect();
+            }
+
+            selectedNodes = [];
+        }
+    });
+</script>
+
+</html>
