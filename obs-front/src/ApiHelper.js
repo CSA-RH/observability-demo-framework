@@ -1,4 +1,5 @@
-export const MASTER_API_ADDRESS = 'http://localhost:8000'
+export const MASTER_API_ADDRESS = process.env.REACT_APP_OBSERVABILITY_DEMO_API
+
 
 export function getInfoUrl()  {
     return `${MASTER_API_ADDRESS}/info`

@@ -71,11 +71,11 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         return None, None
 
     def get_cluster_info(self) -> Dict[str, str]: 
-        # Get current namespace        
+        # Get current namespace
         current_namespace = self.__get_current_namespace()
 
         # Get cluster name and console link
-        try:            
+        try:
             # OpenShift API group, version, and resource to retrieve the Console
             group = "config.openshift.io"
             version = "v1"
