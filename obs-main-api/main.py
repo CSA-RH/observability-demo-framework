@@ -9,6 +9,7 @@ import json
 import http.client
 import socket  
 import base64
+import urllib.parse
 
 app = FastAPI()
 #TODO: Improve security. CORS 
@@ -233,7 +234,7 @@ async def create_simulation(payload: List[Dict[str, Any]]):
             }
             #TODO: Improve response by using HTTP codes and payload.
             response = v1.create_namespaced_pod(body=pod_manifest, namespace = get_current_namespace())
-    print("Retrieve Pod IP")
+    print("Retrieve Pod IP and set metrics" )
     for item in payload: 
         if item["group"] == "nodes":
             print(f'Agent: {item["data"]["id"]}')
@@ -245,7 +246,7 @@ async def create_simulation(payload: List[Dict[str, Any]]):
                 print(f"Failed to retrieve the IP address for Pod {item["data"]['id']}.")
                 continue
     print("Udpate the edges and the apis")
-    print("Retrieve Pod IP")
+    print("Configure pod agents")
     for item in payload: 
         if item["group"] == "edges":
             sourceName = item["data"]["source"]
@@ -284,8 +285,9 @@ async def create_simulation(payload: List[Dict[str, Any]]):
             finally:
                 # Close the connection
                 conn.close()
-    #Save the json in a secret
+    # Save the json in a secret
     save_simulation_as_secret(payload)
+    # Show the information
     print(payload)
     return payload
 
@@ -311,6 +313,7 @@ async def delete_simulation():
             print(f"Secret '{secret_name}' not found in namespace '{get_current_namespace()}'.")
         else:
             print(f"Failed to delete Secret '{secret_name}': {e}")
+
 
 @app.get("/simulation")
 async def get_simulation():
@@ -370,3 +373,54 @@ async def agent_kick(payload: dict[str, Any]):
         # Close the connection
         conn.close()
     return True
+
+@app.post("/metrics")
+async def create_agent_metric(payload: dict[str, Any]):
+    print(payload)
+    try:
+        agent_ip = payload['ip']
+        agent_id = payload['id']
+        newMetricInfo = payload['newMetric']
+
+        conn = http.client.HTTPSConnection(host=agent_ip, port=8080)
+
+        path = "/metrics/" + newMetricInfo['name']
+        params = {
+            "name": newMetricInfo['name'],
+            "value": newMetricInfo['value']
+        }
+        
+        query_string = urllib.parse(params)
+
+        full_path = f"{path}?{query_string}"
+
+        conn = http.client.HTTPConnection
+        
+        print(f"Agent {agent_id}. Creating metric {newMetricInfo['name']}")
+        conn.request("POST", full_path)
+
+        response = conn.getresponse()
+        data = response.read()
+
+        try:
+            # Try to decode the response content
+            result = data.decode("utf-8")
+            print("Response received successfully:")
+            print(result)
+        except UnicodeDecodeError:
+            raise Exception("Failed to decode response content.")
+                
+    except http.client.HTTPException as e:
+        # Handle HTTP related errors
+        print(f"HTTP error occurred: {e}")
+    except (ConnectionError, TimeoutError) as e:
+        # Handle connection errors
+        print(f"Connection error occurred: {e}")
+    except Exception as e:
+        # General exception handler for other potential errors
+        print(f"An error occurred: {e}")
+    finally:
+        # Ensure the connection is closed
+        conn.close()
+
+

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import * as ApiHelper from '../ApiHelper'
+import '../App.css'
 
 // Child component that receives data as a prop
-const AgentList = ({ simulation }) => {
+const AgentList = ({ simulation, agent}) => {
 
   //For handling the kick
   const handleKick = async (id, ip) => {
@@ -36,15 +37,17 @@ const AgentList = ({ simulation }) => {
               <th>Name</th>
               <th>Cluster IP</th>
               <th>Next hops</th>
+              <th>#Metrics</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            {simulation.filter(item => item.group == "nodes").map((item) => (
-              <tr key={item.data.id}>
+            {simulation.filter(item => item.group === "nodes").map((item) => (
+              <tr key={item.data.id} className={agent?.data.id === item.data.id ? 'highlight' : ''}>
                 <td>{item.data.id}</td>
                 <td>{item.data.ip}</td>
                 <td>{item.data.ip ? [item.nextHop && item.nextHop.join(", ")] : "n/a"}</td>
+                <td>{item.data.ip ? (item.data?.metrics ? item.data.metrics.count: "0") : "n/a"}</td>
                 <td>{item.data.ip && <button onClick={
                   () => handleKick(item.data.id, item.data.ip)}>Kick!
                 </button>}
@@ -52,17 +55,7 @@ const AgentList = ({ simulation }) => {
               </tr>
             ))}
           </tbody>
-        </table>)}
-      <div>
-        <h3>Data simulation:</h3>
-        <div>
-          {simulation != null && simulation.length > 0 ? (
-            <pre>{JSON.stringify(simulation, null, 2)}</pre>
-          ) : (
-            <p>No graph elements to display</p>
-          )}
-        </div>
-      </div>
+        </table>)}      
     </div>
   );
 };

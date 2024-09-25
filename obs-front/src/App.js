@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AgentList from './components/AgentList';
 import SimulationManagement from './components/SimulationManagement'
 import ClusterInfo from './components/ClusterInfo';
@@ -9,24 +9,27 @@ import * as ApiHelper from './ApiHelper'
 import './App.css'
 
 
-function App() {
+function App() {  
   const [selectedAgentData, setSelectedAgentData] = useState(null);
   const [simulation, setSimulation] = useState([]);
   const [canvasLocked, setCanvasLocked] = useState(false);
-
-  function handleCanvasChange(simulation) {
+  const simulationContext = useRef([]);
+  
+  function handleCanvasChange(graphData) {
     // For propagating the canvas change to other components.
-    setSimulation(simulation);
+    setSimulation(graphData);
   }
 
-  function handleSimulationChange(graphData, action) {
+  function handleSimulationChange(simulation, action) {
     switch (action) {
       case 'CREATE':
-        setSimulation(graphData);
+        simulationContext.current = simulation;        
+        setSimulation(simulation);
         setCanvasLocked(true);
         break;
       case 'RESET':
         console.log('Reset clicked!');
+        simulationContext.current = [];
         setSimulation([]);
         setCanvasLocked(false);
         setSelectedAgentData(null);
@@ -36,12 +39,25 @@ function App() {
     }
   }
 
+  function handleSelectedAgent(agent) {        
+    let agentData = null;
+    if (agent) {
+      agentData = simulationContext.current?.find(a => a.data.id === agent.id);
+    }    
+    setSelectedAgentData(agentData);
+  }
+
+  function handleAgentUpdated(agent) {
+    console.log(agent);
+  }
+
   useEffect(() => {
     const fetchData = async () => {
         try {
             console.log("Loading data")
             const response = await fetch(ApiHelper.getSimulationUrl());
-            const result = await response.json();
+            const result = await response.json();            
+            simulationContext.current = result;
             setSimulation(result);
             setCanvasLocked(result.length > 0)
         } catch (error) {
@@ -54,22 +70,24 @@ function App() {
 
   return (
     <div className="App">
-      <h1>OpenShift Observability Demo Framework</h1>
+      <h1>Opinionated OCP Observability Demo Framework</h1>
       <h2>Cluster Info</h2>
       <ClusterInfo></ClusterInfo>
       <h2>Communications</h2>
       <AgentCanvas
-        onAgentSelect={setSelectedAgentData}
+        onAgentSelect={handleSelectedAgent}
         locked={canvasLocked}
         simulation={simulation}
         onSimulationUpdated={handleCanvasChange}></AgentCanvas>
       <SimulationManagement
         simulation={simulation}
         onSimulationUpdated={handleSimulationChange}></SimulationManagement>
-      <h2>Selected Element Info</h2>
-      <AgentInfo agent={selectedAgentData}></AgentInfo>
+      <h2>Selected Agent</h2>
+      <AgentInfo 
+        agent={selectedAgentData}
+        onAgentUpdated={handleAgentUpdated}></AgentInfo>
       <h2>Agents</h2>
-      <AgentList simulation={simulation}></AgentList>
+      <AgentList simulation={simulation} agent={selectedAgentData}></AgentList>      
     </div>
   );
 }

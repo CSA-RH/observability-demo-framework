@@ -1,4 +1,4 @@
-export const MASTER_API_ADDRESS = 'https://obs-main-api-test-traces.apps.test-clusterb.kbbv.p1.openshiftapps.com'
+export const MASTER_API_ADDRESS = 'https://obs-main-api-observability-demo.apps.am1f75h1xc1037e792.germanywestcentral.aroapp.io'
 
 export function getInfoUrl()  {
     return `${MASTER_API_ADDRESS}/info`

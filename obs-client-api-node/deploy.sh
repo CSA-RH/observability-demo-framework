@@ -37,24 +37,3 @@ oc delete build --selector build=obs-client-node > /dev/null
 oc start-build obs-client-node --from-file .
 # Follow the logs until completion 
 oc logs $(oc get build --selector build=obs-client-node -oNAME) -f 
-# Create deployment
-oc create deploy obs-client-node --image=obs-client-node:latest 
-# Create service
-oc expose deploy/obs-client-node --port 8080
-# Create route
-cat <<EOF | oc apply -f - 
-apiVersion: route.openshift.io/v1
-kind: Route
-metadata:
-  labels:
-    app: obs-client-node
-  name: obs-client-node
-spec:
-  port:
-    targetPort: 8080
-  to:
-    kind: Service
-    name: kc-client
-  tls: 
-    termination: edge
-EOF

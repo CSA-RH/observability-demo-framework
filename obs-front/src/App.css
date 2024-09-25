@@ -145,3 +145,7 @@ td {
   overflow-y: auto;
   max-height: 600px; /* Adjust this to control height for very long content */
 }
+
+.highlight {
+  background-color: lightblue;
+}

@@ -52,7 +52,7 @@ spec:
     targetPort: 8000
   to:
     kind: Service
-    name: master-api
+    name: obs-main-api
   tls: 
     termination: edge
 EOF
