@@ -5,7 +5,7 @@ export function getInfoUrl()  {
 }
 
 export function getSimulationUrl(){
-    return `${MASTER_API_ADDRESS}/simulation-beta`
+    return `${MASTER_API_ADDRESS}/simulation`
 }
 
 export function getKickUrl(agentIp){

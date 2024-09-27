@@ -154,106 +154,6 @@ def save_simulation_as_secret(json_data):
     except client.ApiException as e:
         print(f"Exception when saving simulation as a secret[obs-demo-fw-state]: {e}")
 
-
-#TODO: Mostly happy path. Add exceptions and error handling
-@app.post("/simulation")
-async def create_simulation(payload: List[Dict[str, Any]]):
-    #current_namespace = active_context['context'].get('namespace', 'default')
-    print("Creating pods")    
-    for item in payload: 
-        if item["group"] == "nodes":            
-            print(f'Agent: {item["data"]["id"]}')
-            print("----")
-            pod_manifest = {
-                'apiVersion': 'v1',
-                'kind': 'Pod',
-                'metadata': {
-                    'labels': {
-                        'app': 'observability-demo-framework-agent'
-                    },
-                    'annotations': {
-                        'observability-demo-framework': 'agent',
-                        'observability-demo-framework/capabilities': 'default',
-                        'observability-demo-framework/position-x': str(item["position"]["x"]),
-                        'observability-demo-framework/position-y': str(item["position"]["y"])
-                    },
-                    'name': item["data"]["id"]
-                },
-                'spec': {
-                    'containers': [{
-                        'name': 'core',
-                        'image': 'obs-client-node:latest',
-                        'readinessProbe': {
-                            'httpGet': {
-                                'path': '/',
-                                'port': 8080
-                            }, 
-                            'initialDelaySeconds': 3,
-                            'periodSeconds': 3
-                        }
-                    }]            
-                }
-            }
-            #TODO: Improve response by using HTTP codes and payload.
-            response = core_v1_api.create_namespaced_pod(body=pod_manifest, namespace = get_current_namespace())
-    print("Retrieve Pod IP and set metrics" )
-    for item in payload: 
-        if item["group"] == "nodes":
-            print(f'Agent: {item["data"]["id"]}')
-            internal_ip = wait_for_pod_ready_and_get_ip(get_current_namespace(), item["data"]["id"])
-            if internal_ip:
-                print(f"The internal IP address of Pod {item["data"]['id']} is: {internal_ip}")
-                item["data"]["ip"] = internal_ip
-            else:
-                print(f"Failed to retrieve the IP address for Pod {item["data"]['id']}.")
-                continue
-    print("Udpate the edges and the apis")
-    print("Configure pod agents")
-    for item in payload: 
-        if item["group"] == "edges":
-            sourceName = item["data"]["source"]
-            targetName = item["data"]["target"]
-            sourceAgent = get_agent_from_payload(sourceName, payload)
-            targetAgent = get_agent_from_payload(targetName, payload)
-            #Update next-hop in payload
-            add_next_hop_to_agent(targetAgent["data"]["id"], sourceAgent)
-            #Call IP 
-            print(f"Calling POST http://{sourceAgent['data']['ip']}:8080/agents/{targetName} with destination ip {targetAgent["data"]["ip"]}")
-            next_hop_address = {
-                "ip": targetAgent["data"]["ip"],
-                "port": 8080
-            }
-            json_next_hop_address = json.dumps(next_hop_address)
-            try:
-                conn = http.client.HTTPConnection(sourceAgent['data']['ip'], 8080, timeout=2)
-                headers = {
-                    'Content-Type': 'application/json'
-                }
-                # Make the POST request, attaching the JSON body
-                conn.request("POST", "/agents/" + targetName, body=json_next_hop_address, headers=headers)
-                # Get the response
-                response = conn.getresponse()
-                data = response.read()
-
-                # Print the response data
-                print(data.decode("utf-8"))
-            except socket.timeout:
-                print("The request timed out.")
-
-            except Exception as e:
-                # Handle other possible exceptions
-                print(f"Request failed: {e}")
-
-            finally:
-                # Close the connection
-                conn.close()
-    # Save the json in a secret
-    save_simulation_as_secret(payload)
-    # Show result
-    print(payload)
-    return payload
-
-
 def create_deployment(namespace, item):    
     deployment_manifest = {
         'apiVersion': 'apps/v1',
@@ -427,8 +327,7 @@ def wait_for_deployment_ready(deployment_name, namespace, timeout=300, interval=
     print(f"Timeout: Not all pods for deployment '{deployment_name}' are ready after {timeout} seconds.")
     return False
 
-
-@app.post("/simulation-beta")
+@app.post("/simulation")
 async def create_simulation_beta(payload: List[Dict[str, Any]]):
     namespace = get_current_namespace()  # Assuming you have a function to get the current namespace
 
@@ -448,7 +347,6 @@ async def create_simulation_beta(payload: List[Dict[str, Any]]):
             # Create service monitor
             create_service_monitor(namespace, item)
             print(f"ServiceMonitor for {item['data']['id']} created.")
-
 
     # Make sure that all pods have started before adding associations
     # Wait for the Service to be ready and get its IP
@@ -513,7 +411,7 @@ async def create_simulation_beta(payload: List[Dict[str, Any]]):
     return payload
  
 
-@app.delete("/simulation-beta")
+@app.delete("/simulation")
 async def delete_simulation_beta():
     label_selector = "observability-demo-framework=agent"
 
@@ -561,28 +459,6 @@ async def delete_simulation_beta():
     print("All matching resources deleted successfully.")
 
 
-@app.delete("/simulation")
-async def delete_simulation():
-    try:
-        # Delete all pods in the namespace with the specified label selector
-        _ = core_v1_api.delete_collection_namespaced_pod(
-            namespace=get_current_namespace(), 
-            label_selector="app=observability-demo-framework-agent"
-        )        
-        print("Pods deleted successfully")
-    except client.ApiException as e:
-        print(f"Exception when deleting pods: {e}")
-    # Delete secret 
-    secret_name="obs-demo-fw-state"
-    try:
-        core_v1_api.delete_namespaced_secret(secret_name, get_current_namespace())
-        print(f"Secret '{secret_name}' deleted successfully.")
-    except client.exceptions.ApiException as e:
-        if e.status == 404:
-            print(f"Secret '{secret_name}' not found in namespace '{get_current_namespace()}'.")
-        else:
-            print(f"Failed to delete Secret '{secret_name}': {e}")
-
 async def get_agent_metric(ip, id):
     print(f"Agent {id}[{ip}]. Getting metrics")
     
@@ -617,7 +493,6 @@ async def get_agent_metric(ip, id):
         conn.close()
     return json_result
 
-@app.get("/simulation-beta")
 @app.get("/simulation")
 async def get_simulation():
     secret_name="obs-demo-fw-state"
@@ -649,6 +524,7 @@ async def get_simulation():
         item["metrics"] = metrics
     return items
     
+
 @app.post("/kick")
 async def agent_kick(payload: dict[str, Any]):
     print(payload)
@@ -684,6 +560,7 @@ async def agent_kick(payload: dict[str, Any]):
         # Close the connection
         conn.close()
     return True
+
 
 async def set_agent_metric(method: str, payload: dict[str, Any]):
     print(payload)
@@ -741,6 +618,7 @@ async def set_agent_metric(method: str, payload: dict[str, Any]):
 @app.post("/metrics")
 async def create_agent_metric(payload: dict[str, Any]):
     await set_agent_metric("POST", payload=payload)
+
 
 @app.patch("/metrics")
 async def modify_agent_metric(payload: dict[str, Any]):
