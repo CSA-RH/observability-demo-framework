@@ -9,12 +9,12 @@ import * as ApiHelper from './ApiHelper'
 import './App.css'
 
 
-function App() {  
+function App() {
   const [selectedAgentData, setSelectedAgentData] = useState(null);
   const [simulation, setSimulation] = useState([]);
   const [canvasLocked, setCanvasLocked] = useState(false);
   const simulationContext = useRef([]);
-  
+
   function handleCanvasChange(graphData) {
     // For propagating the canvas change to other components.
     setSimulation(graphData);
@@ -23,7 +23,7 @@ function App() {
   function handleSimulationChange(simulation, action) {
     switch (action) {
       case 'CREATE':
-        simulationContext.current = simulation;        
+        simulationContext.current = simulation;
         setSimulation(simulation);
         setCanvasLocked(true);
         break;
@@ -39,34 +39,47 @@ function App() {
     }
   }
 
-  function handleSelectedAgent(agent) {        
+  function handleSelectedAgent(agent) {
     let agentData = null;
     if (agent) {
       agentData = simulationContext.current?.find(a => a.data.id === agent.id);
-    }    
+    }
     setSelectedAgentData(agentData);
   }
 
   function handleAgentUpdated(agent) {
-    console.log(agent);
+    console.log("Agent updated:", agent);
+
+    // Make a shallow copy of the simulation array to ensure a new reference
+    const updatedSimulation = [...simulation];
+
+    // If necessary, update the specific agent's data within the simulation array
+    const agentIndex = updatedSimulation.findIndex(a => a.data.id === agent.data.id);    
+    if (agentIndex !== -1) {
+      updatedSimulation[agentIndex] = { ...updatedSimulation[agentIndex], metrics: agent.metrics };
+    }
+
+    // Update the simulation state with the new array reference
+    setSimulation(updatedSimulation);
+
   }
 
   useEffect(() => {
     const fetchData = async () => {
-        try {
-            console.log("Loading data")
-            const response = await fetch(ApiHelper.getSimulationUrl());
-            const result = await response.json();            
-            simulationContext.current = result;
-            setSimulation(result);
-            setCanvasLocked(result.length > 0)
-        } catch (error) {
-            console.error('Error fetching data:', error);
-        }
+      try {
+        console.log("Loading data")
+        const response = await fetch(ApiHelper.getSimulationUrl());
+        const result = await response.json();
+        simulationContext.current = result;
+        setSimulation(result);
+        setCanvasLocked(result.length > 0)
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
     };
 
     fetchData();
-}, []); // Empty dependency array to run once on component mount
+  }, []); // Empty dependency array to run once on component mount
 
   return (
     <div className="App">
@@ -82,12 +95,16 @@ function App() {
       <SimulationManagement
         simulation={simulation}
         onSimulationUpdated={handleSimulationChange}></SimulationManagement>
-      <h2>Selected Agent</h2>
-      <AgentInfo 
-        agent={selectedAgentData}
-        onAgentUpdated={handleAgentUpdated}></AgentInfo>
-      <h2>Agents</h2>
-      <AgentList simulation={simulation} agent={selectedAgentData}></AgentList>      
+      {simulationContext.current != null && simulationContext.current.length > 0 && (
+        <div>
+          <h2>Selected Agent</h2>
+          <AgentInfo
+            agent={selectedAgentData}
+            onAgentUpdated={handleAgentUpdated}></AgentInfo>
+          <h2>Agents</h2>
+          <AgentList simulation={simulation} agent={selectedAgentData}></AgentList>
+        </div>
+      )}
     </div>
   );
 }

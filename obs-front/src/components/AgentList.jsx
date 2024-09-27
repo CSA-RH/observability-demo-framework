@@ -38,7 +38,7 @@ const AgentList = ({ simulation, agent}) => {
               <th>Cluster IP</th>
               <th>Next hops</th>
               <th>#Metrics</th>
-              <th>Action</th>
+              <th>Action</th>             
             </tr>
           </thead>
           <tbody>
@@ -47,11 +47,11 @@ const AgentList = ({ simulation, agent}) => {
                 <td>{item.data.id}</td>
                 <td>{item.data.ip}</td>
                 <td>{item.data.ip ? [item.nextHop && item.nextHop.join(", ")] : "n/a"}</td>
-                <td>{item.data.ip ? (item.data?.metrics ? item.data.metrics.count: "0") : "n/a"}</td>
+                <td>{item.data.ip ? (item.metrics ? item.metrics.length: "0") : "n/a"}</td>
                 <td>{item.data.ip && <button onClick={
                   () => handleKick(item.data.id, item.data.ip)}>Kick!
                 </button>}
-                </td>
+                </td>                
               </tr>
             ))}
           </tbody>

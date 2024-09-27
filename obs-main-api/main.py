@@ -52,8 +52,9 @@ def load_kube_config():
 
 # Initialize Kubernetes API clients
 load_kube_config()
-v1 = client.CoreV1Api()
-api_instance = client.CustomObjectsApi()
+core_v1_api = client.CoreV1Api()
+apps_v1_api = client.AppsV1Api()
+custom_v1_api = client.CustomObjectsApi()
 
 @app.get("/info")
 async def get_info():
@@ -69,7 +70,7 @@ async def get_info():
         name = "cluster"  # The Console resource name is always 'cluster'
 
         # Fetching the Console resource, which contains the cluster name (URL-based)
-        console_resource = api_instance.get_cluster_custom_object(
+        console_resource = custom_v1_api.get_cluster_custom_object(
             group=group,
             version=version,
             plural=plural,
@@ -87,48 +88,9 @@ async def get_info():
         "Connected": True,
         "Name": cluster_name,
         "Namespace": current_namespace,
-        "ConsoleURL": console_url
+        "ConsoleURL": console_url, 
+        "apiLogsURL": f"{console_url}/k8s/ns/{current_namespace}/pods/{os.getenv("HOSTNAME")}/logs"        
     }
-
-@app.get("/obs-agents")
-async def get_living_agents():
-    items = v1.list_pod_for_all_namespaces(watch=False).items
-    
-    result = list(filter(lambda y: y["annotations"] != None and 
-            "observability-demo-framework" in y["annotations"] and
-            y["annotations"]["observability-demo-framework"] == "agent" , 
-        [{"name": x.metadata.name, 
-          "namespace": x.metadata.namespace, 
-          "ip": x.status.pod_ip, 
-          "annotations": x.metadata.annotations, 
-          "status": x.status.phase} for x in items]))
-    return result
-
-@app.post("/agent")
-async def get_living_agents():
-    print("Creating a new agent")
-     # Create pod manifest
-    pod_manifest = {
-        'apiVersion': 'v1',
-        'kind': 'Pod',
-        'metadata': {
-            'annotations': {
-                'observability-demo-framework': 'agent',
-                'observabililty-framework-demo-capabilities': 'default'
-            },
-            'generateName': 'agent-'
-        },
-        'spec': {
-            'containers': [{
-                'name': 'core',
-                'image': 'openshift/hello-openshift',
-            }]            
-        }
-    }
-    #TODO: Improve response by using HTTP codes and payload.
-    response = v1.create_namespaced_pod(body=pod_manifest)
-    #print(response)
-    return True
 
 def wait_for_pod_ready_and_get_ip(namespace, pod_name, timeout=300):
     """
@@ -138,7 +100,7 @@ def wait_for_pod_ready_and_get_ip(namespace, pod_name, timeout=300):
     start_time = time.time()
 
     try:
-        for event in w.stream(v1.list_namespaced_pod, namespace=namespace, timeout_seconds=timeout):
+        for event in w.stream(core_v1_api.list_namespaced_pod, namespace=namespace, timeout_seconds=timeout):
             pod = event['object']
             pod_status = pod.status.phase
             if pod.metadata.name == pod_name:
@@ -187,7 +149,7 @@ def save_simulation_as_secret(json_data):
         data={"simulation": encoded_data},
     )
     try:
-        v1.create_namespaced_secret(get_current_namespace(), secret)
+        core_v1_api.create_namespaced_secret(get_current_namespace(), secret)
         print(f"Simulation saved successfully in the cluster as secret obs-demo-fw-state.")
     except client.ApiException as e:
         print(f"Exception when saving simulation as a secret[obs-demo-fw-state]: {e}")
@@ -233,7 +195,7 @@ async def create_simulation(payload: List[Dict[str, Any]]):
                 }
             }
             #TODO: Improve response by using HTTP codes and payload.
-            response = v1.create_namespaced_pod(body=pod_manifest, namespace = get_current_namespace())
+            response = core_v1_api.create_namespaced_pod(body=pod_manifest, namespace = get_current_namespace())
     print("Retrieve Pod IP and set metrics" )
     for item in payload: 
         if item["group"] == "nodes":
@@ -287,16 +249,323 @@ async def create_simulation(payload: List[Dict[str, Any]]):
                 conn.close()
     # Save the json in a secret
     save_simulation_as_secret(payload)
-    # Show the information
+    # Show result
     print(payload)
     return payload
+
+
+def create_deployment(namespace, item):    
+    deployment_manifest = {
+        'apiVersion': 'apps/v1',
+        'kind': 'Deployment',
+        'metadata': {
+            'name': item["data"]["id"], 
+            'labels': {
+                "app": item["data"]["id"], 
+                'observability-demo-framework': 'agent'
+            }
+        },
+        'spec': {
+            'replicas': 1,
+            'selector': {
+                'matchLabels': {
+                    'app': item["data"]["id"]
+                }
+            },
+            'template': {
+                'metadata': {
+                    'labels': {
+                        'app': item["data"]["id"], 
+                        'observability-demo-framework': 'agent'                    
+                    }, 
+                    'annotations': {
+                        'instrumentation.opentelemetry.io/inject-nodejs': 'true'
+                    }
+                },
+                'spec': {
+                    'containers': [{
+                        'name': 'core',
+                        'image': 'obs-client-node:latest',
+                        'ports': [{
+                            'containerPort': 8080
+                        }],
+                        'readinessProbe': {
+                            'httpGet': {
+                                'path': '/',
+                                'port': 8080
+                            },
+                            'initialDelaySeconds': 3,
+                            'periodSeconds': 3
+                        }
+                    }]
+                }
+            }
+        }
+    }
+
+    response = apps_v1_api.create_namespaced_deployment(namespace=namespace, body=deployment_manifest)
+    return response
+
+# Function to create the service
+def create_service(namespace, item):
+    service_manifest = {
+        'apiVersion': 'v1',
+        'kind': 'Service',
+        'metadata': {
+            'name': item["data"]["id"],
+            'labels': {
+                "app": item["data"]["id"], 
+                'observability-demo-framework': 'agent'
+            }
+        },
+        'spec': {
+            'selector': {
+                'app': item["data"]["id"]
+            },
+            'ports': [{
+                'protocol': 'TCP',
+                'port': 8080,
+                'targetPort': 8080, 
+                'name': 'api'
+            }, 
+            {
+                'protocol': 'TCP',
+                'port': 8081,
+                'targetPort': 8081,
+                'name': 'metrics'
+            }]
+        }
+    }
+
+    response = core_v1_api.create_namespaced_service(namespace=namespace, body=service_manifest)
+    return response
+
+# Function to wait for the service and retrieve the Service IP
+def wait_for_service_ready_and_get_ip(namespace, service_name, timeout=300):
+    w = watch.Watch()
+    start_time = time.time()
+
+    try:
+        for event in w.stream(core_v1_api.list_namespaced_service, namespace=namespace, timeout_seconds=timeout):
+            service = event['object']
+            if service.metadata.name == service_name:
+                print(f"Service {service_name} status: Available")
+                service_ip = service.spec.cluster_ip
+                if service_ip:
+                    print(f"Service {service_name} IP: {service_ip}")
+                    w.stop()
+                    return service_ip
+
+            if time.time() - start_time > timeout:
+                print(f"Timeout waiting for Service {service_name} to be ready.")
+                w.stop()
+                return None
+
+    except ApiException as e:
+        print(f"Exception when waiting for Service: {e}")
+        return None
+    
+    return None
+
+def create_service_monitor(namespace, item):
+    # Define the ServiceMonitor specification
+    service_monitor_body = {
+        "apiVersion": "monitoring.coreos.com/v1",
+        "kind": "ServiceMonitor",
+        "metadata": {
+            "name": item["data"]["id"],
+            "labels": {
+                "app": item["data"]["id"],
+                'observability-demo-framework': 'agent'
+            }
+        },
+        "spec": {
+            "selector": {
+                "matchLabels": {
+                    "app": item["data"]["id"]
+                }
+            },
+            "endpoints": [
+                {
+                    "port": "metrics",
+                    "interval": "30s"
+                }
+            ]
+        }
+    }
+    try:
+        custom_v1_api.create_namespaced_custom_object(
+            group="monitoring.coreos.com",
+            version="v1",
+            namespace=namespace,
+            plural="servicemonitors",
+            body=service_monitor_body
+        )
+        print("ServiceMonitor created successfully.")
+    except client.exceptions.ApiException as e:
+        print(f"Exception when creating ServiceMonitor: {e}")
+
+# Function to check if all pods of a deployment are ready
+def wait_for_deployment_ready(deployment_name, namespace, timeout=300, interval=5):
+    start_time = time.time()
+
+    while (time.time() - start_time) < timeout:
+        # Get the deployment status
+        deployment = apps_v1_api.read_namespaced_deployment(name=deployment_name, namespace=namespace)
+        
+        # Check if the number of ready replicas matches the desired replicas
+        if deployment.status.ready_replicas == deployment.spec.replicas:
+            print(f"All pods for deployment '{deployment_name}' are ready.")
+            return True
+        else:
+            print(f"Waiting for pods to become ready. Ready pods: {deployment.status.ready_replicas}/{deployment.spec.replicas}")
+        
+        # Sleep for the defined interval before checking again
+        time.sleep(interval)
+
+    # If we exceed the timeout and not all pods are ready
+    print(f"Timeout: Not all pods for deployment '{deployment_name}' are ready after {timeout} seconds.")
+    return False
+
+
+@app.post("/simulation-beta")
+async def create_simulation_beta(payload: List[Dict[str, Any]]):
+    namespace = get_current_namespace()  # Assuming you have a function to get the current namespace
+
+    # Create all deployment and services. 
+    for item in payload:
+        if item["group"] == "nodes":
+            print(f'Agent: {item["data"]["id"]}')
+            
+            # Create Deployment
+            create_deployment(namespace, item)
+            print(f"Deployment for {item['data']['id']} created.")
+            
+            # Create Service
+            create_service(namespace, item)
+            print(f"Service for {item['data']['id']} created.")
+            
+            # Create service monitor
+            create_service_monitor(namespace, item)
+            print(f"ServiceMonitor for {item['data']['id']} created.")
+
+
+    # Make sure that all pods have started before adding associations
+    # Wait for the Service to be ready and get its IP
+    for item in payload:
+        if item["group"] == "nodes":
+            service_ip = wait_for_service_ready_and_get_ip(namespace, item["data"]["id"])
+            if service_ip:
+                print(f"The Service IP address of {item['data']['id']} is: {service_ip}")
+                item["data"]["ip"] = service_ip
+            else:
+                print(f"Failed to retrieve the Service IP address for {item['data']['id']}.")
+                continue
+            
+            # Wait for the Service to be ready and get its IP
+            wait_for_deployment_ready(item['data']['id'], namespace)
+            
+    # Add assotiations. 
+    for item in payload: 
+        if item["group"] == "edges":
+            sourceName = item["data"]["source"]
+            targetName = item["data"]["target"]
+            sourceAgent = get_agent_from_payload(sourceName, payload)
+            targetAgent = get_agent_from_payload(targetName, payload)
+            #Update next-hop in payload
+            add_next_hop_to_agent(targetAgent["data"]["id"], sourceAgent)
+            #Call IP 
+            print(f"Calling POST http://{sourceAgent['data']['id']}:8080/agents/{targetName}")
+            print(targetAgent)
+            next_hop_address = {
+                "ip": targetAgent["data"]["id"],
+                "port": 8080
+            }
+            json_next_hop_address = json.dumps(next_hop_address)
+            try:
+                conn = http.client.HTTPConnection(sourceAgent['data']['id'], 8080, timeout=2)
+                headers = {
+                    'Content-Type': 'application/json'
+                }
+                # Make the POST request, attaching the JSON body
+                conn.request("POST", "/agents/" + targetName, body=json_next_hop_address, headers=headers)
+                # Get the response
+                response = conn.getresponse()
+                data = response.read()
+
+                # Print the response data
+                print(data.decode("utf-8"))
+            except socket.timeout:
+                print("The request timed out.")
+
+            except Exception as e:
+                # Handle other possible exceptions
+                print(f"Request failed: {e}")
+
+            finally:
+                # Close the connection
+                conn.close()
+        
+    # Save the json in a secret
+    save_simulation_as_secret(payload)
+    # Show result
+    print(payload)
+    return payload
+ 
+
+@app.delete("/simulation-beta")
+async def delete_simulation_beta():
+    label_selector = "observability-demo-framework=agent"
+
+    namespace = get_current_namespace()
+    # Delete Deployments matching the selector
+    deployments = apps_v1_api.list_namespaced_deployment(namespace=namespace, label_selector=label_selector)
+    for deployment in deployments.items:
+        print(f"Deleting Deployment: {deployment.metadata.name}")
+        apps_v1_api.delete_namespaced_deployment(name=deployment.metadata.name, namespace=deployment.metadata.namespace)
+
+    # Delete Services matching the selector
+    services = core_v1_api.list_namespaced_service(namespace=namespace, label_selector=label_selector)
+    for service in services.items:
+        print(f"Deleting Service: {service.metadata.name}")
+        core_v1_api.delete_namespaced_service(name=service.metadata.name, namespace=service.metadata.namespace)
+
+    # Delete ServiceMonitors matching the selector
+    # Assuming ServiceMonitors are custom resources from the Prometheus operator
+    service_monitors = custom_v1_api.list_namespaced_custom_object(
+        group="monitoring.coreos.com",
+        version="v1",
+        namespace=namespace,
+        plural="servicemonitors",
+        label_selector=label_selector
+    )
+    for sm in service_monitors.get("items", []):
+        print(f"Deleting ServiceMonitor: {sm['metadata']['name']}")
+        custom_v1_api.delete_namespaced_custom_object(
+            group="monitoring.coreos.com",
+            version="v1",
+            namespace=namespace,
+            plural="servicemonitors",
+            name=sm['metadata']['name']
+        )
+    # Delete secret 
+    secret_name="obs-demo-fw-state"
+    try:
+        core_v1_api.delete_namespaced_secret(secret_name, get_current_namespace())
+        print(f"Secret '{secret_name}' deleted successfully.")
+    except client.exceptions.ApiException as e:
+        if e.status == 404:
+            print(f"Secret '{secret_name}' not found in namespace '{get_current_namespace()}'.")
+        else:
+            print(f"Failed to delete Secret '{secret_name}': {e}")
+    print("All matching resources deleted successfully.")
 
 
 @app.delete("/simulation")
 async def delete_simulation():
     try:
         # Delete all pods in the namespace with the specified label selector
-        _ = v1.delete_collection_namespaced_pod(
+        _ = core_v1_api.delete_collection_namespaced_pod(
             namespace=get_current_namespace(), 
             label_selector="app=observability-demo-framework-agent"
         )        
@@ -306,7 +575,7 @@ async def delete_simulation():
     # Delete secret 
     secret_name="obs-demo-fw-state"
     try:
-        v1.delete_namespaced_secret(secret_name, get_current_namespace())
+        core_v1_api.delete_namespaced_secret(secret_name, get_current_namespace())
         print(f"Secret '{secret_name}' deleted successfully.")
     except client.exceptions.ApiException as e:
         if e.status == 404:
@@ -314,19 +583,54 @@ async def delete_simulation():
         else:
             print(f"Failed to delete Secret '{secret_name}': {e}")
 
+async def get_agent_metric(ip, id):
+    print(f"Agent {id}[{ip}]. Getting metrics")
+    
+    json_result = []
+    try:
+        conn = http.client.HTTPConnection(host=ip, port=8080,  timeout=1)
+        conn.request("GET", "/metrics")
+        
+        response = conn.getresponse()
+        data = response.read()
+        
+        try:
+            # Try to decode the response content
+            result = data.decode("utf-8")
+            json_result = json.loads(result)
+            print("Response received successfully:")
+            print(result)
+        except UnicodeDecodeError:
+            raise Exception("Failed to decode response content.")
+                
+    except http.client.HTTPException as e:
+        # Handle HTTP related errors
+        print(f"HTTP error occurred: {e}")
+    except (ConnectionError, TimeoutError) as e:
+        # Handle connection errors
+        print(f"Connection error occurred: {e}")
+    except Exception as e:
+        # General exception handler for other potential errors
+        print(f"An error occurred: {e}")
+    finally:
+        # Ensure the connection is closed
+        conn.close()
+    return json_result
 
+@app.get("/simulation-beta")
 @app.get("/simulation")
 async def get_simulation():
     secret_name="obs-demo-fw-state"
+    items = []
     try:
-        secret = v1.read_namespaced_secret(secret_name, get_current_namespace())
+        secret = core_v1_api.read_namespaced_secret(secret_name, get_current_namespace())
         if 'simulation' in secret.data:
             encoded_json_data = secret.data['simulation']
             decoded_json_data = base64.b64decode(encoded_json_data).decode('utf-8')
+            print(decoded_json_data)
             
             # Convert the decoded string back into a JSON object
-            json_data = json.loads(decoded_json_data)
-            return json_data
+            items = json.loads(decoded_json_data)
         else:
             print(f"Secret '{secret_name}' does not contain 'json-file' key.")
             return []
@@ -336,7 +640,14 @@ async def get_simulation():
         else:
             print(f"Failed to read Secret '{secret_name}': {e}")
         return []
-
+    for item in items:
+        if item['group'] != "nodes":
+            continue
+        ip = item['data']['ip']
+        id = item['data']["id"]
+        metrics = await get_agent_metric(ip, id)
+        item["metrics"] = metrics
+    return items
     
 @app.post("/kick")
 async def agent_kick(payload: dict[str, Any]):
@@ -374,31 +685,35 @@ async def agent_kick(payload: dict[str, Any]):
         conn.close()
     return True
 
-@app.post("/metrics")
-async def create_agent_metric(payload: dict[str, Any]):
+async def set_agent_metric(method: str, payload: dict[str, Any]):
     print(payload)
+    
+    full_path = ""
     try:
         agent_ip = payload['ip']
         agent_id = payload['id']
-        newMetricInfo = payload['newMetric']
+        metricInfo = payload['metric']
 
-        conn = http.client.HTTPSConnection(host=agent_ip, port=8080)
-
-        path = "/metrics/" + newMetricInfo['name']
+        path = "/metrics/" + metricInfo['name']
         params = {
-            "name": newMetricInfo['name'],
-            "value": newMetricInfo['value']
+            "name": metricInfo['name'],
+            "value": metricInfo['value']
         }
         
-        query_string = urllib.parse(params)
+        query_string = urllib.parse.urlencode(params)
 
-        full_path = f"{path}?{query_string}"
-
-        conn = http.client.HTTPConnection
+        full_path = f"{path}?{query_string}"        
+    except Exception as e:
+        # General exception handler for other potential errors
+        print(f"An error occurred: {e}")
         
-        print(f"Agent {agent_id}. Creating metric {newMetricInfo['name']}")
-        conn.request("POST", full_path)
-
+    print(f"Agent {agent_id}. Setting metric {metricInfo['name']}[{method}]")
+    
+    try:
+        conn = http.client.HTTPConnection(host=agent_ip, port=8080)
+        conn.request(method, full_path)
+        print(f"Requested: {method} {full_path}")
+        
         response = conn.getresponse()
         data = response.read()
 
@@ -423,4 +738,10 @@ async def create_agent_metric(payload: dict[str, Any]):
         # Ensure the connection is closed
         conn.close()
 
+@app.post("/metrics")
+async def create_agent_metric(payload: dict[str, Any]):
+    await set_agent_metric("POST", payload=payload)
 
+@app.patch("/metrics")
+async def modify_agent_metric(payload: dict[str, Any]):
+    await set_agent_metric("PATCH", payload=payload)

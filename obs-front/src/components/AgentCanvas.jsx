@@ -99,10 +99,10 @@ const AgentCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdated })
             "roteta",
             "koke",
             "weligton",
-            "santi-cazorla",
+            "santi-cazorla",            
             "nacho",
             "pablo-fornals",
-            "antonio-benitez",
+            "van-nistelrooy",
             "kiki-musampa",
             "fernando-hierro",
             "rufete",
@@ -170,7 +170,7 @@ const AgentCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdated })
             "fabrice-olinga",
             "charles",
             "sandro-bergara",
-            "diego-forlan",
+            "jeremy-toulalan",
             "pedro-c-camara",
             "ismael-gutierrez",
             "antonio-benitez",
@@ -268,7 +268,7 @@ const AgentCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdated })
         cy.on('tap', 'node', function (evt) {
             const clickedNode = evt.target;
             // Update the selected agent
-            onAgentSelect(clickedNode.data());
+            onAgentSelect(clickedNode.data());            
 
             if (lockedRef.current) {
                 return;

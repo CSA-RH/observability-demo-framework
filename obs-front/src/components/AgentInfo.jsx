@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import * as ApiHelper from '../ApiHelper.js'
 
 const AgentInfo = ({ agent, onAgentUpdated }) => {
 
@@ -7,10 +8,15 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
     const [error, setError] = useState("");
 
     useEffect(() => {
-        if (agent) {          
-          setMetrics(agent.metrics || []);
+        if (agent) {            
+            setMetrics(agent.metrics || []);
         }
-      }, [agent]); 
+        else {
+            setMetrics([])
+        }
+        
+
+    }, [agent]);
 
     const handleMetricChange = (index, field, value) => {
         const updatedMetrics = metrics.map((metric, i) =>
@@ -18,6 +24,30 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
         );
         setMetrics(updatedMetrics);
     };
+
+    async function setMetricInOpenShift(method, agent, metric) {
+        const payload = {
+            id: agent.data.id,
+            ip: agent.data.ip,
+            metric: metric
+        }
+        console.log(method);
+        console.log(payload);
+        console.log("-------")
+        try {
+            const response = await fetch(ApiHelper.getAgentsMetricsUrl(), {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+            const result = await response.json();
+            console.log(`Set metric ${metric.name} for the agent ${payload.id}`);
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
 
     const handleAddMetric = () => {
         // Validation: Name cannot be empty, must be unique, and value cannot be empty
@@ -37,9 +67,9 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
         // Clear error and add new metric
         setError("");
         setMetrics([...metrics, newMetric]);
-        console.log([...metrics, newMetric]);
         agent.metrics = [...metrics, newMetric];
         //POST TO THE AGENT WITH UPDATED VALUE. 
+        setMetricInOpenShift("POST", agent, newMetric)
         onAgentUpdated(agent)
         setNewMetric({ name: "", type: "gauge", value: "" });
     };
@@ -52,6 +82,7 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
         setError("");
         agent.metrics = metrics;
         //PATCH TO THE AGENT WITH THE NEW METRIC. 
+        setMetricInOpenShift("PATCH", agent, metrics[index])
         onAgentUpdated(agent)
         setMetrics(metrics);
     };
@@ -62,6 +93,7 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
             [e.target.name]: e.target.value,
         });
     };
+    console.log(agent);
 
     return (
         <div>
@@ -104,7 +136,7 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                                 </tr>
                             ))}
 
-                            {/* Row to add new metric */}
+                            
                             <tr>
                                 <td>
                                     <input

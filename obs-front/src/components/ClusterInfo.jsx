@@ -48,11 +48,14 @@ const ClusterInfo = ({ cluster }) => {
                 <div className="key">Cluster: </div><div className="value">{data.Name}</div>            
             </div>
             <div className="key-value-row">
-                <div className="key">Console </div><div className="value"><a href={data.ConsoleURL} target="_blank">Link</a></div>
+                <div className="key">Console (Logs): </div><div className="value"><a href={data.ConsoleURL} target="_blank">Link</a><a href={data.apiLogsURL} target="_blank">(Link)</a></div>
             </div>
             <div className="key-value-row">
                 <div className="key">Namespace: </div><div className="value">{data.Namespace}</div>
             </div>
+            
+                <div className="key">API Logs: </div><div className="value"></div>
+            
         </div>    
     );
 };
