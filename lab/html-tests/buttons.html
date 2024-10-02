@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Red Hat Style Buttons</title>
+  <link rel="stylesheet" href="buttons.css">
+</head>
+<body>
+
+  <!-- Primary Button -->
+  <button class="redhat-button" id="primary-button" onclick="toggleButton()">
+    Enable/Disable Feature
+  </button>
+
+  <!-- Disabled Button -->
+  <button class="redhat-button" id="disabled-button" disabled>
+    Disabled Button
+  </button>
+
+  <script>
+    // JavaScript to enable/disable button
+    function toggleButton() {
+      const button = document.getElementById("disabled-button");
+      button.disabled = !button.disabled;
+    }
+  </script>
+
+</body>
+</html>

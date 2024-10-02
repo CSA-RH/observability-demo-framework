@@ -1,0 +1,36 @@
+/* General Button Reset */
+button {
+    font-family: Arial, sans-serif;
+    border: none;
+    border-radius: 3px;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+  }
+  
+  /* Red Hat Style Button */
+  .redhat-button {
+    background-color: #ee0000; /* Red Hat Red */
+    color: white;
+    border: 1px solid #aa0000; /* Darker Red border */
+  }
+  
+  .redhat-button:hover {
+    background-color: #cc0000; /* Darker on hover */
+    border-color: #880000; /* Darker border on hover */
+  }
+  
+  /* Disabled Button Style */
+  .redhat-button:disabled {
+    background-color: #d3d3d3; /* Light gray for disabled */
+    color: #808080; /* Gray text for disabled */
+    border-color: #b0b0b0; /* Light gray border */
+    cursor: not-allowed; /* Not-allowed cursor for disabled buttons */
+  }
+  
+  /* Moderate Styling: Not too dominant */
+  .redhat-button {
+    font-size: 14px; /* Moderate font size */
+    padding: 8px 16px; /* Moderate padding */
+  }
+  

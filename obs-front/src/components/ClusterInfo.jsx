@@ -11,25 +11,27 @@ const ClusterInfo = ({ cluster }) => {
         const fetchData = async () => {
             var data = []
             try {
-              let headers = new Headers();
-              headers.append('Content-Type', 'application/json');
-              headers.append('Accept', 'application/json');
-              headers.append('Origin', 'http://localhost:3000');
-      
-              const response = await fetch(ApiHelper.getInfoUrl(), { headers: headers });
-              data = await response.json();
-              setData(data);
+                let headers = new Headers();
+                headers.append('Content-Type', 'application/json');
+                headers.append('Accept', 'application/json');
+                headers.append('Origin', 'http://localhost:3000');
+
+                const response = await fetch(ApiHelper.getInfoUrl(), { headers: headers });
+                data = await response.json();
+                setData(data);
             } catch (err) {
-              setError(err.message);
-              console.error('Error fetching data:', error);
+                setError(err.message);
+                console.error('Error fetching data:', error);
             } finally {
                 setLoading(false);
-            }           
+            }
+            ApiHelper.setGlobalRootConsole(data.ConsoleURL);
+            ApiHelper.setglobalCurrentNamespace(data.Namespace);
         };
 
-        fetchData();        
+        fetchData();
     }, []);
-    
+
     if (loading) {
         return <div>Loading...</div>
     }
@@ -38,25 +40,49 @@ const ClusterInfo = ({ cluster }) => {
         return <div> Error: {error} </div>
     }
 
-    if (!data.Connected){
+    if (!data.Connected) {
         return (<div>Cluster not connected</div>)
     }
-    
+
     return (
         <div className="key-value-container">            
-            <div className="key-value-row">
-                <div className="key">Cluster: </div><div className="value">{data.Name}</div>            
+            <div className="banner">
+                <div className="banner-info">
+                    <div className="cluster-info">
+                        <span className="info-title">Cluster:</span>
+                        <span className="info-value">{data.Name}</span>
+                    </div>
+                    <div className="namespace-info">
+                        <span className="info-title">Namespace:</span>
+                        <span className="info-value">{data.Namespace}</span>
+                    </div>
+                </div>
+
+                {/* -- Links Section --> */}
+                <div className="banner-links">
+                    <a href={data.ConsoleURL} className="link" target="_blank" rel="noopener noreferrer">Console</a> 
+                    <a href={data.apiLogsURL} className="link" target="_blank" rel="noopener noreferrer">API</a>
+                    <a href="https://tempo-sample-query-frontend-observability-demo.apps.zm1iwcvbvd702c1f99.germanywestcentral.aroapp.io" className="link" target="_blank" rel="noopener noreferrer">Jaeger</a>
+                </div>
+
+                {/*-- Toggle Buttons Section -- */}
+                <div className="banner-toggles">
+                    <label className="switch">
+                        <input type="checkbox" defaultChecked />
+                            <span className="slider"></span>
+                    </label>
+                    <span className="toggle-label">Auto-instrumentation</span>
+
+                    {/* <label className="switch">
+                        <input type="checkbox" />
+                            <span className="slider"></span>
+                    </label>
+                    <span className="toggle-label">Feature 2</span>*/}
+                </div>
             </div>
-            <div className="key-value-row">
-                <div className="key">Console (Logs): </div><div className="value"><a href={data.ConsoleURL} target="_blank">Link</a><a href={data.apiLogsURL} target="_blank">(Link)</a></div>
-            </div>
-            <div className="key-value-row">
-                <div className="key">Namespace: </div><div className="value">{data.Namespace}</div>
-            </div>
-            
-                <div className="key">API Logs: </div><div className="value"></div>
-            
-        </div>    
+
+
+        </div>
     );
 };
 

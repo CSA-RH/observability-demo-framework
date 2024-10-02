@@ -1,0 +1,50 @@
+/* General button styles */
+.button {
+    font-family: "Red Hat Text", sans-serif;
+    font-size: 14px;
+    padding: 6px 12px;
+    margin: 5px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+  }
+  
+  /* Button color schemes */
+  .update {
+    background-color: #d2e0e7;
+    color: #333;
+    border-color: #4a90e2;
+  }
+  
+  .update:hover {
+    background-color: #a0b7c7;
+  }
+  
+  .add {
+    background-color: #dfe8d6;
+    color: #333;
+    border-color: #8bc34a;
+  }
+  
+  .add:hover {
+    background-color: #b4c9a5;
+  }
+  
+  
+  /* Disabled state */
+  .button:disabled {
+    background-color: #e0e0e0; /* Light gray background */
+    color: #a0a0a0; /* Dimmed text color */
+    border-color: #b0b0b0; /* Subtle border color */
+    cursor: not-allowed; /* Change cursor to indicate non-interactivity */
+    opacity: 0.6; /* Slightly faded look */
+  }
+  
+  /* Styling for the container */
+  .button-group {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+  }
+  

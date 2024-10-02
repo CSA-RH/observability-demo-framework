@@ -345,7 +345,7 @@ const AgentCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdated })
     }, [locked, cytoscapeInstance])
 
 
-    return <div ref={cyRef} style={{ width: '600px', height: '400px', border: '1px solid black' }} />;
+    return <div ref={cyRef} style={{ width: '590px', height: '400px', border: '1px solid black', margin: '5px' }} />;
 };
 
 export default AgentCanvas;

@@ -8,7 +8,6 @@ import * as ApiHelper from './ApiHelper'
 
 import './App.css'
 
-
 function App() {
   const [selectedAgentData, setSelectedAgentData] = useState(null);
   const [simulation, setSimulation] = useState([]);
@@ -17,6 +16,7 @@ function App() {
 
   function handleCanvasChange(graphData) {
     // For propagating the canvas change to other components.
+    console.log("handleCanvasChange")
     setSimulation(graphData);
   }
 
@@ -40,10 +40,12 @@ function App() {
   }
 
   function handleSelectedAgent(agent) {
+    console.log("handleSelectedAgent")
     let agentData = null;
     if (agent) {
       agentData = simulationContext.current?.find(a => a.data.id === agent.id);
     }
+    console.log(agentData);
     setSelectedAgentData(agentData);
   }
 
@@ -54,7 +56,7 @@ function App() {
     const updatedSimulation = [...simulation];
 
     // If necessary, update the specific agent's data within the simulation array
-    const agentIndex = updatedSimulation.findIndex(a => a.data.id === agent.data.id);    
+    const agentIndex = updatedSimulation.findIndex(a => a.data.id === agent.data.id);
     if (agentIndex !== -1) {
       updatedSimulation[agentIndex] = { ...updatedSimulation[agentIndex], metrics: agent.metrics };
     }
@@ -83,8 +85,7 @@ function App() {
 
   return (
     <div className="App">
-      <h1>Opinionated OCP Observability Demo Framework</h1>
-      <h2>Cluster Info</h2>
+      <h1>Observability Demo Framework</h1>
       <ClusterInfo></ClusterInfo>
       <h2>Communications</h2>
       <AgentCanvas
@@ -97,12 +98,12 @@ function App() {
         onSimulationUpdated={handleSimulationChange}></SimulationManagement>
       {simulationContext.current != null && simulationContext.current.length > 0 && (
         <div>
+          <h2>Agents</h2>
+          <AgentList simulation={simulation} agent={selectedAgentData}></AgentList>
           <h2>Selected Agent</h2>
           <AgentInfo
             agent={selectedAgentData}
-            onAgentUpdated={handleAgentUpdated}></AgentInfo>
-          <h2>Agents</h2>
-          <AgentList simulation={simulation} agent={selectedAgentData}></AgentList>
+            onAgentUpdated={handleAgentUpdated}></AgentInfo>          
         </div>
       )}
     </div>

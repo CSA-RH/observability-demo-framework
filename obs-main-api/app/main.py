@@ -1,29 +1,24 @@
+from agent_manager.OpenShiftAgentManager import OpenShiftAgentManager
+from agent_manager.MockAgentManager import MockAgentManager
+from cluster_connector.OpenShiftClusterConnector import OpenShiftClusterConnector
+from cluster_connector.MockClusterConnector import MockClusterConnector
+
 from fastapi import FastAPI                        # type: ignore  
 from fastapi.middleware.cors import CORSMiddleware # type: ignore
+from typing import List, Dict, Any
+
 from kubernetes import client, config, watch       # type: ignore
 from kubernetes.client.rest import ApiException    # type: ignore
-import os
-from typing import List, Dict, Any
-import time
-import json
-import http.client
-import socket  
-import base64
-import urllib.parse
+
+import os, types, time, json, base64, socket, http.client
 
 app = FastAPI()
+
 #TODO: Improve security. CORS 
 origins = [
 #    "http://localhost:3000",
     "*"
 ]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 def get_current_namespace(context: str = None) -> str | None:
     ns_path = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
@@ -44,17 +39,56 @@ def load_kube_config():
     try:
         # Try to load the in-cluster configuration
         config.load_incluster_config()
-        print("Running in-cluster. Service account loaded.")
+        print("... Running in-cluster. Service account loaded.")
     except config.ConfigException:
         # Fallback to local kubeconfig if running outside the cluster
         config.load_kube_config()
-        print("Running out-of-cluster. Local kubeconfig loaded.")
+        print("... Running out-of-cluster. Local kubeconfig loaded.")
 
-# Initialize Kubernetes API clients
+def is_running_in_openshift():
+    # Check for Kubernetes environment variable
+    return 'KUBERNETES_SERVICE_HOST' in os.environ
+
+def is_using_fake_cluster_connector():
+    value = os.environ.get('CLUSTER_CONNECTOR')
+    if value is None:
+        return False
+    else:
+        return value == 'mock'
+    
+def is_using_fake_agent_manager():
+    value = os.environ.get('AGENT_MANAGER')
+    if value is None:
+        return False
+    else:
+        return value == 'mock'
+
+agent_manager = types.SimpleNamespace()
+cluster_connector = types.SimpleNamespace()
+
+if is_using_fake_cluster_connector():
+    cluster_connector = OpenShiftClusterConnector()
+else:
+    cluster_connector = MockClusterConnector()
+
+if is_using_fake_agent_manager():
+    agent_manager = MockAgentManager()
+else:
+    agent_manager = OpenShiftAgentManager()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# Initialize Kubernetes API clients TODO: Move to interface
 load_kube_config()
 core_v1_api = client.CoreV1Api()
 apps_v1_api = client.AppsV1Api()
 custom_v1_api = client.CustomObjectsApi()
+
 
 @app.get("/info")
 async def get_info():
@@ -203,7 +237,7 @@ def create_deployment(namespace, item):
         }
     }
 
-    response = apps_v1_api.create_namespaced_deployment(namespace=namespace, body=deployment_manifest)
+    response = apps_v1_api.create_namespaced_deployment(namespace=namespace, body=deployment_manifest)    
     return response
 
 # Function to create the service
@@ -328,7 +362,7 @@ def wait_for_deployment_ready(deployment_name, namespace, timeout=300, interval=
     return False
 
 @app.post("/simulation")
-async def create_simulation_beta(payload: List[Dict[str, Any]]):
+async def create_simulation(payload: List[Dict[str, Any]]):
     namespace = get_current_namespace()  # Assuming you have a function to get the current namespace
 
     # Create all deployment and services. 
@@ -350,6 +384,7 @@ async def create_simulation_beta(payload: List[Dict[str, Any]]):
 
     # Make sure that all pods have started before adding associations
     # Wait for the Service to be ready and get its IP
+    podNames = await get_agent_pods_dictionary()
     for item in payload:
         if item["group"] == "nodes":
             service_ip = wait_for_service_ready_and_get_ip(namespace, item["data"]["id"])
@@ -362,7 +397,9 @@ async def create_simulation_beta(payload: List[Dict[str, Any]]):
             
             # Wait for the Service to be ready and get its IP
             wait_for_deployment_ready(item['data']['id'], namespace)
-            
+            item["pod"] = podNames[item['data']['id']]
+
+    
     # Add assotiations. 
     for item in payload: 
         if item["group"] == "edges":
@@ -409,10 +446,9 @@ async def create_simulation_beta(payload: List[Dict[str, Any]]):
     # Show result
     print(payload)
     return payload
- 
 
 @app.delete("/simulation")
-async def delete_simulation_beta():
+async def delete_simulation():
     label_selector = "observability-demo-framework=agent"
 
     namespace = get_current_namespace()
@@ -458,43 +494,19 @@ async def delete_simulation_beta():
             print(f"Failed to delete Secret '{secret_name}': {e}")
     print("All matching resources deleted successfully.")
 
-
-async def get_agent_metric(ip, id):
-    print(f"Agent {id}[{ip}]. Getting metrics")
-    
-    json_result = []
-    try:
-        conn = http.client.HTTPConnection(host=ip, port=8080,  timeout=1)
-        conn.request("GET", "/metrics")
-        
-        response = conn.getresponse()
-        data = response.read()
-        
-        try:
-            # Try to decode the response content
-            result = data.decode("utf-8")
-            json_result = json.loads(result)
-            print("Response received successfully:")
-            print(result)
-        except UnicodeDecodeError:
-            raise Exception("Failed to decode response content.")
-                
-    except http.client.HTTPException as e:
-        # Handle HTTP related errors
-        print(f"HTTP error occurred: {e}")
-    except (ConnectionError, TimeoutError) as e:
-        # Handle connection errors
-        print(f"Connection error occurred: {e}")
-    except Exception as e:
-        # General exception handler for other potential errors
-        print(f"An error occurred: {e}")
-    finally:
-        # Ensure the connection is closed
-        conn.close()
-    return json_result
+#TODO: Error handling
+async def get_agent_pods_dictionary():
+    pods = core_v1_api.list_namespaced_pod(namespace=get_current_namespace(), label_selector='observability-demo-framework=agent')
+    pods_dict = {}
+    for item in pods.items:
+        name_parts = item.metadata.name.split("-")
+        deployment_name = "-".join(name_parts[:-2])
+        pods_dict[deployment_name]=item.metadata.name
+    return pods_dict
 
 @app.get("/simulation")
 async def get_simulation():
+    # Get the secret
     secret_name="obs-demo-fw-state"
     items = []
     try:
@@ -515,111 +527,30 @@ async def get_simulation():
         else:
             print(f"Failed to read Secret '{secret_name}': {e}")
         return []
+    # Update agent metrics and pod name
+    pods = await get_agent_pods_dictionary()
     for item in items:
         if item['group'] != "nodes":
             continue
         ip = item['data']['ip']
         id = item['data']["id"]
-        metrics = await get_agent_metric(ip, id)
+        metrics = agent_manager.get_agent_metrics(id)
+        print(f"Pod: {pods[id]}. Metrics: {metrics}")
+        item["pod"] = pods[id]
         item["metrics"] = metrics
     return items
-    
 
+#TODO: Error handling
 @app.post("/kick")
 async def agent_kick(payload: dict[str, Any]):
     print(payload)
-    agent_ip = payload['ip']
-    agent_id = payload['id']
-    kick_initial_count = payload['count']
-    agent_kick_payload = {
-        "count": kick_initial_count        
-    }
-    json_agent_kick_payload = json.dumps(agent_kick_payload)
-    try:
-        conn = http.client.HTTPConnection(agent_ip, 8080, timeout=2)
-        headers = {
-            'Content-Type': 'application/json'
-        }
-        # Make the POST request, attaching the JSON body
-        print(f"Agent {agent_id}[{agent_ip}] kicking (count={kick_initial_count})...")
-        conn.request("POST", "/kick", body=json_agent_kick_payload, headers=headers)
-        # Get the response
-        response = conn.getresponse()
-        data = response.read()
-
-        # Print the response data
-        print(data.decode("utf-8"))
-    except socket.timeout:
-        print("The request timed out.")
-
-    except Exception as e:
-        # Handle other possible exceptions
-        print(f"Request failed: {e}")
-
-    finally:
-        # Close the connection
-        conn.close()
-    return True
-
-
-async def set_agent_metric(method: str, payload: dict[str, Any]):
-    print(payload)
-    
-    full_path = ""
-    try:
-        agent_ip = payload['ip']
-        agent_id = payload['id']
-        metricInfo = payload['metric']
-
-        path = "/metrics/" + metricInfo['name']
-        params = {
-            "name": metricInfo['name'],
-            "value": metricInfo['value']
-        }
-        
-        query_string = urllib.parse.urlencode(params)
-
-        full_path = f"{path}?{query_string}"        
-    except Exception as e:
-        # General exception handler for other potential errors
-        print(f"An error occurred: {e}")
-        
-    print(f"Agent {agent_id}. Setting metric {metricInfo['name']}[{method}]")
-    
-    try:
-        conn = http.client.HTTPConnection(host=agent_ip, port=8080)
-        conn.request(method, full_path)
-        print(f"Requested: {method} {full_path}")
-        
-        response = conn.getresponse()
-        data = response.read()
-
-        try:
-            # Try to decode the response content
-            result = data.decode("utf-8")
-            print("Response received successfully:")
-            print(result)
-        except UnicodeDecodeError:
-            raise Exception("Failed to decode response content.")
-                
-    except http.client.HTTPException as e:
-        # Handle HTTP related errors
-        print(f"HTTP error occurred: {e}")
-    except (ConnectionError, TimeoutError) as e:
-        # Handle connection errors
-        print(f"Connection error occurred: {e}")
-    except Exception as e:
-        # General exception handler for other potential errors
-        print(f"An error occurred: {e}")
-    finally:
-        # Ensure the connection is closed
-        conn.close()
+    return agent_manager.kick(payload)
 
 @app.post("/metrics")
 async def create_agent_metric(payload: dict[str, Any]):
-    await set_agent_metric("POST", payload=payload)
+    await agent_manager.set_agent_metrics("POST", payload=payload)
 
 
 @app.patch("/metrics")
 async def modify_agent_metric(payload: dict[str, Any]):
-    await set_agent_metric("PATCH", payload=payload)
+    await agent_manager.set_agent_metrics("PATCH", payload=payload)

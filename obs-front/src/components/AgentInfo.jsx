@@ -8,13 +8,13 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
     const [error, setError] = useState("");
 
     useEffect(() => {
-        if (agent) {            
+        if (agent) {
             setMetrics(agent.metrics || []);
         }
         else {
             setMetrics([])
         }
-        
+
 
     }, [agent]);
 
@@ -93,78 +93,93 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
             [e.target.name]: e.target.value,
         });
     };
-    console.log(agent);
+
+    //console.log(agent)
+    console.log(metrics)
 
     return (
-        <div>
+        <div className='container-agent'>
             {agent && agent?.data ? (
                 <div>
                     <h3>{agent.data.id}</h3>
-                    <p>IP: {agent.data.ip}</p>
+                    <div className="key-value-pair">
+                        <span className="key">IP:</span>
+                        <span className="value">{agent.data.ip}</span>
+                    </div>
+                    <div className="key-value-pair">
+                        <span className="key">Pod:</span>
+                        <span className="value"><a href={ApiHelper.globalRootConsole + '/k8s/ns/' + ApiHelper.globalCurrentNamespace + '/pods/' + agent.pod} target="_blank" rel="noopener noreferrer">{agent.pod}</a></span>
+                    </div>
+                    <div style={{ padding: '15px' }}>
 
-                    <h4>Metrics</h4>
-                    {error && <p style={{ color: "red" }}>{error}</p>} {/* Show error message if any */}
+                        <h4>Metrics</h4>
+                        {error && <p style={{ color: "red" }}>{error}</p>} {/* Show error message if any */}
+                        <div style={{ justifyContent: 'center', display: 'flex' }}>
+                            <table style={{ width: '370px', border: '0px' }}>
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Type</th>
+                                        <th>Value</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {metrics.map((metric, index) => (
+                                        <tr key={index}>
+                                            <td>
+                                                <span key={index} className="label">{metric.name}</span>
+                                            </td>
+                                            <td>
+                                                <span key={index} className="label">{metric.type || "gauge"}</span> {/* TODO: Gnapa fix */}
 
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Type</th>
-                                <th>Value</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {metrics.map((metric, index) => (
-                                <tr key={index}>
-                                    <td>
-                                        {metric.name}
-                                    </td>
-                                    <td>
-                                        {metric.type}
-                                    </td>
-                                    <td>
-                                        <input
-                                            type="text"
-                                            value={metric.value}
-                                            onChange={(e) => handleMetricChange(index, "value", e.target.value)}
-                                        />
-                                    </td>
-                                    <td>
-                                        <button onClick={() => handleUpdateMetric(index)}>Update</button>
-                                    </td>
-                                </tr>
-                            ))}
+                                            </td>
+                                            <td>
+                                                <input
+                                                    type="text"
+                                                    value={metric.value}
+                                                    onChange={(e) => handleMetricChange(index, "value", e.target.value)}
+                                                    style={{ width: "75px", textAlign: 'center' }}
+                                                />
+                                            </td>
+                                            <td>
+                                                <button className="agent-button" onClick={() => handleUpdateMetric(index)}>Update</button>
+                                            </td>
+                                        </tr>
+                                    ))}
 
-                            
-                            <tr>
-                                <td>
-                                    <input
-                                        type="text"
-                                        name="name"
-                                        value={newMetric.name}
-                                        onChange={handleInputChange}
-                                        placeholder="Metric Name"
-                                    />
-                                </td>
-                                <td>
-                                    {newMetric.type}
-                                </td>
-                                <td>
-                                    <input
-                                        type="text"
-                                        name="value"
-                                        value={newMetric.value}
-                                        onChange={handleInputChange}
-                                        placeholder="Value"
-                                    />
-                                </td>
-                                <td>
-                                    <button onClick={handleAddMetric}>Add Metric</button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                    <tr>
+                                        <td>
+                                            <input
+                                                type="text"
+                                                name="name"
+                                                value={newMetric.name}
+                                                onChange={handleInputChange}
+                                                placeholder="Metric Name"
+                                                style={{ width: "120px", textAlign: 'center', margin: '5px' }}
+                                            />
+                                        </td>
+                                        <td>
+                                            <span className="label">{newMetric.type}</span>
+                                        </td>
+                                        <td>
+                                            <input
+                                                type="text"
+                                                name="value"
+                                                value={newMetric.value}
+                                                onChange={handleInputChange}
+                                                placeholder="Value"
+                                                style={{ width: "75px", textAlign: 'center' }}
+                                            />
+                                        </td>
+                                        <td>
+                                            <button className="agent-button" onClick={handleAddMetric}>Add Metric</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
             ) : (
