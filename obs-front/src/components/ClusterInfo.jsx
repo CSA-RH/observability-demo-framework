@@ -62,7 +62,7 @@ const ClusterInfo = ({ cluster }) => {
                 <div className="banner-links">
                     <a href={data.ConsoleURL} className="link" target="_blank" rel="noopener noreferrer">Console</a> 
                     <a href={data.apiLogsURL} className="link" target="_blank" rel="noopener noreferrer">API</a>
-                    <a href="https://tempo-sample-query-frontend-observability-demo.apps.zm1iwcvbvd702c1f99.germanywestcentral.aroapp.io" className="link" target="_blank" rel="noopener noreferrer">Jaeger</a>
+                    <a href={data.JaegerUI} className="link" target="_blank" rel="noopener noreferrer">Jaeger</a>
                 </div>
 
                 {/*-- Toggle Buttons Section -- */}

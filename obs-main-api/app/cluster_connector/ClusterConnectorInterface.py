@@ -1,16 +1,24 @@
 from abc import ABC, abstractmethod
-from typing import Dict
+from typing import Dict, List, Any
 
-class ClusterConnectorInterface(ABC): 
+class ClusterConnectorInterface(ABC):    
+    
+    @abstractmethod
+    def get_cluster_info(self) -> Dict[str, str]: 
+        pass 
 
     @abstractmethod
-    def load_kube_config(self):
+    async def create_simulation_resources(self, payload: List[Dict[str, Any]]):
+        pass 
+
+    @abstractmethod
+    def save_simulation(self, json_simulation):
         pass
 
     @abstractmethod
-    def get_current_namespace(self) -> str: 
+    def retrieve_simulation(self):
         pass
 
     @abstractmethod
-    def get_console_info(self) -> Dict[str, str]:
+    async def delete_simulation(self):
         pass

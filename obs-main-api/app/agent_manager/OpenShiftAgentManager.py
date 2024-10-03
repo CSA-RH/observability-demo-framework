@@ -134,3 +134,36 @@ class OpenShiftAgentManager(AgentManagerInterface):
             # Close the connection
             conn.close()
         return True
+    
+    def set_agent_communication_path(self, sourceAgent, targetAgent):
+        targetName = targetAgent['data']['id']
+        print(f"Calling POST http://{sourceAgent['data']['id']}:8080/agents/{targetName}")
+        print(targetAgent)
+        next_hop_address = {
+            "ip": targetAgent["data"]["id"],
+            "port": 8080
+        }
+        json_next_hop_address = json.dumps(next_hop_address)
+        try:
+            conn = http.client.HTTPConnection(sourceAgent['data']['id'], 8080, timeout=2)
+            headers = {
+                'Content-Type': 'application/json'
+            }
+            # Make the POST request, attaching the JSON body
+            conn.request("POST", "/agents/" + targetName, body=json_next_hop_address, headers=headers)
+            # Get the response
+            response = conn.getresponse()
+            data = response.read()
+
+            # Print the response data
+            print(data.decode("utf-8"))
+        except socket.timeout:
+            print("The request timed out.")
+
+        except Exception as e:
+            # Handle other possible exceptions
+            print(f"Request failed: {e}")
+
+        finally:
+            # Close the connection
+            conn.close()

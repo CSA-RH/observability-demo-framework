@@ -14,3 +14,7 @@ class AgentManagerInterface(ABC):
     @abstractmethod
     def kick(self, payload: dict[str, Any]):
         pass
+
+    @abstractmethod
+    def set_agent_communication_path(self, sourceAgent, targetAgent):
+        pass

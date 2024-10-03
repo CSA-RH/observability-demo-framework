@@ -60,4 +60,9 @@ class MockAgentManager(AgentManagerInterface):
         print("Kick")
         print(payload)
         print("-------")
-        
+    
+    def set_agent_communication_path(self, sourceAgent, targetAgent):
+        print(f"Source: {sourceAgent}")
+        print(f"Target: {targetAgent}")
+        print("-------")
+        return  
