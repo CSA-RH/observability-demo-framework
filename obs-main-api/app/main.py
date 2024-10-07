@@ -3,8 +3,9 @@ from agent_manager.MockAgentManager              import MockAgentManager
 from cluster_connector.OpenShiftClusterConnector import OpenShiftClusterConnector
 from cluster_connector.MockClusterConnector      import MockClusterConnector
 
-from fastapi import FastAPI                        # type: ignore  
-from fastapi.middleware.cors import CORSMiddleware # type: ignore
+from fastapi import FastAPI, HTTPException, Request     # type: ignore
+from fastapi.responses import JSONResponse              # type: ignore
+from fastapi.middleware.cors import CORSMiddleware      # type: ignore
 from typing import List, Dict, Any
 
 import os, types
@@ -38,7 +39,7 @@ app.add_middleware(
 )
 
 if is_using_fake_cluster_connector():
-    cluster_connector = MockClusterConnector()    
+    cluster_connector = MockClusterConnector()
 else:
     cluster_connector = OpenShiftClusterConnector()    
 
@@ -46,6 +47,16 @@ if is_using_fake_agent_manager():
     agent_manager = MockAgentManager()
 else:
     agent_manager = OpenShiftAgentManager()
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    print(f"Handling exception for request: {request} ")
+    return JSONResponse(status_code=500, content={"message": "Internal server error", "details": str(exc)})
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    print(f"Handling HTTP exception for request: {request} ")
+    return JSONResponse(status_code=exc.status_code, content={"message": exc.detail})
 
 #TODO: Error handling
 @app.get("/info")
@@ -68,7 +79,10 @@ def add_next_hop_to_agent(name, agent):
 @app.post("/simulation")
 async def create_simulation(payload: List[Dict[str, Any]]):
     # Create resources in cluster
-    json_simulation = await cluster_connector.create_simulation_resources(payload)
+    try:
+        json_simulation = await cluster_connector.create_simulation_resources(payload)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=e.args)
 
     # Set agent communication paths
     # Add assotiations.         

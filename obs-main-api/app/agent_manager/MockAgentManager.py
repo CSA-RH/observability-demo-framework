@@ -7,6 +7,7 @@ class MockAgentManager(AgentManagerInterface):
     def __init__(self):
         print("... Starting Mock Agent Manager")
         self.agent_metrics = {}
+        self.agent_next_hops = {}
 
     def get_agent_metrics(self, id):
         if id in self.agent_metrics: 
@@ -61,8 +62,15 @@ class MockAgentManager(AgentManagerInterface):
         print(payload)
         print("-------")
     
-    def set_agent_communication_path(self, sourceAgent, targetAgent):
-        print(f"Source: {sourceAgent}")
-        print(f"Target: {targetAgent}")
+    def set_agent_communication_path(self, source_agent, target_agent):
+        print(f"Source: {source_agent}")
+        print(f"Target: {target_agent}")
         print("-------")
+        source_name = source_agent["data"]["id"]
+        target_name = target_agent["data"]["id"]
+        # Create source entry if not created
+        if source_name not in self.agent_next_hops:
+            self.agent_next_hops[source_name] = []
+        # Add target agent to next hops
+        self.agent_next_hops[source_name].append(target_name) 
         return  

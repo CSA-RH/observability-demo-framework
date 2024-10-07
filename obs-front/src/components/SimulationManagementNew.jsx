@@ -7,19 +7,19 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const showError = (text) => {
     toast.error(text, {
-      position: "top-right",
-      autoClose: 3000,
-      hideProgressBar: false,
-      closeOnClick: true,
-      width: 600,
-      pauseOnHover: true,
-      draggable: true,
-      progress: undefined,
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        width: 600,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
     });
 }
 
 
-const SimulationManagement = ({ simulation, onSimulationUpdated }) => {
+const SimulationManagementNew = ({ simulation, onSimulationCreated, onSimulationReset }) => {
     const [isCreateDisabled, setIsCreateDisabled] = useState(true);
     const [isResetDisabled, setIsResetDisabled] = useState(true);
     const [loading, setLoading] = useState(false);
@@ -42,7 +42,7 @@ const SimulationManagement = ({ simulation, onSimulationUpdated }) => {
             });
 
             const result = await response.json();
-            onSimulationUpdated(result, "CREATE");
+            onSimulationCreated(result);
             console.log('Success:', result);
         } catch (error) {
             //console.error('Error:', error);
@@ -65,7 +65,7 @@ const SimulationManagement = ({ simulation, onSimulationUpdated }) => {
 
             const result = await response.json();
             console.log('Simulation reset', result);
-            onSimulationUpdated([], "RESET");
+            onSimulationReset([]);
         } catch (error) {
             console.error('Error:', error);
         } finally {
@@ -137,4 +137,4 @@ styleSheet.insertRule(`
   `, styleSheet.cssRules.length);
 
 
-export default SimulationManagement;
+export default SimulationManagementNew;

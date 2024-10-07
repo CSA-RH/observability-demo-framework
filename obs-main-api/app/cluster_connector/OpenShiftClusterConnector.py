@@ -20,7 +20,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         
         self.__core_v1_api = client.CoreV1Api()
         self.__apps_v1_api = client.AppsV1Api()
-        self.__custom_v1_api = client.CustomObjectsApi()
+        self.__custom_v1_api = client.CustomObjectsApi()        
     
     def __get_current_namespace(self, context: str = None) -> str | None:
         ns_path = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
@@ -71,11 +71,11 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         return None, None
 
     def get_cluster_info(self) -> Dict[str, str]: 
-        # Get current namespace
+        # Get current namespace        
         current_namespace = self.__get_current_namespace()
 
         # Get cluster name and console link
-        try:
+        try:            
             # OpenShift API group, version, and resource to retrieve the Console
             group = "config.openshift.io"
             version = "v1"
@@ -158,8 +158,14 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             }
         }
 
-        response = self.__apps_v1_api.create_namespaced_deployment(namespace=namespace, body=deployment_manifest)    
-        return response
+        deployment_name = "." 
+        try:
+            deployment_name = item["data"]["id"]
+            self.__apps_v1_api.create_namespaced_deployment(namespace=namespace, body=deployment_manifest)
+            print(f"Deployment {deployment_name} successfully created.")
+        except Exception as e: 
+            print(f"")
+            raise        
     
     def __create_service(self, namespace, item):
         service_manifest = {
@@ -190,15 +196,25 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 }]
             }
         }
-
-        response = self.__core_v1_api.create_namespaced_service(namespace=namespace, body=service_manifest)
-        return response
+        service_name = "."
+        try:
+            service_name = item["data"]["id"]
+            self.__core_v1_api.create_namespaced_service(namespace=namespace, body=service_manifest)
+            print(f"Service {service_name} created successfully.")
+        except Exception as e: 
+            print(f"Error creating Service {service_name}. Exception: ")            
+            print(e)
+            print("-------")
+            raise
         
-    #TODO: Error handling
     async def __get_agent_pods_dictionary(self):
-        pods = self.__core_v1_api.list_namespaced_pod(
-            namespace = self.__get_current_namespace(), 
-            label_selector = 'observability-demo-framework=agent')
+        try:        
+            pods = self.__core_v1_api.list_namespaced_pod(
+                namespace = self.__get_current_namespace(), 
+                label_selector = 'observability-demo-framework=agent')
+        except Exception as e: 
+            print(f"Exception when retrieving pods: {e}")
+            raise
         
         pods_dict = {}
         for item in pods.items:
@@ -228,14 +244,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 if time.time() - start_time > timeout:
                     print(f"Timeout waiting for Service {service_name} to be ready.")
                     w.stop()
-                    return None
 
         except ApiException as e:
             print(f"Exception when waiting for Service: {e}")
-            return None
-        
-        return None
+            raise
 
+        return None
+        
     def __wait_for_deployment_ready(self, deployment_name, namespace, timeout=300, interval=5):
         start_time = time.time()
 
@@ -285,7 +300,10 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 ]
             }
         }
+        
+        service_monitor_name = "."
         try:
+            service_monitor_name = item["data"]["id"]
             self.__custom_v1_api.create_namespaced_custom_object(
                 group="monitoring.coreos.com",
                 version="v1",
@@ -293,9 +311,12 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 plural="servicemonitors",
                 body=service_monitor_body
             )
-            print("ServiceMonitor created successfully.")
+            print(f"ServiceMonitor {service_monitor_name} created successfully.")
         except client.exceptions.ApiException as e:
-            print(f"Exception when creating ServiceMonitor: {e}")
+            print(f"Exception when creating ServiceMonitor {service_monitor_name}")
+            print(e)
+            print("--------")
+            raise
        
     def save_simulation(self, json_data):
         # Encode to base64
@@ -310,13 +331,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(f"Simulation saved successfully in the cluster as secret obs-demo-fw-state.")
         except client.ApiException as e:
             print(f"Exception when saving simulation as a secret[obs-demo-fw-state]: {e}")
-
-    #TODO: Error handling
-    async def create_simulation_resources(self, payload: List[Dict[str, Any]]):
+            raise
+    
+    async def create_simulation_resources(self, graphData: List[Dict[str, Any]]):
         namespace = self.__get_current_namespace()  # Assuming you have a function to get the current namespace
 
         # Create all deployment and services. 
-        for item in payload:
+        for item in graphData:
             if item["group"] == "nodes":
                 print(f'Agent: {item["data"]["id"]}')
                 
@@ -335,7 +356,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         # Make sure that all pods have started before adding associations
         # Wait for the Service to be ready and get its IP
         podNames = self.__get_agent_pods_dictionary()
-        for item in payload:
+        for item in graphData:
             if item["group"] == "nodes":
                 service_ip = self.__wait_for_service_ready_and_get_ip(namespace, item["data"]["id"])
                 if service_ip:
@@ -350,15 +371,19 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 item["pod"] = podNames[item['data']['id']]            
         
         # Show result
-        print(payload)
-        return payload
+        print(graphData)
+        return graphData
     
-    #TODO: Error handling
     def __get_agent_pods_dictionary(self):
-        pods = self.__core_v1_api.list_namespaced_pod(
-            namespace=self.__get_current_namespace(), 
-            label_selector='observability-demo-framework=agent')
-        pods_dict = {}
+        try:
+            pods = self.__core_v1_api.list_namespaced_pod(
+                namespace=self.__get_current_namespace(), 
+                label_selector='observability-demo-framework=agent')
+            pods_dict = {}
+        except Exception as e:             
+            print(f"Error retrieving pods: {e}")
+            raise
+
         for item in pods.items:
             name_parts = item.metadata.name.split("-")
             deployment_name = "-".join(name_parts[:-2])
@@ -379,13 +404,17 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 # Convert the decoded string back into a JSON object
                 items = json.loads(decoded_json_data)
             else:
-                print(f"Secret '{secret_name}' does not contain 'json-file' key.")
-                return []
+                message = f"Secret '{secret_name}' does not contain 'json-file' key."
+                print(message)
+                raise RuntimeError(message)
+                
         except client.exceptions.ApiException as e:
             if e.status == 404:
                 print(f"Secret '{secret_name}' not found in namespace '{self.__get_current_namespace()}'.")
             else:
-                print(f"Failed to read Secret '{secret_name}': {e}")
+                message = f"Failed to read Secret '{secret_name}': {e}"
+                print(message)
+                raise RuntimeError(message)
             return []
         # Update agent pod name
         pods = self.__get_agent_pods_dictionary()
@@ -439,5 +468,6 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             if e.status == 404:
                 print(f"Secret '{secret_name}' not found in namespace '{self.__get_current_namespace()}'.")
             else:
-                print(f"Failed to delete Secret '{secret_name}': {e}")
+                print(f"Failed to delete Secret '{secret_name}': {e}")            
+            raise 
         print("All matching resources deleted successfully.")

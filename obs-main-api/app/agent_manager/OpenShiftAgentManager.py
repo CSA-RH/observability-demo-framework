@@ -10,8 +10,7 @@ class OpenShiftAgentManager(AgentManagerInterface):
 
     def __init__(self):
         print("... Starting OpenShift Agent Manager")
-
-    #TODO Error handling
+    
     def get_agent_metrics(self, id):
         print(f"Agent {id}. Getting metrics")
         
@@ -34,18 +33,20 @@ class OpenShiftAgentManager(AgentManagerInterface):
         except http.client.HTTPException as e:
             # Handle HTTP related errors
             print(f"HTTP error occurred: {e}")
+            raise
         except (ConnectionError, TimeoutError) as e:
             # Handle connection errors
             print(f"Connection error occurred: {e}")
+            raise
         except Exception as e:
             # General exception handler for other potential errors
             print(f"An error occurred: {e}")
+            raise
         finally:
             # Ensure the connection is closed
             conn.close()
         return json_result
-    
-    #TODO Add error handling
+
     async def set_agent_metrics(self, method: str, payload: dict[str, Any]):
         print("set_agent_metric")
         print(payload)
@@ -69,6 +70,7 @@ class OpenShiftAgentManager(AgentManagerInterface):
         except Exception as e:
             # General exception handler for other potential errors
             print(f"An error occurred: {e}")
+            raise
             
         print(f"Agent {agent_id}. Setting metric {metricInfo['name']}[{method}]")
         
@@ -91,12 +93,15 @@ class OpenShiftAgentManager(AgentManagerInterface):
         except http.client.HTTPException as e:
             # Handle HTTP related errors
             print(f"HTTP error occurred: {e}")
+            raise
         except (ConnectionError, TimeoutError) as e:
             # Handle connection errors
             print(f"Connection error occurred: {e}")
+            raise
         except Exception as e:
             # General exception handler for other potential errors
             print(f"An error occurred: {e}")
+            raise
         finally:
             # Ensure the connection is closed
             conn.close()
@@ -125,10 +130,12 @@ class OpenShiftAgentManager(AgentManagerInterface):
             print(data.decode("utf-8"))
         except socket.timeout:
             print("The request timed out.")
+            raise
 
         except Exception as e:
             # Handle other possible exceptions
             print(f"Request failed: {e}")
+            raise
 
         finally:
             # Close the connection
@@ -159,10 +166,12 @@ class OpenShiftAgentManager(AgentManagerInterface):
             print(data.decode("utf-8"))
         except socket.timeout:
             print("The request timed out.")
+            raise
 
         except Exception as e:
             # Handle other possible exceptions
             print(f"Request failed: {e}")
+            raise
 
         finally:
             # Close the connection

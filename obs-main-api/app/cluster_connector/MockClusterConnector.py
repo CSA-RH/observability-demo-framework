@@ -5,6 +5,9 @@ import secrets, os, json
 
 class MockClusterConnector(ClusterConnectorInterface):
     
+    def __init__(self): 
+        print("... Starting Mock Cluster connector.")
+
     def get_cluster_info(self) -> Dict[str, str]:
         return {
             "Connected": True,
@@ -75,6 +78,9 @@ class MockClusterConnector(ClusterConnectorInterface):
     def retrieve_simulation(self):
         print("retrieve simulation")
         json_data = self.__load_json_from_file()
+
+        if not json_data:
+            return []
         # Add pod name
         for item in json_data:
             if item['group'] != 'nodes':

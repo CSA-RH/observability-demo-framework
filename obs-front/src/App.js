@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Banner from './components/Banner'
 import AgentList from './components/AgentList';
 import SimulationManagement from './components/SimulationManagement'
 import ClusterInfo from './components/ClusterInfo';
-import AgentCanvas from './components/AgentCanvas';
+import SimulationCanvas from './components/SimulationCanvas';
 import AgentInfo from './components/AgentInfo';
 import * as ApiHelper from './ApiHelper'
+import { SimulationProvider } from './components/SimulationContext';
+import Simulation from './components/Simulation';
 
 import './App.css'
 
@@ -13,6 +16,8 @@ function App() {
   const [simulation, setSimulation] = useState([]);
   const [canvasLocked, setCanvasLocked] = useState(false);
   const simulationContext = useRef([]);
+
+  const [simulationStatus, setSimulationStatus] = useState(null)
 
   function handleCanvasChange(graphData) {
     // For propagating the canvas change to other components.
@@ -84,15 +89,15 @@ function App() {
   }, []); // Empty dependency array to run once on component mount
 
   return (
-    <div className="App">
-      <h1>Observability Demo Framework</h1>
-      <ClusterInfo></ClusterInfo>
-      <h2>Communications</h2>
-      <AgentCanvas
+    <SimulationProvider className="App">
+      <Banner title="Observability Demo Framework" />
+      <ClusterInfo />
+      <Simulation onAgentSelected={()=>{}}/>
+      <SimulationCanvas
         onAgentSelect={handleSelectedAgent}
         locked={canvasLocked}
         simulation={simulation}
-        onSimulationUpdated={handleCanvasChange}></AgentCanvas>
+        onSimulationUpdated={handleCanvasChange}></SimulationCanvas>
       <SimulationManagement
         simulation={simulation}
         onSimulationUpdated={handleSimulationChange}></SimulationManagement>
@@ -103,10 +108,10 @@ function App() {
           <h2>Selected Agent</h2>
           <AgentInfo
             agent={selectedAgentData}
-            onAgentUpdated={handleAgentUpdated}></AgentInfo>          
+            onAgentUpdated={handleAgentUpdated}></AgentInfo>
         </div>
       )}
-    </div>
+    </SimulationProvider>
   );
 }
 

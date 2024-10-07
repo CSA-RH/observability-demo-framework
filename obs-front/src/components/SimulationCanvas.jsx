@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import cytoscape from 'cytoscape';
 
-const AgentCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdated }) => {
-    const cyRef = useRef(null);
+const SimulationCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdated }) => {
+    const cytoscapeContainerRef = useRef(null);
     const [cytoscapeInstance, setCytoscapeInstance] = useState(null);
     // Create a ref to track the latest value of locked
     const lockedRef = useRef(locked);
@@ -10,12 +10,11 @@ const AgentCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdated })
     useEffect(() => {
         // Initialize Cytoscape instance when the component mounts
         const cy = cytoscape({
-            container: cyRef.current, // Reference to the DOM element
+            container: cytoscapeContainerRef.current, 
             style: [
                 {
                     selector: 'node',
-                    style: {
-                        //shape: 'hexagon',
+                    style: {                        
                         'background-color': 'red',
                         label: 'data(id)'
                     }
@@ -329,7 +328,7 @@ const AgentCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdated })
                 }
             });
         }
-    }, [simulation, cytoscapeInstance]);  // Run whenever `simulation` or `cytoscapeInstance` changes
+    }, [simulation, cytoscapeInstance]);  // Run whenever `simulation` or `cytoscapeInstance` changes    
 
     useEffect(() => {
         lockedRef.current = locked;
@@ -345,7 +344,7 @@ const AgentCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdated })
     }, [locked, cytoscapeInstance])
 
 
-    return <div ref={cyRef} style={{ width: '590px', height: '400px', border: '1px solid black', margin: '5px' }} />;
+    return <div ref={cytoscapeContainerRef} style={{ width: '590px', height: '400px', border: '1px solid black', margin: '5px' }} />;
 };
 
-export default AgentCanvas;
+export default SimulationCanvas;
