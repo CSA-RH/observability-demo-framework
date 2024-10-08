@@ -64,7 +64,7 @@ class MockClusterConnector(ClusterConnectorInterface):
             return payload
         except FileNotFoundError:
             print(f"File {file_path} not found.")
-            return None
+            return []
         except json.JSONDecodeError as e:
             print(f"Error decoding JSON from {file_path}: {str(e)}")
             return None
