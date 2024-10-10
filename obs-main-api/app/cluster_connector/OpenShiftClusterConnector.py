@@ -114,9 +114,9 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             'apiVersion': 'apps/v1',
             'kind': 'Deployment',
             'metadata': {
-                'name': item["data"]["id"], 
+                'name': item["id"], 
                 'labels': {
-                    "app": item["data"]["id"], 
+                    "app": item["id"], 
                     'observability-demo-framework': 'agent'
                 }
             },
@@ -124,13 +124,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 'replicas': 1,
                 'selector': {
                     'matchLabels': {
-                        'app': item["data"]["id"]
+                        'app': item["id"]
                     }
                 },
                 'template': {
                     'metadata': {
                         'labels': {
-                            'app': item["data"]["id"], 
+                            'app': item["id"], 
                             'observability-demo-framework': 'agent'                    
                         }, 
                         'annotations': {
@@ -160,7 +160,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
 
         deployment_name = "." 
         try:
-            deployment_name = item["data"]["id"]
+            deployment_name = item["id"]
             self.__apps_v1_api.create_namespaced_deployment(namespace=namespace, body=deployment_manifest)
             print(f"Deployment {deployment_name} successfully created.")
         except Exception as e: 
@@ -172,15 +172,15 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             'apiVersion': 'v1',
             'kind': 'Service',
             'metadata': {
-                'name': item["data"]["id"],
+                'name': item["id"],
                 'labels': {
-                    "app": item["data"]["id"], 
+                    "app": item["id"], 
                     'observability-demo-framework': 'agent'
                 }
             },
             'spec': {
                 'selector': {
-                    'app': item["data"]["id"]
+                    'app': item["id"]
                 },
                 'ports': [{
                     'protocol': 'TCP',
@@ -198,7 +198,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         }
         service_name = "."
         try:
-            service_name = item["data"]["id"]
+            service_name = item["id"]
             self.__core_v1_api.create_namespaced_service(namespace=namespace, body=service_manifest)
             print(f"Service {service_name} created successfully.")
         except Exception as e: 
@@ -280,16 +280,16 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             "apiVersion": "monitoring.coreos.com/v1",
             "kind": "ServiceMonitor",
             "metadata": {
-                "name": item["data"]["id"],
+                "name": item["id"],
                 "labels": {
-                    "app": item["data"]["id"],
+                    "app": item["id"],
                     'observability-demo-framework': 'agent'
                 }
             },
             "spec": {
                 "selector": {
                     "matchLabels": {
-                        "app": item["data"]["id"]
+                        "app": item["id"]
                     }
                 },
                 "endpoints": [
@@ -303,7 +303,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         
         service_monitor_name = "."
         try:
-            service_monitor_name = item["data"]["id"]
+            service_monitor_name = item["id"]
             self.__custom_v1_api.create_namespaced_custom_object(
                 group="monitoring.coreos.com",
                 version="v1",
@@ -333,46 +333,45 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(f"Exception when saving simulation as a secret[obs-demo-fw-state]: {e}")
             raise
     
-    async def create_simulation_resources(self, graphData: List[Dict[str, Any]]):
+    async def create_simulation_resources(self, agents: List[Dict[str, Any]]):
         namespace = self.__get_current_namespace()  # Assuming you have a function to get the current namespace
 
         # Create all deployment and services. 
-        for item in graphData:
-            if item["group"] == "nodes":
-                print(f'Agent: {item["data"]["id"]}')
+        for item in agents:
+            
+            print(f'Agent: {item["id"]}')
                 
-                # Create Deployment
-                self.__create_deployment(namespace, item)
-                print(f"Deployment for {item['data']['id']} created.")
-                
-                # Create Service
-                self.__create_service(namespace, item)
-                print(f"Service for {item['data']['id']} created.")
-                
-                # Create service monitor
-                self.__create_service_monitor(namespace, item)
-                print(f"ServiceMonitor for {item['data']['id']} created.")
+            # Create Deployment
+            self.__create_deployment(namespace, item)
+            print(f"Deployment for {item['id']} created.")
+            
+            # Create Service
+            self.__create_service(namespace, item)
+            print(f"Service for {item['id']} created.")
+            
+            # Create service monitor
+            self.__create_service_monitor(namespace, item)
+            print(f"ServiceMonitor for {item['id']} created.")
 
         # Make sure that all pods have started before adding associations
         # Wait for the Service to be ready and get its IP
         podNames = self.__get_agent_pods_dictionary()
-        for item in graphData:
-            if item["group"] == "nodes":
-                service_ip = self.__wait_for_service_ready_and_get_ip(namespace, item["data"]["id"])
-                if service_ip:
-                    print(f"The Service IP address of {item['data']['id']} is: {service_ip}")
-                    item["data"]["ip"] = service_ip
-                else:
-                    print(f"Failed to retrieve the Service IP address for {item['data']['id']}.")
-                    continue
-                
-                # Wait for the Service to be ready and get its IP
-                self.__wait_for_deployment_ready(item['data']['id'], namespace)
-                item["pod"] = podNames[item['data']['id']]            
+        for item in agents:            
+            service_ip = self.__wait_for_service_ready_and_get_ip(namespace, item["id"])
+            if service_ip:
+                print(f"The Service IP address of {item['id']} is: {service_ip}")
+                item["ip"] = service_ip
+            else:
+                print(f"Failed to retrieve the Service IP address for {item['id']}.")
+                continue
+            
+            # Wait for the Service to be ready and get its IP
+            self.__wait_for_deployment_ready(item['id'], namespace)
+            item["pod"] = podNames[item['id']]            
         
         # Show result
-        print(graphData)
-        return graphData
+        print(agents)
+        return agents
     
     def __get_agent_pods_dictionary(self):
         try:
@@ -393,7 +392,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
     def retrieve_simulation(self):
         # Get the secret
         secret_name="obs-demo-fw-state"
-        items = []
+        simulation = []
         try:
             secret = self.__core_v1_api.read_namespaced_secret(secret_name, self.__get_current_namespace())
             if 'simulation' in secret.data:
@@ -402,7 +401,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 print(decoded_json_data)
                 
                 # Convert the decoded string back into a JSON object
-                items = json.loads(decoded_json_data)
+                simulation = json.loads(decoded_json_data)
             else:
                 message = f"Secret '{secret_name}' does not contain 'json-file' key."
                 print(message)
@@ -415,15 +414,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 message = f"Failed to read Secret '{secret_name}': {e}"
                 print(message)
                 raise RuntimeError(message)
-            return []
+            return {}
         # Update agent pod name
         pods = self.__get_agent_pods_dictionary()
-        for item in items:
-            if item['group'] != "nodes":
-                continue
-            item["pod"] = pods[item["data"]["id"]]
+        for agent in simulation["agents"]:
+            agent["pod"] = pods[agent["id"]]
 
-        return items
+        return simulation
             
     async def delete_simulation(self):
         label_selector = "observability-demo-framework=agent"

@@ -422,3 +422,23 @@ button {
 .container-agent div:last-child {
   border-bottom: none;
 }
+
+/* Table effects */
+.agent-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.agent-table th,
+.agent-table td {
+  padding: 8px;
+  border: 1px solid #ddd;
+}
+
+.table-row {
+  cursor: pointer;
+}
+
+.selected {
+  background-color: #d3d3d3; /* Highlight color for selected row */
+}

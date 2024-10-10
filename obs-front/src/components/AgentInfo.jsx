@@ -27,8 +27,8 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
 
     async function setMetricInOpenShift(method, agent, metric) {
         const payload = {
-            id: agent.data.id,
-            ip: agent.data.ip,
+            id: agent.id,
+            ip: agent.ip,
             metric: metric
         }
         console.log(method);
@@ -94,17 +94,14 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
         });
     };
 
-    //console.log(agent)
-    console.log(metrics)
-
     return (
         <div className='container-agent'>
-            {agent && agent?.data ? (
+            {agent?.id ? (
                 <div>
-                    <h3>{agent.data.id}</h3>
+                    <h3>{agent.id}</h3>
                     <div className="key-value-pair">
                         <span className="key">IP:</span>
-                        <span className="value">{agent.data.ip}</span>
+                        <span className="value">{agent.ip}</span>
                     </div>
                     <div className="key-value-pair">
                         <span className="key">Pod:</span>

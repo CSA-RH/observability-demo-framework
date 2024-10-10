@@ -32,12 +32,9 @@ class MockClusterConnector(ClusterConnectorInterface):
     
     async def create_simulation_resources(self, payload: List[Dict[str, Any]]):
         print("create simulation resources")
-        for item in payload:
-            if item["group"] == "nodes":
-                item["data"]["ip"] = "1.2.3.4"
-                item["pod"] = item["data"]["id"] + "-" + self.__generate_pod_suffix()
-                item["metrics"] = []
-                item["nextHop"] = []
+        for item in payload:            
+                item["ip"] = "1.2.3.4"
+                item["pod"] = item["id"] + "-" + self.__generate_pod_suffix()                
         return payload
     
     def __save_json_to_file(self, payload, file_path='/tmp/obs-demo-fw-sim.json'):
@@ -78,14 +75,13 @@ class MockClusterConnector(ClusterConnectorInterface):
     def retrieve_simulation(self):
         print("retrieve simulation")
         json_data = self.__load_json_from_file()
+        print(json_data)
 
         if not json_data:
-            return []
+            return {}
         # Add pod name
-        for item in json_data:
-            if item['group'] != 'nodes':
-                continue
-            item["pod"] = item["data"]["id"] + "-" + self.__generate_pod_suffix()
+        for item in json_data["agents"]:            
+            item["pod"] = item["id"] + "-" + self.__generate_pod_suffix()
 
         return json_data
     

@@ -66,11 +66,10 @@ class MockAgentManager(AgentManagerInterface):
         print(f"Source: {source_agent}")
         print(f"Target: {target_agent}")
         print("-------")
-        source_name = source_agent["data"]["id"]
-        target_name = target_agent["data"]["id"]
+        
         # Create source entry if not created
-        if source_name not in self.agent_next_hops:
-            self.agent_next_hops[source_name] = []
+        if source_agent not in self.agent_next_hops:
+            self.agent_next_hops[source_agent] = []
         # Add target agent to next hops
-        self.agent_next_hops[source_name].append(target_name) 
+        self.agent_next_hops[source_agent].append(target_agent) 
         return  

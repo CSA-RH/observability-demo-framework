@@ -1,11 +1,24 @@
 import React, { useEffect, useState, useRef } from 'react';
 import cytoscape from 'cytoscape';
 
-const SimulationCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdated }) => {
+const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNodeSelected}) => {
     const cytoscapeContainerRef = useRef(null);
-    const [cytoscapeInstance, setCytoscapeInstance] = useState(null);
+    const [cytoscapeInstance, setCytoscapeInstance] = useState(null);    
+    
     // Create a ref to track the latest value of locked
-    const lockedRef = useRef(locked);
+    const lockedRef = useRef(readOnly);
+
+    useEffect(() => {        
+        if (!cytoscapeInstance) 
+            return 
+        cytoscapeInstance.elements().forEach(e => e.unselect())
+        const nodeToSelect = cytoscapeInstance.getElementById(nodeIdSelected);
+
+        if (nodeToSelect) {
+            nodeToSelect.select();  
+        }
+
+    }, [nodeIdSelected])
 
     useEffect(() => {
         // Initialize Cytoscape instance when the component mounts
@@ -22,7 +35,7 @@ const SimulationCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdat
                 {
                     selector: 'node:selected',
                     style: {
-                        'background-color': '#FF5733', // Color when the node is selected
+                        'background-color': '#FF5733', 
                         'border-color': '#000',
                         'border-width': 3
                     }
@@ -62,32 +75,6 @@ const SimulationCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdat
 
         let selectedNodes = [];
 
-        function updateStructure(evt) {
-            console.log("updateStructure. Canvas Locked: ", locked);
-            if (lockedRef.current) {
-                return;
-            }
-
-            const allElements = cy.elements();  // Get all nodes and edges            
-            const structure = allElements.map((element) => {
-                if (element.isNode()) {
-                    return {
-                        group: 'nodes',
-                        data: element.data(),
-                        position: element.position(),
-                    };
-                } else if (element.isEdge()) {
-                    return {
-                        group: 'edges',
-                        data: element.data(),
-                    };
-                }
-            });
-
-            // Notify parent of the updated structure
-            onSimulationUpdated(structure);
-        }
-
         // List of names
         const malagaPlayers = [
             "duda",
@@ -125,8 +112,7 @@ const SimulationCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdat
             "migueli",
             "antonio-hidalgo",
             "pepillo",
-            "basti",
-            "manuel-sanchez-delgado-manolo",
+            "basti",            
             "dani-bautista",
             "josemi",
             "sandro",
@@ -165,8 +151,10 @@ const SimulationCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdat
             "mehdi-lacen",
             "jose-anselmo",
             "pedro",
+            "pedro-jaro",
             "alvaro-sanz",
             "fabrice-olinga",
+            "cyryl-makanaky",
             "charles",
             "sandro-bergara",
             "jeremy-toulalan",
@@ -206,14 +194,14 @@ const SimulationCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdat
         }
 
         function addNode(position) {
-            cy.add({
+            const node = {
                 group: 'nodes',
                 data: { id: getRandomName() },
                 position: { x: position.x, y: position.y }
-            });
-        }
-
-        cy.on('add remove', updateStructure);
+            };
+            cy.add(node);             
+            onLayoutChanged(cy.elements())
+        }        
 
         cy.on('add', 'node', function (event) {
             if (lockedRef.current) {
@@ -221,7 +209,8 @@ const SimulationCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdat
             }
             const addedNode = event.target; // The newly added node
 
-            onAgentSelect(addedNode.data());
+            //cleans the previous selection
+            onNodeSelected(null);
         });
 
         // Right-click (context tap) event listener for nodes
@@ -231,6 +220,7 @@ const SimulationCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdat
             }
             var node = event.target;
             node.remove();  // Removes the clicked node
+            onLayoutChanged(cy.elements())
         });
 
         // Right-click (context tap) event listener for edges
@@ -240,13 +230,14 @@ const SimulationCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdat
             }
             var edge = event.target;
             edge.remove();  // Removes the clicked edge
+            onLayoutChanged(cy.elements())
         });
 
         // Right-click (context tap) event listener for edges
         cy.on('cxttap', function (event) {
             cy.elements().unselect();
             selectedNodes = [];
-            onAgentSelect(null);
+            onNodeSelected(null);
         });
 
         // Function to check if an edge with a specific name exists
@@ -256,6 +247,7 @@ const SimulationCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdat
 
         cy.on('tap', function (evt) {
             if (lockedRef.current) {
+                onNodeSelected({});
                 return;
             }
             const position = evt.position;
@@ -265,13 +257,14 @@ const SimulationCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdat
         })
 
         cy.on('tap', 'node', function (evt) {
-            const clickedNode = evt.target;
-            // Update the selected agent
-            onAgentSelect(clickedNode.data());            
+            const clickedNode = evt.target;           
 
             if (lockedRef.current) {
+                onNodeSelected(clickedNode.data());
                 return;
             }
+            
+            clickedNode.removeStyle(); // hack (Manually override selection)
 
             selectedNodes.push(clickedNode);
 
@@ -280,7 +273,11 @@ const SimulationCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdat
                 const targetNode = selectedNodes[1];
 
                 const edgeId = 'edge_' + sourceNode.id() + '_' + targetNode.id();
-                if (!edgeExists(edgeId)) {
+                if (!edgeExists(edgeId)) {                                        
+                    targetNode.style({      // Manually override the style to match unselected state
+                        'background-color': 'red',   // Match 'node' selector style                        
+                        'border-width': 0
+                    });                    
                     cy.add({
                         group: 'edges',
                         data: {
@@ -288,8 +285,15 @@ const SimulationCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdat
                             source: sourceNode.id(),
                             target: targetNode.id()
                         }
+                    });                    
+                    targetNode.unselect();                    
+                    //hack (Manually override selection)                    
+                    /*targetNode.style({      // Manually override the style to match unselected state
+                        'background-color': 'red',   // Match 'node' selector style                        
+                        'border-width': 0
                     });
-                    targetNode.unselect();
+                    targetNode.removeStyle()*/
+                    onLayoutChanged(cy.elements())
                 }
 
                 selectedNodes = [];
@@ -305,21 +309,22 @@ const SimulationCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdat
     // This effect runs whenever the `simulation` changes
     useEffect(() => {
         // reset the graphic.
-        if (cytoscapeInstance && simulation?.length === 0) {
+        if (cytoscapeInstance && layout?.length === 0) {
             console.log("Cleaning the elements....")
             cytoscapeInstance.elements().remove();  // Clear the old elements                        
         }
         // load the graphic if simulation is fetched. 
-        if (cytoscapeInstance?.elements().length === 0 && simulation?.length > 0) {
+        if (cytoscapeInstance?.elements().length === 0 && layout?.length > 0) {
             // Create all nodes. 
             console.log("Update the visualization")
-            simulation.forEach(element => {
+            //cytoscapeInstance.add(layout)
+            layout.forEach(element => {
                 if (element.group === 'nodes') {
                     cytoscapeInstance.add({
                         group: 'nodes',
                         data: element.data,
                         position: element.position
-                    });
+                    });                    
                 } else if (element.group === 'edges') {
                     cytoscapeInstance.add({
                         group: 'edges',
@@ -327,24 +332,25 @@ const SimulationCanvas = ({ onAgentSelect, locked, simulation, onSimulationUpdat
                     });
                 }
             });
+            
         }
-    }, [simulation, cytoscapeInstance]);  // Run whenever `simulation` or `cytoscapeInstance` changes    
+    }, [layout, cytoscapeInstance]);  // Run whenever `layout` or `cytoscapeInstance` changes    
 
     useEffect(() => {
-        lockedRef.current = locked;
+        lockedRef.current = readOnly;
 
         if (!cytoscapeInstance) return;
-        if (locked) {
+        if (readOnly) {
             cytoscapeInstance.nodes().ungrabify(); // Prevent nodes from being moved
         }
         else {
             cytoscapeInstance.nodes().grabify(); // Allow nodes to be moved
         }
 
-    }, [locked, cytoscapeInstance])
+    }, [readOnly, cytoscapeInstance])
 
 
     return <div ref={cytoscapeContainerRef} style={{ width: '590px', height: '400px', border: '1px solid black', margin: '5px' }} />;
 };
 
-export default SimulationCanvas;
+export default LayoutCanvas;

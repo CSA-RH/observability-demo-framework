@@ -142,22 +142,21 @@ class OpenShiftAgentManager(AgentManagerInterface):
             conn.close()
         return True
     
-    def set_agent_communication_path(self, sourceAgent, targetAgent):
-        targetName = targetAgent['data']['id']
-        print(f"Calling POST http://{sourceAgent['data']['id']}:8080/agents/{targetName}")
+    def set_agent_communication_path(self, sourceAgent, targetAgent):        
+        print(f"Calling POST http://{sourceAgent}:8080/agents/{targetAgent}")
         print(targetAgent)
         next_hop_address = {
-            "ip": targetAgent["data"]["id"],
+            "ip": targetAgent,
             "port": 8080
         }
         json_next_hop_address = json.dumps(next_hop_address)
         try:
-            conn = http.client.HTTPConnection(sourceAgent['data']['id'], 8080, timeout=2)
+            conn = http.client.HTTPConnection(sourceAgent, 8080, timeout=2)
             headers = {
                 'Content-Type': 'application/json'
             }
             # Make the POST request, attaching the JSON body
-            conn.request("POST", "/agents/" + targetName, body=json_next_hop_address, headers=headers)
+            conn.request("POST", "/agents/" + targetAgent, body=json_next_hop_address, headers=headers)
             # Get the response
             response = conn.getresponse()
             data = response.read()

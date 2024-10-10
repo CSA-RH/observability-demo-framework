@@ -77,30 +77,22 @@ def add_next_hop_to_agent(name, agent):
         agent["nextHop"] = [name]
 
 @app.post("/simulation")
-async def create_simulation(payload: List[Dict[str, Any]]):
+async def create_simulation(payload: Dict[str, Any]):    
     # Create resources in cluster
-    try:
-        json_simulation = await cluster_connector.create_simulation_resources(payload)
+    try:        
+        json_agents = await cluster_connector.create_simulation_resources(payload["agents"])
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=e.args)
-
-    # Set agent communication paths
-    # Add assotiations.         
-    for item in json_simulation: 
-        if item["group"] == "edges":
-            sourceName = item["data"]["source"]
-            targetName = item["data"]["target"]
-            sourceAgent = get_agent_from_payload(sourceName, payload)
-            targetAgent = get_agent_from_payload(targetName, payload)
-            #Update next-hop in payload
-            add_next_hop_to_agent(targetAgent["data"]["id"], sourceAgent)
-            #Call IP 
-            agent_manager.set_agent_communication_path(sourceAgent, targetAgent)
+    
+    for source_agent_data in payload["agents"]: 
+        for target_agent_id in source_agent_data["nextHop"]:
+            agent_manager.set_agent_communication_path(source_agent_data["id"], target_agent_id)
 
     # Save simulation
     cluster_connector.save_simulation(payload)
 
-    return json_simulation
+    return json_agents
 
 @app.delete("/simulation")
 async def delete_simulation():
@@ -109,18 +101,17 @@ async def delete_simulation():
 @app.get("/simulation")
 async def get_simulation():
     # Get the simulation definition from storage    
-    items = cluster_connector.retrieve_simulation()
-    
+    simulation = cluster_connector.retrieve_simulation()    
+    if simulation == {}:        
+        raise HTTPException(status_code=404, detail="Simulation not found")    
     # Update agent metrics     
-    for item in items:
-        if item['group'] != "nodes":
-            continue        
-        id = item['data']["id"]
+    for item in simulation["agents"]:
+        id = item["id"]
         metrics = agent_manager.get_agent_metrics(id)
         print(f"Pod: {item["pod"]}. Metrics: {metrics}")        
         item["metrics"] = metrics
     
-    return items
+    return simulation
 
 #TODO: Error handling
 @app.post("/kick")

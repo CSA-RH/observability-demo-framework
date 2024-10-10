@@ -7,19 +7,19 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const showError = (text) => {
     toast.error(text, {
-      position: "top-right",
-      autoClose: 3000,
-      hideProgressBar: false,
-      closeOnClick: true,
-      width: 600,
-      pauseOnHover: true,
-      draggable: true,
-      progress: undefined,
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        width: 600,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
     });
 }
 
 
-const SimulationManagement = ({ simulation, onSimulationUpdated }) => {
+const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreated, onSimulationReset }) => {
     const [isCreateDisabled, setIsCreateDisabled] = useState(true);
     const [isResetDisabled, setIsResetDisabled] = useState(true);
     const [loading, setLoading] = useState(false);
@@ -31,7 +31,7 @@ const SimulationManagement = ({ simulation, onSimulationUpdated }) => {
     }, [simulation]);
 
     const handleCreate = async () => {
-        setLoading(true); // Start loading and show the spinner        
+        setLoading(true); // Start loading and show the spinner
         try {
             const response = await fetch(ApiHelper.getSimulationUrl(), {
                 method: 'POST',
@@ -41,9 +41,8 @@ const SimulationManagement = ({ simulation, onSimulationUpdated }) => {
                 body: JSON.stringify(simulation),
             });
 
-            const result = await response.json();
-            onSimulationUpdated(result, "CREATE");
-            console.log('Success:', result);
+            const agentsUpdated = await response.json();
+            onSimulationCreated(agentsUpdated);
         } catch (error) {
             //console.error('Error:', error);
             showError(`Error:${error}`, error)
@@ -55,17 +54,19 @@ const SimulationManagement = ({ simulation, onSimulationUpdated }) => {
     const handleReset = async () => {
         setLoading(true);
         try {
-            const response = await fetch(ApiHelper.getSimulationUrl(), {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(simulation),
-            });
+            if (simulationLoaded) {
+                const response = await fetch(ApiHelper.getSimulationUrl(), {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(simulation),
+                });
 
-            const result = await response.json();
-            console.log('Simulation reset', result);
-            onSimulationUpdated([], "RESET");
+                const result = await response.json();
+                console.log('Simulation reset', result);
+            }
+            onSimulationReset({ layout: [], agents: [] });
         } catch (error) {
             console.error('Error:', error);
         } finally {
@@ -74,13 +75,11 @@ const SimulationManagement = ({ simulation, onSimulationUpdated }) => {
     };
 
     const isCreateSimuDisabled = () => {
-        console.log("Evaluating create simulation");
-        return !simulation || simulation.length === 0 || (simulation.length > 0 && simulation[0].data.ip);
+        return !simulation || simulation?.layout.length === 0 || simulationLoaded;
     };
 
     const isResetSimuDisabled = () => {
-        console.log("Evaluating reset simulation");
-        return !simulation || simulation.length === 0 || (simulation.length > 0 && !(simulation[0].data.ip));
+        return !simulation || simulation.length === 0;
     };
 
     return (
