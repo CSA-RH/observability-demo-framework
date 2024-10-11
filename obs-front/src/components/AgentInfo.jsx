@@ -30,10 +30,7 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
             id: agent.id,
             ip: agent.ip,
             metric: metric
-        }
-        console.log(method);
-        console.log(payload);
-        console.log("-------")
+        }        
         try {
             const response = await fetch(ApiHelper.getAgentsMetricsUrl(), {
                 method: method,
