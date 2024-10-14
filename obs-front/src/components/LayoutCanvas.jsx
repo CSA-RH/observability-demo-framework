@@ -1,13 +1,25 @@
 import React, { useEffect, useState, useRef } from 'react';
 import cytoscape from 'cytoscape';
 
-const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNodeSelected}) => {
+const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNodeSelected, nodeType}) => {    
+
     const cytoscapeContainerRef = useRef(null);
     const [cytoscapeInstance, setCytoscapeInstance] = useState(null);    
+    //const [currentStyle, setCurrentStyle] = useState(nodeType.type)
     
     // Create a ref to track the latest value of locked
     const lockedRef = useRef(readOnly);
+    const currentStyle = useRef(nodeType);
 
+    useEffect(()=> {
+        //setCurrentStyle(nodeType.type);
+        console.log("Changed style: ")
+        console.log(currentStyle.current)
+        currentStyle.current = nodeType
+        console.log(nodeType);
+        console.log("---------------")
+    }, [nodeType])
+    
     useEffect(() => {        
         if (!cytoscapeInstance) 
             return 
@@ -21,21 +33,41 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
     }, [nodeIdSelected])
 
     useEffect(() => {
-        // Initialize Cytoscape instance when the component mounts
+        //TODO: Remove style dependency from the type of node. It must come from the parent. 
         const cy = cytoscape({
             container: cytoscapeContainerRef.current, 
             style: [
                 {
-                    selector: 'node',
+                    selector: 'node[styleType="nodejs"]',
                     style: {                        
                         'background-color': 'red',
                         label: 'data(id)'
                     }
                 },
                 {
+                    selector: 'node[styleType="go"]',
+                    style: {                        
+                        'background-color': 'blue',
+                        label: 'data(id)'
+                    }
+                },
+                {
+                    selector: 'node[styleType="java"]',
+                    style: {                        
+                        'background-color': 'orange',
+                        label: 'data(id)'
+                    }
+                },
+                {
+                    selector: 'node[styleType="dotnet"]',
+                    style: {                        
+                        'background-color': 'green',
+                        label: 'data(id)'
+                    }
+                },
+                {
                     selector: 'node:selected',
-                    style: {
-                        'background-color': '#FF5733', 
+                    style: {                        
                         'border-color': '#000',
                         'border-width': 3
                     }
@@ -196,9 +228,14 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
         function addNode(position) {
             const node = {
                 group: 'nodes',
-                data: { id: getRandomName() },
-                position: { x: position.x, y: position.y }
+                data: { 
+                    id: getRandomName(),
+                    styleType: currentStyle.current
+                },
+                position: { x: position.x, y: position.y }                 
             };
+            console.log("------ NODE ------ ");
+            console.log(node.data);
             cy.add(node);             
             onLayoutChanged(cy.elements())
         }        
@@ -273,11 +310,7 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
                 const targetNode = selectedNodes[1];
 
                 const edgeId = 'edge_' + sourceNode.id() + '_' + targetNode.id();
-                if (!edgeExists(edgeId)) {                                        
-                    targetNode.style({      // Manually override the style to match unselected state
-                        'background-color': 'red',   // Match 'node' selector style                        
-                        'border-width': 0
-                    });                    
+                if (!edgeExists(edgeId)) {                                                            
                     cy.add({
                         group: 'edges',
                         data: {
@@ -285,14 +318,14 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
                             source: sourceNode.id(),
                             target: targetNode.id()
                         }
-                    });                    
-                    targetNode.unselect();                    
-                    //hack (Manually override selection)                    
-                    /*targetNode.style({      // Manually override the style to match unselected state
-                        'background-color': 'red',   // Match 'node' selector style                        
+                    });
+                    // hack (Manually override selection)
+                    targetNode.style({      // Manually override the style to match unselected state                       
                         'border-width': 0
                     });
-                    targetNode.removeStyle()*/
+                    targetNode.unselect();                    
+                    //hack (Manually override selection)                    
+                    targetNode.removeStyle();
                     onLayoutChanged(cy.elements())
                 }
 
@@ -348,7 +381,7 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
         }
 
     }, [readOnly, cytoscapeInstance])
-
+    
 
     return <div ref={cytoscapeContainerRef} style={{ width: '590px', height: '400px', border: '1px solid black', margin: '5px' }} />;
 };

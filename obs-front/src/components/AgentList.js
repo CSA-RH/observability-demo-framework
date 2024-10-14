@@ -59,7 +59,7 @@ const AgentList = ({ agents, selectedAgentId, onAgentSelected }) => {
                                 onClick={() => handleRowClick(item.id)}>
 
                                 <td><a href={ApiHelper.getPodLogsAddress(item.pod)} target="_blank" rel="noopener noreferrer"> {item.id}</a></td>
-                                <td><span className='label label-nodejs'>nodejs</span></td>
+                                <td><span className={'label label-' + item.type}>{item.type}</span></td>
                                 {/* Next hops mapped to labels */}
                                 <td>{item.ip ? (
                                     item.nextHop && item.nextHop.map((hop, index) => (
