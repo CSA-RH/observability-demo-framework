@@ -384,6 +384,38 @@ button {
 
 /* Additional styles for specific label statuses */
 .label-nodejs {
+  background-color: #f7e0e0;
+  /* Light green background */
+  border-color: #f83030;
+  /* Green border */
+  color: #7d2e2e;
+  /* Dark green text */
+}
+
+/* Additional styles for specific label statuses */
+.label-go {
+  background-color: #e0e2f7;
+  /* Light green background */
+  border-color: #8188c7;
+  /* Green border */
+  color: #362e7d;
+  /* Dark green text */
+}
+
+
+/* Additional styles for specific label statuses */
+.label-java {
+  background-color: #f7f7e0;
+  /* Light green background */
+  border-color: #c7c081;
+  /* Green border */
+  color: #7d7c2e;
+  /* Dark green text */
+}
+
+
+/* Additional styles for specific label statuses */
+.label-dotnet {
   background-color: #e0f7ea;
   /* Light green background */
   border-color: #81c784;
@@ -391,6 +423,7 @@ button {
   color: #2e7d32;
   /* Dark green text */
 }
+
 
 /* KEY VALUE PAIRS FOR AGENT INFO STYLING */ 
 .key-value-pair {

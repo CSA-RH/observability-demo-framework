@@ -9,14 +9,24 @@ import LayoutCanvas from './components/LayoutCanvas';
 import SimulationManagement from './components/SimulationManagement';
 import AgentList from './components/AgentList';
 import AgentInfo from './components/AgentInfo';
-
+import AgentTypePicker from './components/AgentTypePicker';
 
 
 function App() {
+
+  const agentTypes = [
+    {type: "nodejs", image: "logo-nodejs.svg"},
+    {type: "go", image: "logo-go.png"},
+    {type: "java", image: "logo-java.png"},
+    {type: "dotnet", image: "logo-dotnet.svg"}
+  ]
+
   const [layout, setLayout] = useState([])
   const [agents, setAgents] = useState([])
   const [selectedAgent, setSelectedAgent] = useState({});
-  const [simulationLoaded, setSimulationLoaded] = useState(false)
+  const [selectedAgenType, setSelectedAgentType] = useState(agentTypes[0]);
+  const [simulationLoaded, setSimulationLoaded] = useState(false);
+  
 
   const agentsRef = useRef([]);
   const layoutRef = useRef([]);
@@ -34,7 +44,7 @@ function App() {
     setSimulationLoaded(true);
   }
 
-  function handleResetSimulation(simulation) {    
+  function handleResetSimulation() {    
     // Clean canvas
     setLayout([]);
     // Clean agents
@@ -88,6 +98,7 @@ function App() {
       if (element["group"] === "nodes") {
         updatedAgents.push({
           id: element["data"]["id"],
+          type: element["data"]["styleType"], 
           metrics: [],
           nextHop: []
         })
@@ -102,6 +113,11 @@ function App() {
     });    
     setAgents(updatedAgents)
   }
+
+  const handleAgentTypeChanged = (selectedIndex) => {
+    console.log('Selected button index:', selectedIndex);
+    setSelectedAgentType(agentTypes[selectedIndex])
+  };
 
   function handleAgentUpdated(agent) {
     console.log("Agent updated:", agent);
@@ -148,12 +164,16 @@ function App() {
       <Banner title="Observability Demo Framework" />
       <ClusterInfo />
       <h2>Communications</h2>
+      {!simulationLoaded && (
+        <AgentTypePicker nodeTypes={agentTypes} onSelectionChange={handleAgentTypeChanged}></AgentTypePicker>
+      )}
       <LayoutCanvas
         readOnly={simulationLoaded}
         layout={layout}
         onLayoutChanged={handleLayoutUpdate}
         nodeIdSelected={selectedAgent?.id}
         onNodeSelected={onNodeSelected}
+        nodeType={selectedAgenType.type}
       />
       <SimulationManagement
         simulationLoaded={simulationLoaded}

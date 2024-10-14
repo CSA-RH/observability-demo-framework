@@ -1,0 +1,178 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>SELECT</title>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js'></script>
+    <script src='./app.js'></script>
+
+    <style>
+        #cy {
+            width: 100%;
+            height: 90%;
+            position: absolute;
+            top: 50px;
+            left: 0px;
+        }
+
+        .button-container {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+        }
+
+        .style-button {
+            padding: 5px 10px;
+            margin-right: 10px;
+            cursor: pointer;
+            background-color: white;
+            border: 1px solid black;
+        }
+
+        .style-button.active {
+            background-color: lightblue;
+            border: 2px solid blue;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="button-container">
+        <button class="style-button" onclick="applyStyle('style1', this)">Style 1</button>
+        <button class="style-button" onclick="applyStyle('style2', this)">Style 2</button>
+        <button class="style-button" onclick="applyStyle('style3', this)">Style 3</button>
+    </div>
+    <div id="cy"></div>
+
+    <script>
+        var cy = cytoscape({
+            container: document.getElementById('cy'),
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        shape: 'hexagon',
+                        'background-color': 'red',
+                        label: 'data(id)'
+                    }
+                },
+                {
+                    selector: 'node:selected',
+                    style: {
+                        'background-color': '#FF5733', // Color when the node is selected
+                        'border-color': '#000',
+                        'border-width': 3
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'width': 2,
+                        'line-color': '#ccc',
+                        'target-arrow-color': '#ccc',
+                        'target-arrow-shape': 'triangle',
+                        'curve-style': 'bezier'
+                    }
+                }
+            ],
+            layout: {
+                name: 'grid',
+                rows: 1
+            }
+        });
+
+        let nodeId = 0;
+        let selectedNodes = [];
+        let currentStyle = 'style1';  // Default style for nodes
+
+        // Available styles
+        const styles = {
+            style1: {
+                shape: 'circle',
+                'background-color': 'blue',
+                label: 'data(id)'
+            },
+            style2: {
+                shape: 'rectangle',
+                'background-color': 'green',
+                label: 'data(id)'
+            },
+            style3: {
+                shape: 'diamond',
+                'background-color': 'orange',
+                label: 'data(id)'
+            }
+        };
+
+        function addNode(position) {
+            nodeId++;
+            cy.add({
+                group: 'nodes',
+                data: { id: 'Node' + nodeId },
+                position: { x: position.x, y: position.y },
+                style: styles[currentStyle]  // Apply the current style to new nodes
+            });
+        }
+
+        // Right-click (context tap) event listener for nodes
+        cy.on('cxttap', 'node', function (event) {
+            var node = event.target;
+            node.remove();  // Removes the clicked node
+        });
+
+        // Right-click (context tap) event listener for edges
+        cy.on('cxttap', 'edge', function (event) {
+            var edge = event.target;
+            edge.remove();  // Removes the clicked edge
+        });
+
+        // Function to check if an edge with a specific name exists
+        function edgeExists(name) {
+            return cy.edges(`[id = "${name}"]`).length > 0;
+        }
+
+        cy.on('tap', function (evt) {
+            const position = evt.position;
+            if (evt.target === cy) addNode(position);
+        });
+
+        cy.on('tap', 'node', function (evt) {
+            const clickedNode = evt.target;
+
+            selectedNodes.push(clickedNode);
+
+            if (selectedNodes.length === 2) {
+                const sourceNode = selectedNodes[0];
+                const targetNode = selectedNodes[1];
+
+                const edgeId = 'edge_' + sourceNode.id() + '_' + targetNode.id();
+                if (!edgeExists(edgeId)) {
+                    cy.add({
+                        group: 'edges',
+                        data: {
+                            id: edgeId,
+                            source: sourceNode.id(),
+                            target: targetNode.id()
+                        }
+                    });
+                    targetNode.unselect();
+                }
+
+                selectedNodes = [];
+            }
+        });
+
+        // Apply different styles to new nodes and highlight the selected button
+        function applyStyle(styleName, button) {
+            currentStyle = styleName;
+
+            // Highlight the selected button and reset others
+            const buttons = document.querySelectorAll('.style-button');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+        }
+    </script>
+
+</body>
+
+</html>
