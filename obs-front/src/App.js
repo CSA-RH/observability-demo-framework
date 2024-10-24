@@ -15,10 +15,10 @@ import AgentTypePicker from './components/AgentTypePicker';
 function App() {
 
   const agentTypes = [
-    {type: "nodejs", image: "logo-nodejs.svg"},
-    {type: "go", image: "logo-go.png"},
-    {type: "java", image: "logo-java.png"},
-    {type: "dotnet", image: "logo-dotnet.svg"}
+    {type: "nodejs", image: "logo-nodejs.svg", enabled: true},
+    {type: "go", image: "logo-go.png", enabled: false},
+    {type: "java", image: "logo-java.png", enabled: false},
+    {type: "dotnet", image: "logo-dotnet.svg", enabled: true}
   ]
 
   const [layout, setLayout] = useState([])

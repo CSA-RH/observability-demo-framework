@@ -14,6 +14,7 @@ const AgentTypePicker = ({nodeTypes, onSelectionChange}) => {
             {nodeTypes?.map((nodeType, index) => (
                 <button
                     key={index}
+                    disabled={!nodeType.enabled}
                     onClick={() => handleButtonClick(index)}
                     style={{
                         border: selectedButton === index ? '2px solid blue' : '1px solid gray',
