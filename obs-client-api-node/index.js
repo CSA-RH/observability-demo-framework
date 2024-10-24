@@ -80,7 +80,7 @@ function postMetric(req, res) {
     }
 }
 
-function patchMetric(req, res) {
+function putMetric(req, res) {
     const metricName = req.params.metricName;
     const valueRaw = req.query.value;
     const value = parseInt(valueRaw);
@@ -165,7 +165,7 @@ app.get('/', (req, res) => {
 app.get("/metrics", getAllMetrics);
 app.get("/metrics/:metricName", getMetric);
 app.post("/metrics/:metricName", postMetric);
-app.patch("/metrics/:metricName", patchMetric);
+app.put("/metrics/:metricName", putMetric);
 app.delete("/metrics/:metricName", deleteMetric);
 
 // Register agents. 

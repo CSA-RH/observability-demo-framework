@@ -122,6 +122,6 @@ async def agent_kick(payload: dict[str, Any]):
 async def create_agent_metric(payload: dict[str, Any]):
     await agent_manager.set_agent_metrics("POST", payload=payload)
 
-@app.patch("/metrics")
+@app.put("/metrics")
 async def modify_agent_metric(payload: dict[str, Any]):
-    await agent_manager.set_agent_metrics("PATCH", payload=payload)
+    await agent_manager.set_agent_metrics("PUT", payload=payload)

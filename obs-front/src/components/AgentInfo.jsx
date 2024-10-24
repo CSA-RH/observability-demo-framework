@@ -65,7 +65,7 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
         setError("");
         setMetrics([...metrics, newMetric]);
         agent.metrics = [...metrics, newMetric];
-        //POST TO THE AGENT WITH UPDATED VALUE. 
+        //POST TO THE AGENT WITH NEW VALUE. 
         setMetricInOpenShift("POST", agent, newMetric)
         onAgentUpdated(agent)
         setNewMetric({ name: "", type: "gauge", value: "" });
@@ -78,8 +78,8 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
         }
         setError("");
         agent.metrics = metrics;
-        //PATCH TO THE AGENT WITH THE NEW METRIC. 
-        setMetricInOpenShift("PATCH", agent, metrics[index])
+        //PUT TO THE AGENT WITH THE NEW value METRIC. 
+        setMetricInOpenShift("PUT", agent, metrics[index])
         onAgentUpdated(agent)
         setMetrics(metrics);
     };

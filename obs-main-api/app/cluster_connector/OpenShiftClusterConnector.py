@@ -109,7 +109,22 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             "JaegerUI": jaegerui_route
         }
     
-    def __create_deployment(self, namespace, item):    
+    def __get_image(self, tech_stack):
+        if tech_stack == "nodejs":
+            return "obs-client-node:latest"
+        if tech_stack == "dotnet":
+            return "obs-client-dotnet:latest"
+    
+    def __get_inject_annotation(self, tech_stack):
+        if tech_stack == "nodejs":
+            return 'instrumentation.opentelemetry.io/inject-nodejs'
+        if tech_stack == "dotnet":
+            return 'instrumentation.opentelemetry.io/inject-dotnet'
+
+    def __create_deployment(self, namespace, item):
+        print("__create_deployment")
+        print(item)
+        print("__create_deployment[END]")
         deployment_manifest = {
             'apiVersion': 'apps/v1',
             'kind': 'Deployment',
@@ -134,13 +149,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                             'observability-demo-framework': 'agent'                    
                         }, 
                         'annotations': {
-                            'instrumentation.opentelemetry.io/inject-nodejs': 'true'
+                            self.__get_inject_annotation(item['type']): 'true'
                         }
                     },
                     'spec': {
                         'containers': [{
                             'name': 'core',
-                            'image': 'obs-client-node:latest',
+                            'image': self.__get_image(item['type']),
                             'ports': [{
                                 'containerPort': 8080
                             }],
@@ -157,6 +172,8 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 }
             }
         }
+
+        print(deployment_manifest)
 
         deployment_name = "." 
         try:
