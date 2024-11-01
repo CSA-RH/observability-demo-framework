@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("obs-client-api-dotnet")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+115477fd1ca75d1564f8add65b086055aa21a35b")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b7587cee4708a13280bf86ac49bdb07a71fcd06a")]
 [assembly: System.Reflection.AssemblyProductAttribute("obs-client-api-dotnet")]
 [assembly: System.Reflection.AssemblyTitleAttribute("obs-client-api-dotnet")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

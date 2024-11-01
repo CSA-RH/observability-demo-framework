@@ -28,7 +28,7 @@ function initializePrometheusEndpoint() {
             port: prometheusPort
         },
         () => {
-            console.log("prometheus scrape endpoint: http://localhost:"
+            console.log("prometheus scrape endpoint: http://0.0.0.0:"
                 + prometheusPort
                 + "/metrics");
         }
