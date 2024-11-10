@@ -45,39 +45,27 @@ const ClusterInfo = ({ cluster }) => {
     }
 
     return (
-        <div className="key-value-container">            
-            <div className="banner">
-                <div className="banner-info">
-                    <div className="cluster-info">
-                        <span className="info-title">Cluster:</span>
-                        <span className="info-value">{data.Name}</span>
+        <div className="container my-3 p-3 border rounded bg-danger text-white">
+            <div className='row'>
+                <div className="col-6">
+                    <div className='row'>
+                        <div className="col-12">
+                            <strong className="me-2">Cluster:</strong>
+                            <span>{data.Name}</span>
+                        </div>
                     </div>
-                    <div className="namespace-info">
-                        <span className="info-title">Namespace:</span>
-                        <span className="info-value">{data.Namespace}</span>
+                    <div className='row'>
+                        <div className="col-12">
+                            <strong className="me-2">Namespace:</strong>
+                            <span>{data.Namespace}</span>
+                        </div>
                     </div>
+
                 </div>
-
-                {/* -- Links Section --> */}
-                <div className="banner-links">
-                    <a href={data.ConsoleURL} className="link" target="_blank" rel="noopener noreferrer">Console</a> 
-                    <a href={data.apiLogsURL} className="link" target="_blank" rel="noopener noreferrer">API</a>
-                    <a href={data.JaegerUI} className="link" target="_blank" rel="noopener noreferrer">Jaeger</a>
-                </div>
-
-                {/*-- Toggle Buttons Section -- */}
-                <div className="banner-toggles">
-                    <label className="switch">
-                        <input type="checkbox" defaultChecked />
-                            <span className="slider"></span>
-                    </label>
-                    <span className="toggle-label">Auto-instrumentation</span>
-
-                    {/* <label className="switch">
-                        <input type="checkbox" />
-                            <span className="slider"></span>
-                    </label>
-                    <span className="toggle-label">Feature 2</span>*/}
+                <div className="col-6 text-end">
+                    <a href={data.ConsoleURL} className="btn btn-primary me-2 mb-2" target="_blank" rel="noopener noreferrer">Console</a>
+                    <a href={data.apiLogsURL} className="btn btn-primary me-2 mb-2" target="_blank" rel="noopener noreferrer">API</a>
+                    <a href={data.JaegerUI} className="btn btn-primary me-2 mb-2" target="_blank" rel="noopener noreferrer">Jaeger</a>
                 </div>
             </div>
 
