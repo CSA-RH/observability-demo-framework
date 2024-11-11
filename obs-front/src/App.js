@@ -162,7 +162,7 @@ function App() {
     <div className="container">
       <ClusterInfo />
       <div className="row">
-        <div className="col-12 col-xl-6">
+        <div className="col-12">
           <h2>Communications</h2>
           {!simulationLoaded && (
             <AgentTypePicker nodeTypes={agentTypes} onSelectionChange={handleAgentTypeChanged}></AgentTypePicker>
@@ -181,18 +181,22 @@ function App() {
             onSimulationCreated={handleCreateSimulation}
             onSimulationReset={handleResetSimulation} />
         </div>
-        {simulationLoaded && (
+      </div>
+      {simulationLoaded && (
+        <div className='row'>
           <div className="col-12 col-xl-6">
             <h2>Agents</h2>
             <AgentList
               agents={agents}
               selectedAgentId={selectedAgent?.id}
               onAgentSelected={onAgentSelected} />
-            <h2>Selected Agent</h2>
+          </div>
+          <div className="col-12 col-xl-6">            
             <AgentInfo agent={selectedAgent} onAgentUpdated={handleAgentUpdated} />
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
     </div>
   );
 }
