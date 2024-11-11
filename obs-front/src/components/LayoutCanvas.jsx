@@ -1,17 +1,17 @@
 import React, { useEffect, useState, useRef } from 'react';
 import cytoscape from 'cytoscape';
 
-const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNodeSelected, nodeType}) => {    
+const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNodeSelected, nodeType }) => {
 
     const cytoscapeContainerRef = useRef(null);
-    const [cytoscapeInstance, setCytoscapeInstance] = useState(null);    
+    const [cytoscapeInstance, setCytoscapeInstance] = useState(null);
     //const [currentStyle, setCurrentStyle] = useState(nodeType.type)
-    
+
     // Create a ref to track the latest value of locked
     const lockedRef = useRef(readOnly);
     const currentStyle = useRef(nodeType);
 
-    useEffect(()=> {
+    useEffect(() => {
         //setCurrentStyle(nodeType.type);
         console.log("Changed style: ")
         console.log(currentStyle.current)
@@ -19,15 +19,15 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
         console.log(nodeType);
         console.log("---------------")
     }, [nodeType])
-    
-    useEffect(() => {        
-        if (!cytoscapeInstance) 
-            return 
+
+    useEffect(() => {
+        if (!cytoscapeInstance)
+            return
         cytoscapeInstance.elements().forEach(e => e.unselect())
         const nodeToSelect = cytoscapeInstance.getElementById(nodeIdSelected);
 
         if (nodeToSelect) {
-            nodeToSelect.select();  
+            nodeToSelect.select();
         }
 
     }, [nodeIdSelected])
@@ -35,39 +35,39 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
     useEffect(() => {
         //TODO: Remove style dependency from the type of node. It must come from the parent. 
         const cy = cytoscape({
-            container: cytoscapeContainerRef.current, 
+            container: cytoscapeContainerRef.current,
             style: [
                 {
                     selector: 'node[styleType="nodejs"]',
-                    style: {                        
+                    style: {
                         'background-color': 'red',
                         label: 'data(id)'
                     }
                 },
                 {
                     selector: 'node[styleType="go"]',
-                    style: {                        
+                    style: {
                         'background-color': 'blue',
                         label: 'data(id)'
                     }
                 },
                 {
                     selector: 'node[styleType="java"]',
-                    style: {                        
+                    style: {
                         'background-color': 'orange',
                         label: 'data(id)'
                     }
                 },
                 {
                     selector: 'node[styleType="dotnet"]',
-                    style: {                        
+                    style: {
                         'background-color': 'green',
                         label: 'data(id)'
                     }
                 },
                 {
                     selector: 'node:selected',
-                    style: {                        
+                    style: {
                         'border-color': '#000',
                         'border-width': 3
                     }
@@ -117,7 +117,7 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
             "roteta",
             "koke",
             "weligton",
-            "santi-cazorla",            
+            "santi-cazorla",
             "nacho",
             "pablo-fornals",
             "van-nistelrooy",
@@ -144,7 +144,7 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
             "migueli",
             "antonio-hidalgo",
             "pepillo",
-            "basti",            
+            "basti",
             "dani-bautista",
             "josemi",
             "sandro",
@@ -228,17 +228,17 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
         function addNode(position) {
             const node = {
                 group: 'nodes',
-                data: { 
+                data: {
                     id: getRandomName(),
                     styleType: currentStyle.current
                 },
-                position: { x: position.x, y: position.y }                 
+                position: { x: position.x, y: position.y }
             };
             console.log("------ NODE ------ ");
             console.log(node.data);
-            cy.add(node);             
+            cy.add(node);
             onLayoutChanged(cy.elements())
-        }        
+        }
 
         cy.on('add', 'node', function (event) {
             if (lockedRef.current) {
@@ -294,13 +294,13 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
         })
 
         cy.on('tap', 'node', function (evt) {
-            const clickedNode = evt.target;           
+            const clickedNode = evt.target;
 
             if (lockedRef.current) {
                 onNodeSelected(clickedNode.data());
                 return;
             }
-            
+
             clickedNode.removeStyle(); // hack (Manually override selection)
 
             selectedNodes.push(clickedNode);
@@ -310,7 +310,7 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
                 const targetNode = selectedNodes[1];
 
                 const edgeId = 'edge_' + sourceNode.id() + '_' + targetNode.id();
-                if (!edgeExists(edgeId)) {                                                            
+                if (!edgeExists(edgeId)) {
                     cy.add({
                         group: 'edges',
                         data: {
@@ -323,7 +323,7 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
                     targetNode.style({      // Manually override the style to match unselected state                       
                         'border-width': 0
                     });
-                    targetNode.unselect();                    
+                    targetNode.unselect();
                     //hack (Manually override selection)                    
                     targetNode.removeStyle();
                     onLayoutChanged(cy.elements())
@@ -357,7 +357,7 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
                         group: 'nodes',
                         data: element.data,
                         position: element.position
-                    });                    
+                    });
                 } else if (element.group === 'edges') {
                     cytoscapeInstance.add({
                         group: 'edges',
@@ -365,7 +365,7 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
                     });
                 }
             });
-            
+
         }
     }, [layout, cytoscapeInstance]);  // Run whenever `layout` or `cytoscapeInstance` changes    
 
@@ -381,9 +381,11 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
         }
 
     }, [readOnly, cytoscapeInstance])
-    
 
-    return <div ref={cytoscapeContainerRef} style={{ width: '590px', height: '400px', border: '1px solid black', margin: '5px' }} />;
+
+    return <div ref={cytoscapeContainerRef}
+        style={{ width: '100%', height: '400px', minHeight: '400px', border: '1px solid black', margin: '5px' }} />
+        ;
 };
 
 export default LayoutCanvas;

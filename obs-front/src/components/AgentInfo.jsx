@@ -95,18 +95,17 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
         <div className='container-agent'>
             {agent?.id ? (
                 <div>
-                    <h3>{agent.id}</h3>
-                    <div className="key-value-pair">
-                        <span className="key">IP:</span>
-                        <span className="value">{agent.ip}</span>
-                    </div>
-                    <div className="key-value-pair">
-                        <span className="key">Pod:</span>
-                        <span className="value"><a href={ApiHelper.globalRootConsole + '/k8s/ns/' + ApiHelper.globalCurrentNamespace + '/pods/' + agent.pod} target="_blank" rel="noopener noreferrer">{agent.pod}</a></span>
-                    </div>
+                    <h5>
+                        <span className="value">
+                            <a href={ApiHelper.globalRootConsole + '/k8s/ns/' + ApiHelper.globalCurrentNamespace + '/pods/' + agent.pod} target="_blank" rel="noopener noreferrer">{agent.pod}</a>
+                            </span> <span className="value">[{agent.ip}] metrics</span>
+                    </h5>
+
+
+                    
                     <div style={{ padding: '15px' }}>
 
-                        <h4>Metrics</h4>
+                        
                         {error && <p style={{ color: "red" }}>{error}</p>} {/* Show error message if any */}
                         <div style={{ justifyContent: 'center', display: 'flex' }}>
                             <table style={{ width: '370px', border: '0px' }}>

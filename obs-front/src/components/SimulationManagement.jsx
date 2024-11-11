@@ -83,7 +83,8 @@ const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreate
     };
 
     return (
-        <div className="container-buttons">
+
+        <div className="d-flex justify-content-center">
             {/* Overlay and Spinner */}
             <ToastContainer></ToastContainer>
             {loading && (
@@ -91,15 +92,16 @@ const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreate
                     <div style={spinnerStyles}></div>
                 </div>
             )}
-            <div>
-                <button className="redhat-button" id="primary-button" disabled={isCreateDisabled} onClick={handleCreate}>
-                    Create
-                </button>
-                <button className="redhat-button" id="primary-button" disabled={isResetDisabled} onClick={handleReset}>
-                    Reset
-                </button>
-            </div>
+
+            <button className="btn btn-primary me-2 mb-2" id="primary-button" disabled={isCreateDisabled} onClick={handleCreate}>
+                Create
+            </button>
+            <button className="btn btn-primary me-2 mb-2" id="primary-button" disabled={isResetDisabled} onClick={handleReset}>
+                Reset
+            </button>
+
         </div>
+
     );
 };
 
