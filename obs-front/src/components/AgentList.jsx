@@ -67,8 +67,8 @@ const AgentList = ({ agents, selectedAgentId, onAgentSelected }) => {
                                     ))
                                 ) : "n/a"}</td>
                                 <td>{item.ip ? (item.metrics ? item.metrics.length : "0") : "n/a"}</td>
-                                <td>{item.ip && <button className="agent-button" onClick={
-                                    () => handleKick(item.id, item.ip)}>Kick!
+                                <td>{item.ip && item.type == "customer" && <button className="agent-button" onClick={
+                                    () => handleKick(item.id, item.ip)}>Order!
                                 </button>}
                                 </td>
                             </tr>

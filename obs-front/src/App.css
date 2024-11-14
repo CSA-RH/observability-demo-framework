@@ -84,7 +84,7 @@ button {
 }
 
 /* Additional styles for specific label statuses */
-.label-nodejs {
+.label-customer {
   background-color: #f7e0e0;
   /* Light green background */
   border-color: #f83030;
@@ -94,7 +94,7 @@ button {
 }
 
 /* Additional styles for specific label statuses */
-.label-go {
+.label-waiter {
   background-color: #e0e2f7;
   /* Light green background */
   border-color: #8188c7;
@@ -116,7 +116,7 @@ button {
 
 
 /* Additional styles for specific label statuses */
-.label-dotnet {
+.label-cook {
   background-color: #e0f7ea;
   /* Light green background */
   border-color: #81c784;

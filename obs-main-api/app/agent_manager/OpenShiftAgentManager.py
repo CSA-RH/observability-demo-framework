@@ -120,7 +120,7 @@ class OpenShiftAgentManager(AgentManagerInterface):
             }
             # Make the POST request, attaching the JSON body
             print(f"Agent {agent_id}[{agent_ip}] kicking (count={kick_initial_count})...")
-            conn.request("POST", "/kick", body=json_agent_kick_payload, headers=headers)
+            conn.request("POST", "/operations/order", body=json_agent_kick_payload, headers=headers)
             # Get the response
             response = conn.getresponse()
             data = response.read()
