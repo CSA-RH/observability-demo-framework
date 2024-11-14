@@ -122,37 +122,122 @@ function deleteAgent(req, res) {
     res.status(200).send();
 }
 
-function kick(req, res) {
-    var kickCount = req.body.count
-    if (kickCount == null)
-        kickCount = 3; // Default kickCount
-    else if (kickCount == 0) {
-        console.log ("no more kicks");
-        res.status(200).send();
+function order(req, res) {
+    const customer = process.env.HOSTNAME
+    const requestId = crypto.randomUUID(); 
+    const waiter = getAvailableWaiter(_agents);
+    
+    console.log(`[${requestId}] Ordering a tasting menu...`)    
+    if (!waiter) {
+        console.error(`[${requestId}] There is no waiter available. I'm getting hungry and angry!`)
+        res.status(404).send("No waiter available");
         return;
-    }        
-    var agentReceived = req.body.sender;
-    if (agentReceived == null) 
-        agentReceived = "INITIAL KICK";
-    const sender = process.env.HOSTNAME
-    console.log("---");    
-    console.log("Sent by " + agentReceived + ". Kicks remaining: " + kickCount);    
-    for (const [agentId, agentInfo] of _agents.entries()) {                
-        var post_data = {
-            sender : sender,
-            count : kickCount-1            
-        };        
-        const agentRequestId = uuidv4();        
-        console.log("[", agentRequestId, "][REQUEST from ", sender, " to ", agentId)      
-        axios.post("http://" + agentInfo.ip + ":" + agentInfo.port + "/kick", post_data)
-            .then(agentResponse => {                
-                console.log("[", agentRequestId, "][RESPONSE from ", agentId,"]: Status =", agentResponse.status)                
-            })
-            .catch(error => {
-                console.error("Error: " + error);
-            });
     }
-    res.status(200).send();
+    console.log(`[${requestId}] Request the waiter ${waiter.name} a tasting menu`)
+    // Requesting service
+    const postData = {
+        customer : customer,
+        requestId: requestId,
+        waiter: waiter.name
+    };     
+    axios.post("http://" + waiter.ip + ":" + waiter.port + "/operations/request", postData)
+        .then(agentResponse => {                
+            console.log(`[${requestId}] It was soooo good, almost as good as at Camperos Juanma!`);            
+            res.status(200).send(); return;
+        })
+        .catch(error => {
+            console.error(`[${requestId}] Something went wrong: ${error}`);            
+            res.status(400).send();
+            return;
+        });
+}
+
+function request(req, res){
+    const waiter = process.env.HOSTNAME;
+    const cook = getAvailableCook(_agents);
+    const customerRequest = req.body;
+    const requestId = customerRequest?.requestId;
+
+    if (!requestId) {
+        console.error(`[N/A] Error in the request. No request ID`)                
+        res.status(400).send("No request ID found.");
+        return;
+    }
+
+    console.log(`[${requestId}] Receiving an order for a tasting menu. Looking for a cook...`)    
+    if (!cook) {
+        console.error(`[${requestId}] There is no cook available. No tip today from ${customerRequest?.customer}!`)
+        res.status(404).send("No cook available");
+        return;
+    }
+    console.log(`[${requestId}] Cook ${cook?.name} is available!`)    
+    const postData = {
+        waiter: waiter,
+        requestId: requestId,
+        cook: cook.name
+    }
+    axios.post("http://" + cook.ip + ":" + cook.port + "/operations/cook", postData)
+        .then(agentResponse => {                
+            console.log(`[${requestId}] Serving delicious tasting menu from ${cook?.name} to ${customerRequest?.customer}`);
+            res.status(200).send(); return;
+        })
+        .catch(error => {
+            console.error(`[${requestId}] Something went wrong: ${error}`);            
+            res.status(400).send();
+            return;
+        });
+}
+
+function cook(req, res){
+    const cook = process.env.HOSTNAME;    
+    const waiterRequest = req.body;
+    const requestId = waiterRequest?.requestId;
+    
+    if (!requestId) {
+        console.log(`[N/A] Error in the request. No request ID`)                
+        res.status(400).send("No request ID found.");
+        return;
+    }
+    // Cook randomly goes crazy and does not serve anything.(20% of chance)
+    console.log(`[${requestId}] Starting to prepare the requested tasting menu. Hope I won't go crazy...`)    
+    const crazy = Math.random() < 0.2 
+    if (crazy){
+        console.log(`[${requestId}] Cook ${cook} is crazy at the moment. Cannot serve anything`);
+        res.status(400).send("Cook went crazy. No food from him at the moment.");
+        return;
+    } else {
+        console.log(`[${requestId}] Serving request to the waiter ${waiterRequest?.waiter}`);
+        res.status(200).send(`Request ${requestId} delivered by cook ${cook}.`);
+        return;
+    }
+}
+
+function getAvailableAgent(agentType, agents){
+    const matches = [];
+
+    agents.forEach((value, key) => {
+        if (key.startsWith(agentType)) {
+            matches.push({
+                ...value, 
+                name: key
+            });
+        }
+    })
+
+    if (matches.length > 1) {
+        const randomIndex = Math.floor(Math.random() * matches.length);
+        return matches[randomIndex];
+    }
+
+    return matches[0] || null
+}
+
+function getAvailableCook(agents) {
+    return getAvailableAgent("cook", agents);
+}
+
+function getAvailableWaiter(agents) {
+    return getAvailableAgent("waiter", agents);
 }
 
 initializePrometheusEndpoint();
@@ -172,7 +257,12 @@ app.delete("/metrics/:metricName", deleteMetric);
 app.get("/agents", getRegisteredAgents);
 app.post("/agents/:agentId", postAgent);
 app.delete("/agents/:agentId", deleteAgent);
-// kick operation
-app.post("/kick", kick);
+// operations
+app.post("/operations/order", order);
+app.post("/operations/request", request);
+app.post("/operations/cook", cook);
+
 
 app.listen(8080, () => console.log(`API for Observability Framework Demo at 8080!\nPrometheus endpoint at 8081`))
+
+module.exports = { getAvailableCook, getAvailableWaiter };

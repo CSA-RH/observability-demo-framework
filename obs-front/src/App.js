@@ -14,10 +14,10 @@ import AgentTypePicker from './components/AgentTypePicker';
 function App() {
 
   const agentTypes = [
-    { type: "nodejs", image: "logo-nodejs.svg", enabled: true },
-    { type: "go", image: "logo-go.png", enabled: false },
-    { type: "java", image: "logo-java.png", enabled: false },
-    { type: "dotnet", image: "logo-dotnet.svg", enabled: true }
+    { type: "customer", image: "logo-customer.svg", enabled: true },
+    { type: "waiter", image: "logo-waiter.svg", enabled: true },
+    //{ type: "java", image: "logo-java.png", enabled: false },
+    { type: "cook", image: "logo-cook.svg", enabled: true }
   ]
 
   const [layout, setLayout] = useState([])
@@ -52,6 +52,8 @@ function App() {
     setSelectedAgent({});
     // Unload the simulation
     setSimulationLoaded(false);
+    // Set agent type to first one
+    setSelectedAgentType(agentTypes[0]);
   }
 
   // Selected from layout canvas
@@ -165,7 +167,10 @@ function App() {
         <div className="col-12">
           <h2>Communications</h2>
           {!simulationLoaded && (
-            <AgentTypePicker nodeTypes={agentTypes} onSelectionChange={handleAgentTypeChanged}></AgentTypePicker>
+            <AgentTypePicker 
+              nodeTypes={agentTypes} 
+              onSelectionChange={handleAgentTypeChanged} 
+              selectedAgent={selectedAgent}></AgentTypePicker>
           )}
           <LayoutCanvas
             readOnly={simulationLoaded}

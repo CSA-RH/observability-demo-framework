@@ -11,13 +11,8 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
     const lockedRef = useRef(readOnly);
     const currentStyle = useRef(nodeType);
 
-    useEffect(() => {
-        //setCurrentStyle(nodeType.type);
-        console.log("Changed style: ")
-        console.log(currentStyle.current)
-        currentStyle.current = nodeType
-        console.log(nodeType);
-        console.log("---------------")
+    useEffect(() => {        
+        currentStyle.current = nodeType        
     }, [nodeType])
 
     useEffect(() => {
@@ -38,14 +33,14 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
             container: cytoscapeContainerRef.current,
             style: [
                 {
-                    selector: 'node[styleType="nodejs"]',
+                    selector: 'node[styleType="customer"]',
                     style: {
                         'background-color': 'red',
                         label: 'data(id)'
                     }
                 },
                 {
-                    selector: 'node[styleType="go"]',
+                    selector: 'node[styleType="waiter"]',
                     style: {
                         'background-color': 'blue',
                         label: 'data(id)'
@@ -59,7 +54,7 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
                     }
                 },
                 {
-                    selector: 'node[styleType="dotnet"]',
+                    selector: 'node[styleType="cook"]',
                     style: {
                         'background-color': 'green',
                         label: 'data(id)'
@@ -110,106 +105,94 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
         // List of names
         const malagaPlayers = [
             "duda",
-            "sandro-ramirez",
+            "sandro",
             "isco",
-            "roque-santa-cruz",
-            "salva-ballesta",
+            "santa-cruz",
+            "salva",
             "roteta",
             "koke",
             "weligton",
-            "santi-cazorla",
+            "cazorla",
             "nacho",
-            "pablo-fornals",
+            "fornals",
             "van-nistelrooy",
-            "kiki-musampa",
-            "fernando-hierro",
+            "musampa",
             "rufete",
             "apono",
-            "roberto-rosales",
-            "vicente-valcarce",
-            "jesus-gamez",
-            "enzo-maresca",
-            "julio-baptista",
+            "rosales",
+            "valcarce",
+            "gamez",
+            "maresca",
+            "baptista",
             "amrabat",
-            "charles-dias",
-            "joaquin-sanchez",
+            "charles",
+            "joaquin",
             "samuel-garcia",
             "eliseu",
-            "victor-sanchez-del-amo",
-            "carlos-kameni",
-            "ignacio-camacho",
-            "javi-gracia",
-            "ibon-bieir",
+            "kameni",
+            "camacho",
             "willy-caballero",
             "migueli",
             "antonio-hidalgo",
             "pepillo",
             "basti",
-            "dani-bautista",
             "josemi",
-            "sandro",
             "monreal",
             "quino",
             "juanmi",
-            "nacho-perez",
-            "adolfo-aldana",
-            "ivo-vukcevic",
-            "manuel-fernandez",
-            "martin-aguilar",
+            "nacho-perez",            
             "manolo-reina",
-            "emerson",
-            "adrian-gonzalez",
-            "victor-vincent",
-            "albert-luque",
-            "panadero-diaz",
-            "ricardinho",
-            "gerardo-torres",
-            "ivan-cordoba",
-            "rafa-zaragoza",
-            "youssef-en-nesyri",
-            "eliseo-salazar",
-            "marcelo-romero",
-            "antonio-gayoso",
-            "marcos-angeleri",
-            "juan-calatayud",
-            "roberto-santamaria",
-            "diego-rolan",
-            "borja-baston",
-            "nordin-amrabat",
-            "sergio-pellicer",
-            "francis",
-            "manu",
-            "munir-mohand",
-            "mehdi-lacen",
-            "jose-anselmo",
-            "pedro",
-            "pedro-jaro",
-            "alvaro-sanz",
-            "fabrice-olinga",
-            "cyryl-makanaky",
-            "charles",
-            "sandro-bergara",
-            "jeremy-toulalan",
-            "pedro-c-camara",
-            "ismael-gutierrez",
+            "pellicer",
+            "jaro",
+            "makanaky",
+            "toulalan",
             "antonio-benitez",
-            "ivan-lucas",
-            "jose-paz",
-            "diego-benitez",
             "adrian",
-            "dani-carrera",
-            "esteban-suarez",
-            "samuel-munoz",
-            "diego-gonzalez",
-            "junior-sarmiento",
-            "alfredo-mejias",
             "dario-silva",
             "movilla",
-            "antonito"
+            "antonito", 
+            "fleitas", 
+            "guerini",
+            "castronovo",
+            "usuriaga",
+            "paquito",
+            "alvarez",
+            "bernardi",
+            "americo",
+            "montero",
+            "arias",
+            "arles",
+            "aido",
+            "viberti",
+            "vilanova",
+            "varela",
+            "rodriguez",
+            "cantaruti",
+            "cabral",
+            "roldan",
+            "canabal",
+            "bazan",
+            "deusto",
+            "goroechea",
+            "peribaldo",
+            "pineda",
+            "husillos",
+            "jantunen",
+            "bonacic",
+            "lauridsen",
+            "pons",
+            "martinez",
+            "borreda",
+            "munoz-perez",
+            "soriano", 
+            "contreras",
+            "elder", 
+            "goitia",
+            "conejo"
         ];
 
         // Function to randomly select a name without repeating
-        function getRandomName() {
+        function getRandomName(styleType) {
             if (malagaPlayers.length === 0) {
                 console.log("All names have been used.");
                 return null; // or reset the array if needed
@@ -222,14 +205,14 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
             const selectedName = malagaPlayers.splice(randomIndex, 1)[0];
 
             // Return the selected name
-            return selectedName;
+            return styleType + '-' + selectedName;
         }
 
         function addNode(position) {
             const node = {
                 group: 'nodes',
                 data: {
-                    id: getRandomName(),
+                    id: getRandomName(currentStyle.current),
                     styleType: currentStyle.current
                 },
                 position: { x: position.x, y: position.y }

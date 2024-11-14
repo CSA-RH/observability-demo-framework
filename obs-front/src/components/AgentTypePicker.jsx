@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-const AgentTypePicker = ({nodeTypes, onSelectionChange}) => {
+const AgentTypePicker = ({ nodeTypes, onSelectionChange }) => {
 
     const [selectedButton, setSelectedButton] = useState(0);
 
@@ -21,7 +21,7 @@ const AgentTypePicker = ({nodeTypes, onSelectionChange}) => {
                         padding: '5px',
                         margin: '5px',
                         background: 'none',
-                        cursor: 'pointer', 
+                        cursor: 'pointer',
                         maxWidth: '85px'
                     }}
                 >
