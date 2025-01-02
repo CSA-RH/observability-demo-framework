@@ -46,6 +46,7 @@ class OpenShiftAgentManager(AgentManagerInterface):
             # Ensure the connection is closed
             conn.close()
         return json_result
+
     async def set_agent_metrics(self, method: str, payload: dict[str, Any]):
         print("set_agent_metric")
         print(payload)

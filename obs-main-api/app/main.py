@@ -125,3 +125,14 @@ async def create_agent_metric(payload: dict[str, Any]):
 @app.put("/metrics")
 async def modify_agent_metric(payload: dict[str, Any]):
     await agent_manager.set_agent_metrics("PUT", payload=payload)
+
+@app.post("/alert")
+async def create_alert(payload: dict[str, Any]):
+    print("Creating alert: ")    
+    agent_name = payload['id']
+    agent_type = payload['agent_type']
+    metric = payload['metric']
+    
+    print(agent_name, agent_type, metric)
+
+    return await cluster_connector.create_alert(agent_name, agent_type, metric)

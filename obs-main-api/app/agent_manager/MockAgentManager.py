@@ -52,6 +52,8 @@ class MockAgentManager(AgentManagerInterface):
         for metric in agent['metrics']:
             if metric["name"] == metricInfo["name"]:
                 metric['value'] = metricInfo['value']
+                if metricInfo['alert']:
+                    metric['alert'] = metricInfo['alert']
                 updated = True
                 break
         if not updated: 

@@ -1,4 +1,3 @@
-
 #cy {
   width: 100%;
   height: 100%;
@@ -114,7 +113,6 @@ button {
   /* Dark green text */
 }
 
-
 /* Additional styles for specific label statuses */
 .label-cook {
   background-color: #e0f7ea;
@@ -125,8 +123,34 @@ button {
   /* Dark green text */
 }
 
+.label-information {
+  background-color: #cddfff;
+  /* Light red background */
+  border-color: #7375e5;
+  /* Red border */
+  color: #2830c6;
+  /* Dark red text */
+}
 
-/* KEY VALUE PAIRS FOR AGENT INFO STYLING */ 
+.label-error {
+  background-color: #f7e0e0;
+  /* Light green background */
+  border-color: #f83030;
+  /* Green border */
+  color: #7d2e2e;
+  /* Dark green text */
+}
+
+.label-warning {
+  background-color: #fff9c4;
+  /* Light yellow background */
+  border-color: #ffeb3b;
+  /* Yellow border */
+  color: #f57f17;
+  /* Dark yellow text */
+}
+
+/* KEY VALUE PAIRS FOR AGENT INFO STYLING */
 .key-value-pair {
   display: flex;
   justify-content: space-between;
@@ -142,19 +166,6 @@ button {
 
 .value {
   color: #555;
-}
-
-.container-agent {
-  max-width: 560px;
-  margin: 20px;
-  padding: 10px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  background-color: #f9f9f9;
-}
-
-.container-agent div:last-child {
-  border-bottom: none;
 }
 
 /* Table effects */
@@ -174,5 +185,6 @@ button {
 }
 
 .selected {
-  background-color: #d3d3d3; /* Highlight color for selected row */
+  background-color: #d3d3d3;
+  /* Highlight color for selected row */
 }

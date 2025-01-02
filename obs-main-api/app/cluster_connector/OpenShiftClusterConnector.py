@@ -436,6 +436,106 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
 
         return simulation
             
+    async def create_alert(self, agent_name, agent_type, metric):
+        print("Created alert: ")
+        print(f" - Agent name: {agent_name}")
+        print(f" - Agent type: {agent_type}")
+        print(" - metric info: ")
+        print(metric)
+        print(" ****** ")
+        return self.__create_prometheus_rule(agent_name, agent_type, metric['name'], metric['alert'], self.__get_current_namespace())
+
+    def __map_expression_to_alert(self, expression):
+        """
+        Maps a comparison expression to a semantic alert label.
+
+        :param expression: A string representing the comparison operator 
+                        (e.g., "<", "<=", "!=", ">", ">=").
+        :return: A string representing the semantic alert label.
+        """
+        mapping = {
+            "<": "StrictlyTooLow",
+            "≤": "TooLow",
+            ">": "StrictlyTooHigh",
+            "≥": "TooHigh",
+            "≠": "Distinct",
+            "=": "Equals",
+        }
+        
+        return mapping.get(expression, "Unknown")
+
+    def __map_expression_operator_to_comparison_operator(self, expression_operator):
+        mapping = {
+            "<": "<",
+            "≤": "<=",
+            ">": ">",
+            "≥": ">=",
+            "≠": "!=",
+            "=": "==",
+        }
+        return mapping.get(expression_operator, "unknown")
+
+    def __create_prometheus_rule(self, agent_name, agent_type, metric_name, alert, namespace="observability-demo"):
+        expression_operator = alert['expression']
+        semantic_expression_label = self.__map_expression_to_alert(expression_operator)
+        
+        alert_name_crd = f"{agent_name}_{metric_name}_{semantic_expression_label}"
+        alert_name_crd = alert_name_crd.replace("_", "-").lower()
+        alert_name_openshift = f"{metric_name}{semantic_expression_label}"
+        summary = f"Alert {semantic_expression_label} on {agent_name}"
+        threshold = alert['value'];        
+        expression = f"{metric_name}{{job=\"{agent_name}\"}}{self.__map_expression_operator_to_comparison_operator(expression_operator)}{threshold}"
+        # Define the PrometheusRule resource
+        prometheus_rule_body = {
+            "apiVersion": "monitoring.coreos.com/v1",
+            "kind": "PrometheusRule",
+            "metadata": {
+                "name": alert_name_crd,
+                "namespace": namespace,
+                "labels": {
+                    "observability-demo-framework": "agent"
+                }
+            },
+            "spec": {
+                "groups": [
+                    {
+                        "name": agent_name,
+                        "rules": [
+                            {
+                                "alert": alert_name_openshift,
+                                "annotations": {
+                                    "summary": summary
+                                },
+                                "expr": expression,
+                                "for": "1m",
+                                "labels": {
+                                    "severity": alert['severity'],
+                                    "alertType": agent_type,
+                                },
+                            }
+                        ],
+                    }
+                ],
+            },
+        }
+
+        print(prometheus_rule_body)
+
+        # Create the PrometheusRule resource
+        try:
+            response = self.__custom_v1_api.create_namespaced_custom_object(
+                group="monitoring.coreos.com",
+                version="v1",
+                namespace=namespace,
+                plural="prometheusrules",
+                body=prometheus_rule_body,
+            )
+            print(f"PrometheusRule '{agent_name}' created successfully.")
+            return response
+        except client.exceptions.ApiException as e:
+            print(f"Exception when creating PrometheusRule: {e}")
+            return None
+
     async def delete_simulation(self):
         label_selector = "observability-demo-framework=agent"
 
@@ -470,6 +570,24 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 plural="servicemonitors",
                 name=sm['metadata']['name']
             )
+        # Delete prometheus rules. 
+        prometheus_rules = self.__custom_v1_api.list_namespaced_custom_object(
+            group="monitoring.coreos.com",
+            version="v1", 
+            namespace=namespace, 
+            plural="prometheusrules", 
+            label_selector=label_selector
+        )
+        for pm in prometheus_rules.get("items", []):
+            print(f"Deleting PrometheusRule: {pm['metadata']['name']}")
+            self.__custom_v1_api.delete_namespaced_custom_object(
+                group="monitoring.coreos.com",
+                version="v1",
+                namespace=namespace,
+                plural="prometheusrules",
+                name=pm['metadata']['name']
+            )
+
         # Delete secret 
         secret_name="obs-demo-fw-state"
         try:
