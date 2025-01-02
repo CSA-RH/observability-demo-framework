@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bootstrap Dropdown Example</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container mt-5">
+        <h1>Dropdown</h1>
+        <div class="dropdown">
+            <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" id="dropdownMenuButton"
+                data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                &lt;
+            </button>
+            <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                <a class="dropdown-item" href="#" data-value="&lt;">&lt;</a>
+                <a class="dropdown-item" href="#" data-value="&le;">&le;</a>
+                <a class="dropdown-item" href="#" data-value="&equals;">&equals;</a>
+                <a class="dropdown-item" href="#" data-value="&ne;">&ne;</a>
+                <a class="dropdown-item" href="#" data-value="&ge;">&ge;</a>
+                <a class="dropdown-item" href="#" data-value="&gt;">&gt;</a>
+            </div>
+        </div>        
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.querySelectorAll('.dropdown-item').forEach(item => {
+            item.addEventListener('click', function (event) {
+                event.preventDefault(); // Prevent default link behavior
+                const selectedValue = this.getAttribute('data-value'); // Get the value from data attribute
+                const button = document.getElementById('dropdownMenuButton');
+                button.textContent = selectedValue; // Update the button text
+            });
+        });
+    </script>
+</body>
+
+</html>

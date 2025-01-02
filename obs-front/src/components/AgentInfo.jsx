@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import * as ApiHelper from '../ApiHelper.js'
+import MetricAlertCreator from './MetricAlertCreator.jsx';
 
 const AgentInfo = ({ agent, onAgentUpdated }) => {
 
     const [metrics, setMetrics] = useState(agent?.metrics || []);
     const [newMetric, setNewMetric] = useState({ name: "", type: "gauge", value: "" });
     const [error, setError] = useState("");
+    const [alertEditorEnabled, setAlertEditorEnabled] = useState(false);
+    const [metricAlertSelected, setMetricAlertSelected] = useState("")
 
     useEffect(() => {
         if (agent) {
@@ -30,7 +33,11 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
             id: agent.id,
             ip: agent.ip,
             metric: metric
-        }        
+        }
+        console.log("**Payload:", payload);
+        console.log("**Agent:", agent);
+        console.log("**Metric:", metric);
+
         try {
             const response = await fetch(ApiHelper.getAgentsMetricsUrl(), {
                 method: method,
@@ -44,6 +51,30 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
         } catch (error) {
             console.error('Error:', error);
         }
+    }
+
+    async function setAlertInCluster(agent, metricObject) {
+        console.log("Agent: ", agent);
+        console.log("Metric: ", metricObject)
+        try {
+            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(), {
+                method: "POST", 
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    id: agent.id, 
+                    agent_type: agent.type,
+                    metric: metricObject
+                })});
+            const result = await response.json();
+            console.log(`Set alert for the metric ${metricObject.name}`);
+        } catch (error) {
+            console.error('Error:', error);
+        }
+        
+                    
+        
     }
 
     const handleAddMetric = () => {
@@ -91,30 +122,48 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
         });
     };
 
+    const handleEnableAlertCreator = (index) => {
+        setAlertEditorEnabled(true);
+        setMetricAlertSelected(metrics[index].name);
+    }
+
+    const onAlertEditionCancel = (e) => {
+        setAlertEditorEnabled(false);
+    }
+
+    const onAlertEditionSubmit = (metric, expression, value, severity) => {
+        const alert = { expression: expression, severity: severity, value: value };
+        const metricObject = agent.metrics.find((m) => m.name == metric);
+        metricObject['alert'] = alert;
+        //Update alert definition in definition 
+        setMetricInOpenShift("PUT", agent, metricObject)
+        onAgentUpdated(agent);
+        //Create rule in cluster
+        setAlertInCluster(agent, metricObject)
+        console.log("Added new alert to Agent: ", agent.id, "Metric: ", metric, "Alert", alert);
+        setAlertEditorEnabled(false);
+    }
+
     return (
-        <div className='container-agent'>
+        <div className='container'>
             {agent?.id ? (
                 <div>
                     <h5>
                         <span className="value">
                             <a href={ApiHelper.globalRootConsole + '/k8s/ns/' + ApiHelper.globalCurrentNamespace + '/pods/' + agent.pod} target="_blank" rel="noopener noreferrer">{agent.pod}</a>
-                            </span> <span className="value">[{agent.ip}] metrics</span>
+                        </span> <span className="value">[{agent.ip}] metrics</span>
                     </h5>
-
-
-                    
-                    <div style={{ padding: '15px' }}>
-
-                        
+                    <div>
                         {error && <p style={{ color: "red" }}>{error}</p>} {/* Show error message if any */}
-                        <div style={{ justifyContent: 'center', display: 'flex' }}>
-                            <table style={{ width: '370px', border: '0px' }}>
+                        <div className='table-responsive'>
+                            <table className='table w-100'>
                                 <thead>
                                     <tr>
                                         <th>Name</th>
                                         <th>Type</th>
                                         <th>Value</th>
                                         <th>Actions</th>
+                                        <th>Alert</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -137,6 +186,17 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                                             </td>
                                             <td>
                                                 <button className="agent-button" onClick={() => handleUpdateMetric(index)}>Update</button>
+                                            </td>
+                                            <td>
+                                                {!metric.alert ?
+                                                    <button className="agent-button" onClick={() => handleEnableAlertCreator(index)}>Define Alert</button>
+                                                    :
+                                                    <div className={"label label-" + metric.alert.severity.toLowerCase()}>
+                                                        <span>{metric.alert.expression}</span>
+                                                        <span>{metric.alert.value}</span>
+                                                        <span>[{metric.alert.severity}]</span>
+                                                    </div>
+                                                }
                                             </td>
                                         </tr>
                                     ))}
@@ -173,6 +233,12 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                             </table>
                         </div>
                     </div>
+                    {alertEditorEnabled && (
+                        <MetricAlertCreator
+                            metricName={metricAlertSelected}
+                            onSubmit={onAlertEditionSubmit}
+                            onCancel={onAlertEditionCancel} />
+                    )}
                 </div>
 
             ) : (

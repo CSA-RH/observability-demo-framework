@@ -48,7 +48,7 @@ const AgentList = ({ agents, selectedAgentId, onAgentSelected }) => {
                             <th>Name</th>
                             <th>Technology</th>
                             <th>Next hops</th>
-                            <th>#Metrics</th>
+                            <th>#Metrics / #Alerts</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -66,7 +66,7 @@ const AgentList = ({ agents, selectedAgentId, onAgentSelected }) => {
                                         <span key={index} className="label">{hop}</span>
                                     ))
                                 ) : "n/a"}</td>
-                                <td>{item.ip ? (item.metrics ? item.metrics.length : "0") : "n/a"}</td>
+                                <td>{item.ip ? (item.metrics ? item.metrics.length + "/" + item.metrics.filter((c) => c.alert).length : "0") : "n/a"}</td>
                                 <td>{item.ip && item.type == "customer" && <button className="agent-button" onClick={
                                     () => handleKick(item.id, item.ip)}>Order!
                                 </button>}

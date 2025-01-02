@@ -17,6 +17,10 @@ export function getAgentsMetricsUrl(){
     return `${MASTER_API_ADDRESS}/metrics`
 }
 
+export function getClusterAlertDefinitionUrl() {
+    return `${MASTER_API_ADDRESS}/alert`
+}
+
 //Root console address
 export let globalRootConsole = 'N/A';
 

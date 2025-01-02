@@ -69,7 +69,35 @@ if check_openshift_resource_exists Deployment obs-main-api; then
 else
   echo "Creating deployment, service and route..."
   # Create deployment
-  oc create deploy obs-main-api --image=obs-main-api:latest 
+  #oc create deploy obs-main-api --image=obs-main-api:latest
+  oc create sa obs-main-api-sa
+  #TODO Tailor backend permissions only to the resources they're using. 
+  oc adm policy add-cluster-role-to-user cluster-admin -z obs-main-api-sa
+  cat <<EOF | oc create -f - 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: obs-main-api
+  name: obs-main-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: obs-main-api
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: obs-main-api
+    spec:
+      serviceAccountName: obs-main-api-sa
+      containers:
+      - image: obs-main-api:latest
+        name: obs-main-api
+EOF
   # Create service
   oc expose deploy/obs-main-api --port 8000
   # Create route
