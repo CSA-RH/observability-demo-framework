@@ -30,9 +30,8 @@ const AgentList = ({ agents, selectedAgentId, onAgentSelected }) => {
 
     //For handling the kick
     const handleKick = async (id, ip) => {
-        console.log(`${id}[${ip}] kicked the ball!`);
-        addToast(`${id}[${ip}] kicked the ball!`);
-        console.log("kicked!");
+        console.log(`${id}[${ip}] placed an order!`);
+        addToast(`${id}[${ip}] placed an order!`);
         try {
             const kickPayload = {
                 ip: ip,
