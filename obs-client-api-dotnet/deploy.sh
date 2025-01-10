@@ -1,3 +1,8 @@
+#!/bin/bash
+
+# Get the directory where the script is located
+SCRIPT_DIR="$(realpath "$(dirname "$0")")"
+
 # Create ImageStream for Observability dotnet
 cat <<EOF | oc apply -f -
 apiVersion: image.openshift.io/v1
@@ -34,6 +39,6 @@ rm -rf bin out obj
 # Remove previous build objects
 oc delete build --selector build=obs-client-dotnet > /dev/null 
 # Start build for obs-client-dotnet
-oc start-build obs-client-dotnet --from-file .
+oc start-build obs-client-dotnet --from-file $SCRIPT_DIR
 # Follow the logs until completion 
 oc logs $(oc get build --selector build=obs-client-dotnet -oNAME) -f 
