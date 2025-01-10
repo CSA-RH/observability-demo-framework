@@ -70,14 +70,81 @@ else
   echo "Creating deployment, service and route..."
   # Create deployment
   #oc create deploy obs-main-api --image=obs-main-api:latest
+  
+  # Customize backend permissions (to sa obs-main-api-sa) to match only the used resources.
+  # - Create service account obs-main-api-sa
   oc create sa obs-main-api-sa
-  #TODO Tailor backend permissions only to the resources they're using. 
-  oc adm policy add-cluster-role-to-user cluster-admin -z obs-main-api-sa
+  # - Create role and clusterrole for service account
+  cat <<EOF | oc apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: obs-main-api-role
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["create", "delete", "get", "list", "watch"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["servicemonitors", "prometheusrules"]
+    verbs: ["create", "delete", "get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["create", "delete", "get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "delete", "get", "list", "watch"]
+  - apiGroups: ["route.openshift.io"]
+    resources: ["routes"]
+    verbs: ["list"]
+EOF
+
+  cat <<EOF | oc apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: obs-main-api-clusterrole
+rules:
+  - apiGroups: ["config.openshift.io"]
+    resources: ["consoles"]
+    verbs: ["get"]
+EOF
+  # - Create role binding (obs-main-api-role and obs-main-api-clusterrole to obs-main-api-sa)
+  cat <<EOF | oc apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: obs-main-api-rolebinding
+subjects:
+  - kind: ServiceAccount
+    name: obs-main-api-sa
+    namespace: $CURRENT_NAMESPACE
+roleRef:
+  kind: Role
+  name: obs-main-api-role
+  apiGroup: rbac.authorization.k8s.io
+EOF
+  cat <<EOF | oc apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: obs-main-api-clusterrolebinding
+subjects:
+  - kind: ServiceAccount
+    name: obs-main-api-sa
+    namespace: $CURRENT_NAMESPACE
+roleRef:
+  kind: ClusterRole
+  name: obs-main-api-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+EOF
+  # Create deployment
   cat <<EOF | oc create -f - 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  creationTimestamp: null
   labels:
     app: obs-main-api
   name: obs-main-api
