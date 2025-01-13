@@ -128,9 +128,9 @@ roleRef:
 EOF
   cat <<EOF | oc apply -f -
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
-  name: obs-main-api-clusterrolebinding
+  name: obs-main-api-cluster-rolebinding
 subjects:
   - kind: ServiceAccount
     name: obs-main-api-sa
