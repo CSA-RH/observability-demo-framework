@@ -96,7 +96,7 @@ const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreate
             <button className="btn btn-primary me-2 mb-2" id="primary-button" disabled={isCreateDisabled} onClick={handleCreate}>
                 Create
             </button>
-            <button className="btn btn-primary me-2 mb-2" id="primary-button" disabled={isResetDisabled} onClick={handleReset}>
+            <button className="btn btn-secondary me-2 mb-2" id="primary-button" disabled={isResetDisabled} onClick={handleReset}>
                 Reset
             </button>
 

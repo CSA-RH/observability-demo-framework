@@ -18,7 +18,7 @@ export function getAgentsMetricsUrl(){
 }
 
 export function getClusterAlertDefinitionUrl() {
-    return `${MASTER_API_ADDRESS}/alert`
+    return `${MASTER_API_ADDRESS}/alerts`
 }
 
 //Root console address
@@ -41,4 +41,8 @@ export function getPodAddress(podName) {
 
 export function getPodLogsAddress(podName) {
     return getPodAddress(podName) + "/logs"
+}
+
+export function getAlertRulesAddress(){
+    return globalRootConsole + "/monitoring/alertrules?rowFilter-alerting-rule-source=user"    
 }

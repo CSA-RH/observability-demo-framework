@@ -2,11 +2,14 @@ from cluster_connector.ClusterConnectorInterface import ClusterConnectorInterfac
 from typing import Dict, List, Any
 from kubernetes import config, client, watch       # type: ignore
 from kubernetes.client.rest import ApiException    # type: ignore
+from utils import JSONUtils
 
 import os, time, json, http.client, socket, base64
 
-class OpenShiftClusterConnector(ClusterConnectorInterface):    
-        
+class OpenShiftClusterConnector(ClusterConnectorInterface):
+
+    ALERTS_CONFIGMAP = "obs-demo-fwk-alerts"
+
     def __init__(self):        
         # Load Kubernetes configuration depending on the environment        
         try:
@@ -337,7 +340,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         encoded_data = base64.b64encode(json.dumps(json_data).encode('utf-8')).decode('utf-8')
         
         secret = client.V1Secret(
-            metadata=client.V1ObjectMeta(name="obs-demo-fw-state"),
+            metadata=client.V1ObjectMeta(name="obs-demo-fw-state", labels={"observability-demo-framework": "storage"}),            
             data={"simulation": encoded_data},
         )
         try:
@@ -435,62 +438,63 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             agent["pod"] = pods[agent["id"]]
 
         return simulation
-            
-    async def create_alert(self, agent_name, agent_type, metric):
-        print("Created alert: ")
-        print(f" - Agent name: {agent_name}")
-        print(f" - Agent type: {agent_type}")
-        print(" - metric info: ")
-        print(metric)
-        print(" ****** ")
-        return self.__create_prometheus_rule(agent_name, agent_type, metric['name'], metric['alert'], self.__get_current_namespace())
 
-    def __map_expression_to_alert(self, expression):
-        """
-        Maps a comparison expression to a semantic alert label.
-
-        :param expression: A string representing the comparison operator 
-                        (e.g., "<", "<=", "!=", ">", ">=").
-        :return: A string representing the semantic alert label.
-        """
-        mapping = {
-            "<": "StrictlyTooLow",
-            "≤": "TooLow",
-            ">": "StrictlyTooHigh",
-            "≥": "TooHigh",
-            "≠": "Distinct",
-            "=": "Equals",
+    def __load_json_from_configmap(self, configmap_name, key, namespace):
+        try:
+            # Get the ConfigMap
+            configmap = self.__core_v1_api.read_namespaced_config_map(configmap_name, namespace)
+            # Extract the JSON string
+            json_str = configmap.data.get(key, "{}")  # Default to an empty JSON object if the key is missing
+            # Parse and return the JSON data
+            return json.loads(json_str)
+        except client.exceptions.ApiException as e:
+            if e.status == 404:
+                print(f"ConfigMap '{configmap_name}' not found in namespace '{namespace}'.")
+                return []
+            else:
+                raise
+ 
+    def __save_json_to_configmap(self, json_data, configmap_name, key, namespace):
+        json_str = json.dumps(json_data)
+        configmap_data = {
+            "metadata": {
+                "name": configmap_name,
+                "namespace": namespace,
+                "labels": {
+                    "observability-demo-framework": "storage"
+                }
+            },
+            "data": {
+                key: json_str,
+            },
         }
-        
-        return mapping.get(expression, "Unknown")
+        try:
+        # Check if the ConfigMap exists
+            self.__core_v1_api.read_namespaced_config_map(configmap_name, namespace)
+            # If it exists, update it
+            self.__core_v1_api.patch_namespaced_config_map(configmap_name, namespace, configmap_data)
+            print(f"Updated ConfigMap '{configmap_name}' in namespace '{namespace}'.")
+        except client.exceptions.ApiException as e:
+            if e.status == 404:
+                # If it doesn't exist, create it
+                self.__core_v1_api.create_namespaced_config_map(namespace, configmap_data)
+                print(f"Created ConfigMap '{configmap_name}' in namespace '{namespace}'.")
+            else:
+                raise
 
-    def __map_expression_operator_to_comparison_operator(self, expression_operator):
-        mapping = {
-            "<": "<",
-            "≤": "<=",
-            ">": ">",
-            "≥": ">=",
-            "≠": "!=",
-            "=": "==",
-        }
-        return mapping.get(expression_operator, "unknown")
+    def save_alert_definition(self, alert):
+        alerts_definition=self.__load_json_from_configmap(self.ALERTS_CONFIGMAP, "alerts", self.__get_current_namespace())
+        alerts_definition.append(alert)
+        self.__save_json_to_configmap(alerts_definition, self.ALERTS_CONFIGMAP, "alerts", self.__get_current_namespace())
 
-    def __create_prometheus_rule(self, agent_name, agent_type, metric_name, alert, namespace="observability-demo"):
-        expression_operator = alert['expression']
-        semantic_expression_label = self.__map_expression_to_alert(expression_operator)
-        
-        alert_name_crd = f"{agent_name}_{metric_name}_{semantic_expression_label}"
-        alert_name_crd = alert_name_crd.replace("_", "-").lower()
-        alert_name_openshift = f"{metric_name}{semantic_expression_label}"
-        summary = f"Alert {semantic_expression_label} on {agent_name}"
-        threshold = alert['value'];        
-        expression = f"{metric_name}{{job=\"{agent_name}\"}}{self.__map_expression_operator_to_comparison_operator(expression_operator)}{threshold}"
+    def create_alert_resource(self, id, name, severity, group, expression, summary):
         # Define the PrometheusRule resource
+        namespace = self.__get_current_namespace()
         prometheus_rule_body = {
             "apiVersion": "monitoring.coreos.com/v1",
             "kind": "PrometheusRule",
             "metadata": {
-                "name": alert_name_crd,
+                "name": id,
                 "namespace": namespace,
                 "labels": {
                     "observability-demo-framework": "agent"
@@ -499,29 +503,25 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             "spec": {
                 "groups": [
                     {
-                        "name": agent_name,
+                        "name": group,
                         "rules": [
                             {
-                                "alert": alert_name_openshift,
+                                "alert": name,
                                 "annotations": {
                                     "summary": summary
                                 },
                                 "expr": expression,
                                 "for": "1m",
                                 "labels": {
-                                    "severity": alert['severity'],
-                                    "alertType": agent_type,
+                                    "severity": severity
                                 },
                             }
                         ],
                     }
                 ],
             },
-        }
-
-        print(prometheus_rule_body)
-
-        # Create the PrometheusRule resource
+        }    
+        
         try:
             response = self.__custom_v1_api.create_namespaced_custom_object(
                 group="monitoring.coreos.com",
@@ -530,13 +530,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 plural="prometheusrules",
                 body=prometheus_rule_body,
             )
-            print(f"PrometheusRule '{agent_name}' created successfully.")
-            return response
+            print(f"PrometheusRule '{id}' created successfully.")
+            return {"success": True}
         except client.exceptions.ApiException as e:
             print(f"Exception when creating PrometheusRule: {e}")
             return None
 
-    async def delete_simulation(self):
+    async def delete_simulation(self):        
         label_selector = "observability-demo-framework=agent"
 
         namespace = self.__get_current_namespace()
@@ -599,4 +599,47 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             else:
                 print(f"Failed to delete Secret '{secret_name}': {e}")            
             raise 
+        
+        # Delete config map
+        config_map = self.ALERTS_CONFIGMAP
+        try:
+            self.__core_v1_api.delete_namespaced_config_map(config_map, self.__get_current_namespace())
+            print(f"ConfigMap '{config_map}' deleted successfully.")
+        except client.exceptions.ApiException as e:
+            if e.status == 404:
+                print(f"ConfigMap '{config_map}' not found in namespace '{self.__get_current_namespace()}'.")
+            else:
+                print(f"Failed to delete ConfigMap '{config_map}': {e}")            
+            raise 
+
         print("All matching resources deleted successfully.")
+
+    def delete_alert(self, alert_name):        
+        try:
+            self.__custom_v1_api.delete_namespaced_custom_object(
+                group="monitoring.coreos.com",
+                version="v1",
+                namespace=self.__get_current_namespace(),
+                plural="prometheusrules",
+                name=alert_name)
+            return {"success": True}
+        except client.exceptions.ApiException as e:
+            if e.status == 404:
+                print(f"PrometheusRule '{alert_name}' not found in namespace '{self.__get_current_namespace()}'.")                
+            else:
+                print(f"Failed to delete PrometheusRule '{alert_name}': {e}")
+            return {"success": False, "error": e}            
+
+    def delete_alert_definition(self, alert_id):
+        try:            
+            alerts = self.__load_json_from_configmap(self.ALERTS_CONFIGMAP, "alerts", self.__get_current_namespace())            
+            cleaned_alerts = [item for item in alerts if item.get("id") != alert_id]
+            self.__save_json_to_configmap(cleaned_alerts, self.ALERTS_CONFIGMAP, "alerts", self.__get_current_namespace())
+            return {"success": True}
+        except client.exception.ApiException as e: 
+            return {"success": False, "error": e}
+
+    
+    def get_alert_definitions(self):
+        alerts = self.__load_json_from_configmap(self.ALERTS_CONFIGMAP, "alerts", self.__get_current_namespace())        
+        return alerts

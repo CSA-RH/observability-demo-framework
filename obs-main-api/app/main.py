@@ -8,7 +8,11 @@ from fastapi.responses import JSONResponse              # type: ignore
 from fastapi.middleware.cors import CORSMiddleware      # type: ignore
 from typing import List, Dict, Any
 
-import os, types
+import os
+from utils import JSONUtils
+
+
+from pprint import pprint
 
 def is_using_fake_cluster_connector():
     value = os.environ.get('CLUSTER_CONNECTOR')
@@ -97,6 +101,7 @@ async def create_simulation(payload: Dict[str, Any]):
 @app.delete("/simulation")
 async def delete_simulation():
     await cluster_connector.delete_simulation()
+    agent_manager.delete_metrics_definitions()    
 
 @app.get("/simulation")
 async def get_simulation():
@@ -108,8 +113,31 @@ async def get_simulation():
     for item in simulation["agents"]:
         id = item["id"]
         metrics = agent_manager.get_agent_metrics(id)
+        for metric in metrics:
+            metric["alerts"] = []
         print(f"Pod: {item["pod"]}. Metrics: {metrics}")        
         item["metrics"] = metrics
+    # Update alerts of the metrics.
+    alerts = cluster_connector.get_alert_definitions() 
+    for alert in alerts:
+        if alert["scope"] != "metricAgent":
+            continue
+        agent_matches = [agent for agent in simulation["agents"] if agent["id"] == alert["definition"]["agent"]]
+        agent = agent_matches[0] if agent_matches else None
+        if agent is None: 
+            print(f"WARNING[alerts]: Agent {alert["definition"]["agent"]} Not found")
+            continue
+        metric_matches = [metric for metric in agent["metrics"] if metric["name"] == alert["definition"]["metric"]]
+        metric = metric_matches[0] if metric_matches else None
+        if metric is None or metric is []: 
+            print(f"WARNING[alerts]: Metric {alert["definition"]["metric"]} for the agent {agent["id"]} not found")
+            continue
+        # Check if the alert is already present.
+        alert_matches_in_metric = [item for item in metric.get("alerts", []) if item["name"] == alert["name"]]
+        alert_match = alert_matches_in_metric[0] if alert_matches_in_metric and len(alert_matches_in_metric) > 0 else None
+        # If not, add to the definitions
+        if alert_match is None:
+            metric.setdefault("alerts", []).append(alert)
     
     return simulation
 
@@ -126,13 +154,170 @@ async def create_agent_metric(payload: dict[str, Any]):
 async def modify_agent_metric(payload: dict[str, Any]):
     await agent_manager.set_agent_metrics("PUT", payload=payload)
 
-@app.post("/alert")
-async def create_alert(payload: dict[str, Any]):
-    print("Creating alert: ")    
-    agent_name = payload['id']
-    agent_type = payload['agent_type']
-    metric = payload['metric']
-    
-    print(agent_name, agent_type, metric)
+def __map_expression_to_alert(expression):
+    """
+    Maps a comparison expression to a semantic alert label.
 
-    return await cluster_connector.create_alert(agent_name, agent_type, metric)
+    :param expression: A string representing the comparison operator 
+                    (e.g., "<", "<=", "!=", ">", ">=").
+    :return: A string representing the semantic alert label.
+    """
+    mapping = {
+        "<": "StrictlyTooLow",
+        "≤": "TooLow",
+        ">": "StrictlyTooHigh",
+        "≥": "TooHigh",
+        "≠": "Distinct",
+        "=": "Equals",
+    }
+    
+    return mapping.get(expression, "Unknown")
+
+def __map_expression_operator_to_comparison_operator(expression_operator):
+    mapping = {
+        "<": "<",
+        "≤": "<=",
+        ">": ">",
+        "≥": ">=",
+        "≠": "!=",
+        "=": "==",
+    }
+    return mapping.get(expression_operator, "Unknown")
+
+def __extract_alert_details(alert_data):
+    definition = alert_data['definition']
+    agent_name = definition['agent']
+    metric_name = definition['metric']
+    expression_operator = definition['expression']
+    semantic_expression_label = __map_expression_to_alert(expression_operator)
+    return agent_name, metric_name, semantic_expression_label
+
+def __get_alert_name(alert_data):
+    if alert_data['scope'] == "metricAgent":
+        agent_name, metric_name, semantic_expression_label = __extract_alert_details(alert_data)
+        return f"{agent_name}_{metric_name}_{semantic_expression_label}"
+    else:
+        return alert_data['name']
+
+def __get_alert_id(alert_data):
+    if alert_data['scope'] == "metricAgent":
+        agent_name, metric_name, semantic_expression_label = __extract_alert_details(alert_data)
+        alert_id = f"{agent_name}_{metric_name}_{semantic_expression_label}_{alert_data['scope']}"
+        return alert_id.replace("_", "-").lower()
+    else:
+        return f"{alert_data['name']}_{alert_data['scope']}".replace("_", "-").lower()
+
+def __get_alert_summary(alert_data):
+    if alert_data['scope'] == "metricAgent":
+        agent_name, metric_name, semantic_expression_label = __extract_alert_details(alert_data)
+        alert_name = f"{agent_name}_{metric_name}_{semantic_expression_label}"
+        return f"Alert {alert_name} {semantic_expression_label} on {agent_name}"
+    else:
+        return alert_data['definition']['summary']    
+
+def __get_alert_expression(alert_data):
+    if alert_data['scope'] == "metricAgent":
+        agent_name, metric_name, _ = __extract_alert_details(alert_data)
+        threshold = alert_data['definition']['value']
+        comparison_operator = __map_expression_operator_to_comparison_operator(alert_data['definition']['expression'])
+        return f"{metric_name}{{job=\"{agent_name}\"}}{comparison_operator}{threshold}"
+    else:
+        return alert_data['definition']['expression']
+    
+def __get_alert_group(alert_data):
+    if alert_data['scope'] == "metricAgent":
+        agent_name, _, _ = __extract_alert_details(alert_data)
+        return agent_name
+    else:
+        return "custom"
+    
+
+@app.post("/alerts")
+async def create_alert(payload: dict[str, Any]):
+    print("Creating alert: ")   
+    
+    #Create the alert in the cluster
+    scope = payload['scope']
+    severity = payload['severity']
+    definition= payload['definition']
+    print("Alert information: ")
+    print(f" - Alert scope: {scope}.")
+    print(f" - Severity: {severity}")
+    print(" - Alert Definition:")
+    print(definition)
+    print(" ****** ")
+    
+    alert_id = __get_alert_id(payload)             
+    alert_name = __get_alert_name(payload)  
+    group = __get_alert_group(payload)
+    summary = __get_alert_summary(payload)  
+    expression = __get_alert_expression(payload)
+        
+    result = cluster_connector.create_alert_resource(alert_id, alert_name, severity, group, expression, summary)
+    if result is None: 
+        raise HTTPException(status_code=400, detail="Error creating resource in the cluster. See logs for more information.")
+    print("-----")
+    print(result)
+    print("-----")
+
+    #Persist alert definition 
+    #TODO: Error handling (HTTP 400, 409, 422)
+    payload['id'] = alert_id
+    payload['name'] = alert_name
+    cluster_connector.save_alert_definition(payload)
+
+    response_data = {
+        "id": alert_id,
+        "name": alert_name
+    }
+    return JSONResponse(content=response_data)
+    
+def print_red(str):
+    print(f"\033[91m{str}\033[0m")
+
+def __print_exception(e):
+    print_red("ERROR INFORMATION:")
+    print(f"- HTTP status: {e.status}")
+    print(f"- Reason: {e.reason} ")
+    print("- Body: -->>>")
+    JSONUtils.print_pretty_json(e.body)
+    print("<<<--")
+    print_red("\033[91m-----\033[0m")
+
+@app.delete("/alerts")
+def delete_alert(payload: dict[str, Any]):
+    alert_name=payload['alert']
+    print(f"Delete alert: {alert_name}")
+    
+    #Delete alert from the cluster
+    #TODO: Error handling (HTTP 400, 404)
+    errors = ""
+    resource_deletion_result = cluster_connector.delete_alert(alert_name)
+    if not resource_deletion_result['success']:
+        errors += "Error deleting OpenShift alert resource. "                
+        __print_exception(resource_deletion_result['error'])
+    definition_deletion_result = cluster_connector.delete_alert_definition(alert_name)
+    if not definition_deletion_result['success']:
+        errors += "Error deleting OpenShift alert definition. "        
+        __print_exception(definition_deletion_result["error"])
+    
+    if errors != "":
+        raise HTTPException(status_code=400, detail=errors)
+
+    return None
+
+@app.get("/alerts")
+def get_alerts():
+    alerts = []
+    alert_data=cluster_connector.get_alert_definitions()    
+    for alert in alert_data:
+        alerts.append({
+            "id": alert['id'],
+            "name":  alert['name'], 
+            "severity": alert['severity'], 
+            "scope": alert['scope'], 
+            "evaluation": "1m", 
+            "promQL": __get_alert_expression(alert), 
+            "summary": __get_alert_summary(alert)
+        })
+    return alerts

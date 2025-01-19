@@ -9,6 +9,7 @@ import SimulationManagement from './components/SimulationManagement';
 import AgentList from './components/AgentList';
 import AgentInfo from './components/AgentInfo';
 import AgentTypePicker from './components/AgentTypePicker';
+import AlertManagement from './components/AlertManagement';
 
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
 
   const [layout, setLayout] = useState([])
   const [agents, setAgents] = useState([])
+  const [alerts, setAlerts] = useState([])
   const [selectedAgent, setSelectedAgent] = useState({});
   const [selectedAgenType, setSelectedAgentType] = useState(agentTypes[0]);
   const [simulationLoaded, setSimulationLoaded] = useState(false);
@@ -115,13 +117,12 @@ function App() {
     setAgents(updatedAgents)
   }
 
-  const handleAgentTypeChanged = (selectedIndex) => {
+  function handleAgentTypeChanged(selectedIndex) {
     console.log('Selected button index:', selectedIndex);
     setSelectedAgentType(agentTypes[selectedIndex])
   };
 
   function handleAgentUpdated(agent) {
-    console.log("Agent updated:", agent);
 
     // Make a shallow copy of the agents array to ensure a new reference
     const updatedAgents = [...agents];
@@ -134,7 +135,24 @@ function App() {
 
     // Update the simulation state with the new array reference
     setAgents(updatedAgents);
+
+    // Update alerts
+
+    fetchAlerts();
   }
+
+  const fetchAlerts = async () => {
+    const alertListResponse = await fetch(ApiHelper.getClusterAlertDefinitionUrl());
+    console.log("fetching alerts");
+    if (alertListResponse.status > 299) {
+      console.log("No alerts available");
+      setAlerts([]);
+    }
+    else {
+      const alerts_json = await alertListResponse.json();      
+      setAlerts(alerts_json);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -158,6 +176,7 @@ function App() {
     };
 
     fetchData();
+    fetchAlerts();
   }, []); // Empty dependency array to run once on component mount
 
   return (
@@ -167,9 +186,9 @@ function App() {
         <div className="col-12">
           <h2>Communications</h2>
           {!simulationLoaded && (
-            <AgentTypePicker 
-              nodeTypes={agentTypes} 
-              onSelectionChange={handleAgentTypeChanged} 
+            <AgentTypePicker
+              nodeTypes={agentTypes}
+              onSelectionChange={handleAgentTypeChanged}
               selectedAgent={selectedAgent}></AgentTypePicker>
           )}
           <LayoutCanvas
@@ -188,16 +207,21 @@ function App() {
         </div>
       </div>
       {simulationLoaded && (
-        <div className='row'>
-          <div className="col-12 col-xl-6">
-            <h2>Agents</h2>
-            <AgentList
-              agents={agents}
-              selectedAgentId={selectedAgent?.id}
-              onAgentSelected={onAgentSelected} />
+        <div>
+          <div className='row'>
+            <div className="col-12 col-xl-6 border rounded mt-3">
+              <h2>Agents</h2>
+              <AgentList
+                agents={agents}
+                selectedAgentId={selectedAgent?.id}
+                onAgentSelected={onAgentSelected} />
+            </div>
+            <div className="col-12 col-xl-6 border rounded mt-3">
+              <AgentInfo agent={selectedAgent} onAgentUpdated={handleAgentUpdated} />
+            </div>
           </div>
-          <div className="col-12 col-xl-6">            
-            <AgentInfo agent={selectedAgent} onAgentUpdated={handleAgentUpdated} />
+          <div className="row mt-3">
+            <AlertManagement alerts={alerts} onAlertsUpdated={fetchAlerts}></AlertManagement>
           </div>
         </div>
       )}

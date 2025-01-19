@@ -4,11 +4,14 @@ import MetricAlertCreator from './MetricAlertCreator.jsx';
 
 const AgentInfo = ({ agent, onAgentUpdated }) => {
 
+    const allAlertOperators = ["<", "≤", "=", "≠", "≥", ">"]
+
     const [metrics, setMetrics] = useState(agent?.metrics || []);
     const [newMetric, setNewMetric] = useState({ name: "", type: "gauge", value: "" });
     const [error, setError] = useState("");
     const [alertEditorEnabled, setAlertEditorEnabled] = useState(false);
-    const [metricAlertSelected, setMetricAlertSelected] = useState("")
+    const [metricAlertSelected, setMetricAlertSelected] = useState("");
+    const [alertOperatorsAvailable, setAlertOperatorsAvailable] = useState(allAlertOperators);
 
     useEffect(() => {
         if (agent) {
@@ -17,7 +20,8 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
         else {
             setMetrics([])
         }
-
+        setAlertEditorEnabled(false);
+        setMetricAlertSelected("");
 
     }, [agent]);
 
@@ -28,16 +32,12 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
         setMetrics(updatedMetrics);
     };
 
-    async function setMetricInOpenShift(method, agent, metric) {
+    async function saveMetric(method, agent, metric) {
         const payload = {
             id: agent.id,
             ip: agent.ip,
             metric: metric
         }
-        console.log("**Payload:", payload);
-        console.log("**Agent:", agent);
-        console.log("**Metric:", metric);
-
         try {
             const response = await fetch(ApiHelper.getAgentsMetricsUrl(), {
                 method: method,
@@ -47,34 +47,9 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                 body: JSON.stringify(payload),
             });
             const result = await response.json();
-            console.log(`Set metric ${metric.name} for the agent ${payload.id}`);
         } catch (error) {
             console.error('Error:', error);
         }
-    }
-
-    async function setAlertInCluster(agent, metricObject) {
-        console.log("Agent: ", agent);
-        console.log("Metric: ", metricObject)
-        try {
-            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(), {
-                method: "POST", 
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    id: agent.id, 
-                    agent_type: agent.type,
-                    metric: metricObject
-                })});
-            const result = await response.json();
-            console.log(`Set alert for the metric ${metricObject.name}`);
-        } catch (error) {
-            console.error('Error:', error);
-        }
-        
-                    
-        
     }
 
     const handleAddMetric = () => {
@@ -84,11 +59,16 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
             return;
         }
         if (metrics.some(metric => metric.name === newMetric.name)) {
-            setError("Metric name must be unique.");
+            setError("Metric name must be unique within the agent.");
             return;
         }
         if (newMetric.value.trim() === "") {
             setError("Metric value cannot be empty.");
+            return;
+        }
+        //Metric name must comply with the name standard         
+        if (!/^[a-zA-Z_:][a-zA-Z0-9_:]*$/.test(newMetric.name.trim())) {
+            setError("Metric name not valid. Format [a-zA-Z_:][a-zA-Z0-9_:]*");
             return;
         }
 
@@ -97,7 +77,7 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
         setMetrics([...metrics, newMetric]);
         agent.metrics = [...metrics, newMetric];
         //POST TO THE AGENT WITH NEW VALUE. 
-        setMetricInOpenShift("POST", agent, newMetric)
+        saveMetric("POST", agent, newMetric)
         onAgentUpdated(agent)
         setNewMetric({ name: "", type: "gauge", value: "" });
     };
@@ -110,7 +90,7 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
         setError("");
         agent.metrics = metrics;
         //PUT TO THE AGENT WITH THE NEW value METRIC. 
-        setMetricInOpenShift("PUT", agent, metrics[index])
+        saveMetric("PUT", agent, metrics[index])
         onAgentUpdated(agent)
         setMetrics(metrics);
     };
@@ -122,26 +102,101 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
         });
     };
 
-    const handleEnableAlertCreator = (index) => {
+    function getAvailableOperators(alerts) {
+        var opAvailables = allAlertOperators;
+
+        alerts?.map((item) => {
+            opAvailables = opAvailables.filter(op => op !== item.definition.expression);
+        })
+
+        return opAvailables;
+    }
+
+    function handleEnableAlertCreator(index) {
         setAlertEditorEnabled(true);
+        setAlertOperatorsAvailable(getAvailableOperators(metrics[index].alerts));
         setMetricAlertSelected(metrics[index].name);
+    }
+
+    const handleDeleteAlert = async (metricName, alertIndex) => {
+        console.log("Metric:", metricName, ". Alert index:", alertIndex);
+        var metricIndex = metrics.findIndex(item => item.name === metricName);
+        const alertId = metrics[metricIndex].alerts[alertIndex].id;
+
+        //Remove from the local data model
+        metrics[metricIndex].alerts.splice(alertIndex, 1);
+
+        //Remove from the backend
+        const result = await deleteAlert(alertId);
+
+        onAgentUpdated(agent)
+
+        setMetrics(metrics);
+
     }
 
     const onAlertEditionCancel = (e) => {
         setAlertEditorEnabled(false);
+        setMetricAlertSelected("");
     }
 
-    const onAlertEditionSubmit = (metric, expression, value, severity) => {
+    async function saveAlert(alert) {
+        try {
+            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(), {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(alert)
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    async function deleteAlert(alertName) {
+        try {
+            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(), {
+                method: "DELETE",
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    alert: alertName
+                })
+            })
+            return await response.json();
+        } catch (error) {
+            console.error('Error', error);
+        }
+    }
+
+    const onAlertEditionSubmit = async (metric, expression, value, severity) => {
         const alert = { expression: expression, severity: severity, value: value };
         const metricObject = agent.metrics.find((m) => m.name == metric);
         metricObject['alert'] = alert;
-        //Update alert definition in definition 
-        setMetricInOpenShift("PUT", agent, metricObject)
+
+        const newAlertDefinition = {
+            scope: "metricAgent",
+            severity: severity,
+            definition: {
+                agent: agent.id,
+                metric: metric,
+                expression: expression,
+                value: value
+            }
+        };
+        (metricObject['alerts'] = metricObject['alerts'] ?? []).push(newAlertDefinition);
+        //Update alert definition        
+        const alert_info = await saveAlert(newAlertDefinition);
+        newAlertDefinition.id = alert_info.id
+        newAlertDefinition.name = alert_info.name
+        //Notify to upper hierarchy
         onAgentUpdated(agent);
-        //Create rule in cluster
-        setAlertInCluster(agent, metricObject)
-        console.log("Added new alert to Agent: ", agent.id, "Metric: ", metric, "Alert", alert);
+        //Update GUI
         setAlertEditorEnabled(false);
+        setMetricAlertSelected("");
     }
 
     return (
@@ -150,11 +205,11 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                 <div>
                     <h5>
                         <span className="value">
-                            <a href={ApiHelper.globalRootConsole + '/k8s/ns/' + ApiHelper.globalCurrentNamespace + '/pods/' + agent.pod} target="_blank" rel="noopener noreferrer">{agent.pod}</a>
+                            <a href={ApiHelper.globalRootConsole + '/k8s/ns/' + ApiHelper.globalCurrentNamespace + '/pods/' + agent.pod}
+                                target="_blank" rel="noopener noreferrer">{agent.pod}</a>
                         </span> <span className="value">[{agent.ip}] metrics</span>
                     </h5>
                     <div>
-                        {error && <p style={{ color: "red" }}>{error}</p>} {/* Show error message if any */}
                         <div className='table-responsive'>
                             <table className='table w-100'>
                                 <thead>
@@ -168,7 +223,8 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                                 </thead>
                                 <tbody>
                                     {metrics.map((metric, index) => (
-                                        <tr key={index}>
+                                        <tr key={metric.name}
+                                            className={`${metricAlertSelected === metric.name ? 'table-active' : ''}`}>
                                             <td>
                                                 <span key={index} className="label">{metric.name}</span>
                                             </td>
@@ -181,6 +237,7 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                                                     type="text"
                                                     value={metric.value}
                                                     onChange={(e) => handleMetricChange(index, "value", e.target.value)}
+                                                    className='form-control'
                                                     style={{ width: "75px", textAlign: 'center' }}
                                                 />
                                             </td>
@@ -188,20 +245,31 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                                                 <button className="agent-button" onClick={() => handleUpdateMetric(index)}>Update</button>
                                             </td>
                                             <td>
-                                                {!metric.alert ?
-                                                    <button className="agent-button" onClick={() => handleEnableAlertCreator(index)}>Define Alert</button>
-                                                    :
-                                                    <div className={"label label-" + metric.alert.severity.toLowerCase()}>
-                                                        <span>{metric.alert.expression}</span>
-                                                        <span>{metric.alert.value}</span>
-                                                        <span>[{metric.alert.severity}]</span>
-                                                    </div>
-                                                }
+                                                <div className="container">
+                                                    {metric.alerts && metric.alerts.map((alert, alertIndex) => (
+                                                        <div key={alertIndex}
+                                                            className={"mb-1 label label-container label-" + alert.severity.toLowerCase()}>
+                                                            <span>{alert.definition.expression}</span>
+                                                            <span>{alert.definition.value}</span>
+                                                            <span>[{alert.severity}]</span>
+                                                            <button className="btn-circle btn-red"
+                                                                onClick={() => handleDeleteAlert(metric.name, alertIndex)}
+                                                            >                                                                <span>&times;</span>
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                    {getAvailableOperators(metric.alerts).length > 0 && (
+                                                        <button className="btn-circle btn-green"
+                                                            onClick={() => handleEnableAlertCreator(index)}>
+                                                            <span>+</span>
+                                                        </button>
+                                                    )
+                                                    }
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
-
-                                    <tr>
+                                    <tr key="__addedColumn">
                                         <td>
                                             <input
                                                 type="text"
@@ -209,7 +277,8 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                                                 value={newMetric.name}
                                                 onChange={handleInputChange}
                                                 placeholder="Metric Name"
-                                                style={{ width: "120px", textAlign: 'center', margin: '5px' }}
+                                                className="form-control"
+                                                style={{ width: "120px", textAlign: 'center' }}
                                             />
                                         </td>
                                         <td>
@@ -222,6 +291,7 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                                                 value={newMetric.value}
                                                 onChange={handleInputChange}
                                                 placeholder="Value"
+                                                className="form-control"
                                                 style={{ width: "75px", textAlign: 'center' }}
                                             />
                                         </td>
@@ -232,10 +302,17 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                                 </tbody>
                             </table>
                         </div>
+                        {/* Validation Error Message */}
+                        {error && (
+                            <div className="alert alert-danger" role="alert">
+                                {error}
+                            </div>
+                        )}
                     </div>
-                    {alertEditorEnabled && (
+                    {alertEditorEnabled && (                        
                         <MetricAlertCreator
                             metricName={metricAlertSelected}
+                            availableOperators={alertOperatorsAvailable}
                             onSubmit={onAlertEditionSubmit}
                             onCancel={onAlertEditionCancel} />
                     )}

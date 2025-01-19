@@ -175,3 +175,6 @@ class OpenShiftAgentManager(AgentManagerInterface):
         finally:
             # Close the connection
             conn.close()
+
+    async def delete_metrics_definitions(self):
+        pass

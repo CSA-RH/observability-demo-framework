@@ -1,19 +1,47 @@
 from agent_manager.AgentManagerInterface import AgentManagerInterface
 from typing import Any
 import urllib.parse
+from utils import JSONUtils
 
 class MockAgentManager(AgentManagerInterface):
+
+    PATH_METRICS_DEF="/tmp/obs-demo-fw-metrics.json"
 
     def __init__(self):
         print("... Starting Mock Agent Manager")
         self.agent_metrics = {}
         self.agent_next_hops = {}
-
+        #Loading metrics
+        self.__load_metrics()        
+        if id in self.agent_metrics:        
+            print("------> " + id) 
+    
     def get_agent_metrics(self, id):
-        if id in self.agent_metrics: 
+        print("--Metrics")
+        print("  " + id)
+        print(self.agent_metrics.get(id, [])) 
+        print("---------")        
+        if id in self.agent_metrics:             
             return self.agent_metrics[id]['metrics']
+        
         else:
-            return []    
+            return []
+    
+    def __load_metrics(self):
+        metrics_json = JSONUtils.load_json_from_file(self.PATH_METRICS_DEF)
+        print(metrics_json)
+        for item in metrics_json: 
+            self.agent_metrics[item["name"]] = item["data"]
+
+    def __save_metrics(self, dict_metrics): 
+        print(dict_metrics)
+        agent_list=[]
+        for agent_name, agent_data in dict_metrics.items():
+            agent_info={}
+            agent_info['name']=agent_name
+            agent_info['data'] = agent_data
+            agent_list.append(agent_info)
+        JSONUtils.save_json_to_file(agent_list, self.PATH_METRICS_DEF)           
     
     async def set_agent_metrics(self, method: str, payload: dict[str, Any]):
         print(f"Method: {method}")
@@ -58,6 +86,7 @@ class MockAgentManager(AgentManagerInterface):
                 break
         if not updated: 
             agent['metrics'].append(metricInfo)
+        self.__save_metrics(self.agent_metrics)        
         
     def kick(self, payload: dict[str, Any]):
         print("Kick")
@@ -74,4 +103,7 @@ class MockAgentManager(AgentManagerInterface):
             self.agent_next_hops[source_agent] = []
         # Add target agent to next hops
         self.agent_next_hops[source_agent].append(target_agent) 
-        return  
+        return
+    
+    def delete_metrics_definitions(self):
+        JSONUtils.delete_json_file(self.PATH_METRICS_DEF)
