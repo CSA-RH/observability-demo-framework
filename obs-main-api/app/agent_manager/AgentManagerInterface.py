@@ -18,3 +18,7 @@ class AgentManagerInterface(ABC):
     @abstractmethod
     def set_agent_communication_path(self, sourceAgent, targetAgent):
         pass
+
+    @abstractmethod
+    def delete_metrics_definitions(self):
+        pass

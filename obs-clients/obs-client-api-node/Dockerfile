@@ -12,7 +12,7 @@ FROM registry.access.redhat.com/ubi8/nodejs-20-minimal:1-62.1724661480
 
 # Install app dependencies
 COPY --from=0 /opt/app-root/src/node_modules /opt/app-root/src/node_modules
-COPY ./app /opt/app-root/src/
+COPY ./app/ /opt/app-root/src/app
 COPY package.json /opt/app-root/src/
 
 RUN ls -l /opt/app-root/src/

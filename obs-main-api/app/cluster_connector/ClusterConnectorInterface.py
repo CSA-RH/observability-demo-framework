@@ -21,8 +21,24 @@ class ClusterConnectorInterface(ABC):
 
     @abstractmethod
     async def delete_simulation(self):
+        pass    
+
+    @abstractmethod 
+    def create_alert_resource(self, id, name, severity, group, expression, summary):
+        pass       
+
+    @abstractmethod
+    def save_alert_definition(self, alert):
         pass
 
     @abstractmethod
-    async def create_alert(self, agent_name, agent_type, metric):
+    def delete_alert(self, alert_name):
         pass
+
+    @abstractmethod
+    def delete_alert_definition(self, alert_name):
+        pass
+
+    @abstractmethod
+    def get_alert_definitions(self):
+        pass  

@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 
-const MetricAlertCreator = ({ metricName, onSubmit, onCancel }) => {
-    const [selectedExpression, setSelectedExpression] = useState("<");
+const MetricAlertCreator = ({ metricName, availableOperators, onSubmit, onCancel }) => {
+    const [selectedExpression, setSelectedExpression] = useState(availableOperators[0]);
     const [selectedSeverity, setSelectedSeverity] = useState("Information");
-    const [alertThreshold, setAlertThreshold] = useState("");
-
+    const [alertThreshold, setAlertThreshold] = useState("");    
+    
     const handleSelect = (value) => {
         setSelectedExpression(value);
     };
@@ -13,24 +13,21 @@ const MetricAlertCreator = ({ metricName, onSubmit, onCancel }) => {
         setSelectedSeverity(value);
     }
 
-    const handleChangeThreshold = (e) =>{
+    const handleChangeThreshold = (e) => {
         setAlertThreshold(e.target.value);
     }
 
     return (
-
-        <div className="container mt-4">
+        <div className="container mt-4 border rounded">
             <div className="row">
                 <h5>Define alert</h5>
             </div>
             <div className="row align-items-center">
-
                 <div className="col-3">
                     <label htmlFor="dropdown" className="form-label mb-0">
                         {metricName}
                     </label>
                 </div>
-
                 <div className="dropdown col-1">
                     <button
                         className="btn btn-secondary btn-sm dropdown-toggle"
@@ -43,56 +40,18 @@ const MetricAlertCreator = ({ metricName, onSubmit, onCancel }) => {
                         {selectedExpression}
                     </button>
                     <ul className="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                        <li>
-                            <button
-                                className="dropdown-item"
-                                onClick={() => handleSelect("<")}
-                            >
-                                &lt;
-                            </button>
-                        </li>
-                        <li>
-                            <button
-                                className="dropdown-item"
-                                onClick={() => handleSelect("≤")}
-                            >
-                                &le;
-                            </button>
-                        </li>
-                        <li>
-                            <button
-                                className="dropdown-item"
-                                onClick={() => handleSelect("=")}
-                            >
-                                =
-                            </button>
-                        </li>
-                        <li>
-                            <button
-                                className="dropdown-item"
-                                onClick={() => handleSelect("≠")}
-                            >
-                                &ne;
-                            </button>
-                        </li>
-                        <li>
-                            <button
-                                className="dropdown-item"
-                                onClick={() => handleSelect("≥")}
-                            >
-                                &ge;
-                            </button>
-                        </li>
-                        <li>
-                            <button
-                                className="dropdown-item"
-                                onClick={() => handleSelect(">")}
-                            >
-                                &gt;
-                            </button>
-                        </li>
-                    </ul>
-                </div>
+                        {availableOperators.map((op) => (
+                            <li key={op}>
+                                <button
+                                    className="dropdown-item"
+                                    onClick={() => handleSelect(op)}
+                                >                                    
+                                    {op}
+                                </button>
+                            </li>
+                        ))}
+                    </ul>                    
+                </div>                
 
                 {/* input */}
                 <div className="col-2">
@@ -104,7 +63,7 @@ const MetricAlertCreator = ({ metricName, onSubmit, onCancel }) => {
                     />
                 </div>
 
-                {/* severity */ }
+                {/* severity */}
                 <div className="dropdown col-4">
                     <button
                         className="btn btn-secondary btn-sm dropdown-toggle"
@@ -112,7 +71,7 @@ const MetricAlertCreator = ({ metricName, onSubmit, onCancel }) => {
                         id="dropdownMenuButton"
                         data-bs-toggle="dropdown"
                         aria-expanded="false"
-                        style={{width: "100px"}}
+                        style={{ width: "100px" }}
                     >
                         {selectedSeverity}
                     </button>
@@ -140,12 +99,12 @@ const MetricAlertCreator = ({ metricName, onSubmit, onCancel }) => {
                             >
                                 Error
                             </button>
-                        </li>                        
+                        </li>
                     </ul>
-                </div>                
+                </div>
                 {/* button */}
                 <div className="col-1">
-                    <button type="button" className="agent-button" style={{ width: "40px" }} onClick={()=> onSubmit(metricName, selectedExpression, alertThreshold, selectedSeverity)}>
+                    <button type="button" className="agent-button" style={{ width: "40px" }} onClick={() => onSubmit(metricName, selectedExpression, alertThreshold, selectedSeverity)}>
                         Submit
                     </button>
                 </div>

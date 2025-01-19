@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Input Form</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container mt-5">
+    <form>
+      <!-- Name Field -->
+      <div class="row mb-3">
+        <label for="name" class="col-sm-2 col-form-label">Name</label>
+        <div class="col-sm-10">
+          <input type="text" class="form-control" id="name" placeholder="Enter name">
+        </div>
+      </div>
+      
+      <!-- Severity Field -->
+      <div class="row mb-3">
+        <label for="severity" class="col-sm-2 col-form-label">Severity</label>
+        <div class="col-sm-10">
+          <select class="form-select" id="severity">
+            <option value="Information">Information</option>
+            <option value="Warning">Warning</option>
+            <option value="Error">Error</option>
+          </select>
+        </div>
+      </div>
+      
+      <!-- Evaluation Field -->
+      <div class="row mb-3">
+        <label for="evaluation" class="col-sm-2 col-form-label">Evaluation</label>
+        <div class="col-sm-10">
+          <select class="form-select" id="evaluation">
+            <option value="1m">1m</option>
+            <option value="2m">2m</option>
+            <option value="3m">3m</option>
+          </select>
+        </div>
+      </div>
+      
+      <!-- Expression Field -->
+      <div class="row mb-3">
+        <label for="expression" class="col-sm-2 col-form-label">Expression</label>
+        <div class="col-sm-10">
+          <textarea class="form-control" id="expression" rows="3" style="font-family: monospace;" placeholder="Enter expression"></textarea>
+        </div>
+      </div>
+      
+      <!-- Summary Field -->
+      <div class="row mb-3">
+        <label for="summary" class="col-sm-2 col-form-label">Summary</label>
+        <div class="col-sm-10">
+          <textarea class="form-control" id="summary" rows="3" placeholder="Enter summary"></textarea>
+        </div>
+      </div>
+      
+      <!-- Buttons -->
+      <div class="row">
+        <div class="col-sm-10 offset-sm-2">
+          <button type="submit" class="btn btn-primary me-2">Submit</button>
+          <button type="button" class="btn btn-secondary">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Bootstrap JS (Optional) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -14,7 +14,7 @@ const ClusterInfo = ({ cluster }) => {
                 let headers = new Headers();
                 headers.append('Content-Type', 'application/json');
                 headers.append('Accept', 'application/json');
-                headers.append('Origin', 'http://localhost:3000');
+                headers.append('Origin', 'http://localhost:3000');  //TODO: Review
 
                 const response = await fetch(ApiHelper.getInfoUrl(), { headers: headers });
                 data = await response.json();
