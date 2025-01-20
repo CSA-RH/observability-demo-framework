@@ -142,15 +142,18 @@ function App() {
   }
 
   const fetchAlerts = async () => {
-    const alertListResponse = await fetch(ApiHelper.getClusterAlertDefinitionUrl());
-    console.log("fetching alerts");
-    if (alertListResponse.status > 299) {
-      console.log("No alerts available");
-      setAlerts([]);
-    }
-    else {
-      const alerts_json = await alertListResponse.json();      
-      setAlerts(alerts_json);
+    try {
+      const alertListResponse = await fetch(ApiHelper.getClusterAlertDefinitionUrl());
+      if (alertListResponse.status > 299) {
+        setAlerts([]);
+      }
+      else {
+        const alerts_json = await alertListResponse.json();
+        setAlerts(alerts_json);
+      }
+    } catch(error) {
+      //TODO: Global error handling
+      console.error("Error fetching alerts", error);
     }
   };
 
