@@ -81,11 +81,14 @@ class MockClusterConnector(ClusterConnectorInterface):
     
     def delete_alert(self, alert_name):
         print("Delete alert in Mock. Nothing to do")
+        return {"success": True}
 
     def delete_alert_definition(self, alert_name):
         alerts = JSONUtils.load_json_from_file(self.PATH_ALERTS_DEF)   
-        cleaned_alerts = [item for item in alerts if item.get("name") != alert_name]
+        cleaned_alerts = [item for item in alerts if item.get("id") != alert_name]
+        print(cleaned_alerts)
         JSONUtils.save_json_to_file(cleaned_alerts, self.PATH_ALERTS_DEF)
+        return {"success": True}
 
     def get_alert_definitions(self):
         return JSONUtils.load_json_from_file(self.PATH_ALERTS_DEF)
