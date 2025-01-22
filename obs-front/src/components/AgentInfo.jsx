@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import * as ApiHelper from '../ApiHelper.js'
 import MetricAlertCreator from './MetricAlertCreator.jsx';
+import { useKeycloak } from "@react-keycloak/web";
 
 const AgentInfo = ({ agent, onAgentUpdated }) => {
 
@@ -12,6 +13,7 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
     const [alertEditorEnabled, setAlertEditorEnabled] = useState(false);
     const [metricAlertSelected, setMetricAlertSelected] = useState("");
     const [alertOperatorsAvailable, setAlertOperatorsAvailable] = useState(allAlertOperators);
+    const { keycloak, initialized } = useKeycloak();
 
     useEffect(() => {
         if (agent) {
@@ -43,6 +45,7 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                 method: method,
                 headers: {
                     'Content-Type': 'application/json',
+                    Authorization: `Bearer ${keycloak.token}` 
                 },
                 body: JSON.stringify(payload),
             });
@@ -129,10 +132,8 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
         //Remove from the backend
         const result = await deleteAlert(alertId);
 
-        onAgentUpdated(agent)
-
+        onAgentUpdated(agent);
         setMetrics(metrics);
-
     }
 
     const onAlertEditionCancel = (e) => {
@@ -146,6 +147,7 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                 method: "POST",
                 headers: {
                     'Content-Type': 'application/json',
+                    Authorization: `Bearer ${keycloak.token}`
                 },
                 body: JSON.stringify(alert)
             });
@@ -160,7 +162,8 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
             const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(), {
                 method: "DELETE",
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json', 
+                    Authorization: `Bearer ${keycloak.token}` 
                 },
                 body: JSON.stringify({
                     alert: alertName
@@ -319,7 +322,7 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                 </div>
 
             ) : (
-                <div>
+                <div className="alert alert-light text-center p-3 m-3">
                     No agent selected
                 </div>
             )

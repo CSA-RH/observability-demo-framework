@@ -33,6 +33,7 @@ USER 1001
 
 # Copy the built React app from the build stage
 COPY --chown=1001:0 --from=build /app/build /opt/app-root/src
+COPY misc/react-app.conf /opt/app-root/etc/nginx.default.d/
 
 # Expose port 8080 (default for UBI8 Nginx)
 EXPOSE 8080

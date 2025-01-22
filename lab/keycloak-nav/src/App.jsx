@@ -20,6 +20,7 @@ const App = () => {
     <ReactKeycloakProvider authClient={keycloakConfig}
       onEvent={(event, error) => {
         //console.log("Keycloak event:", event);
+        console.log(event);
         if (error) console.error("Keycloak error:", error);
       }}
       onTokens={(tokens) => {

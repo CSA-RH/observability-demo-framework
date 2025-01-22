@@ -241,3 +241,35 @@ button {
   background-color: #218838;
   transform: scale(1.1);
 }
+
+.homepage-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 80vh;
+  gap: 20px; /* Space between the buttons */
+  background-color: #f8f9fa; /* Light gray background for contrast */
+}
+
+.custom-button {
+  width: 250px; /* Square size */
+  height: 250px; /* Square size */
+  font-size: 1.2rem; /* Larger text size */
+  font-weight: bold;
+  color: #fff;
+  background-color: #ffcccc; /* Light red tone */
+  border: 2px solid #ff9999; /* Border in a slightly darker red */
+  border-radius: 10px; /* Optional: slightly rounded corners */
+  transition: all 0.3s ease;
+}
+
+.custom-button:hover {
+  background-color: #ff9999; /* Darker red on hover */
+  border-color: #ff6666; /* Even darker border on hover */
+  transform: scale(1.1); /* Slight zoom effect on hover */
+}
+
+.custom-button:active {
+  background-color: #ff6666; /* Even darker red on click */
+  border-color: #cc3333;
+}
