@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import * as ApiHelper from '../ApiHelper';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
+import { useKeycloak } from "@react-keycloak/web";
 
 
 const showError = (text) => {
@@ -23,6 +23,7 @@ const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreate
     const [isCreateDisabled, setIsCreateDisabled] = useState(true);
     const [isResetDisabled, setIsResetDisabled] = useState(true);
     const [loading, setLoading] = useState(false);
+    const { keycloak, initialized } = useKeycloak();
 
     // Use useEffect to trigger logic when 'simulation' prop changes
     useEffect(() => {
@@ -37,6 +38,7 @@ const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreate
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    Authorization: `Bearer ${keycloak.token}`
                 },
                 body: JSON.stringify(simulation),
             });
@@ -59,6 +61,7 @@ const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreate
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
+                        Authorization: `Bearer ${keycloak.token}`                        
                     },
                     body: JSON.stringify(simulation),
                 });

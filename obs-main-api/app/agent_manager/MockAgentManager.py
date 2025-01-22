@@ -28,13 +28,11 @@ class MockAgentManager(AgentManagerInterface):
             return []
     
     def __load_metrics(self):
-        metrics_json = JSONUtils.load_json_from_file(self.PATH_METRICS_DEF)
-        print(metrics_json)
+        metrics_json = JSONUtils.load_json_from_file(self.PATH_METRICS_DEF)        
         for item in metrics_json: 
             self.agent_metrics[item["name"]] = item["data"]
 
-    def __save_metrics(self, dict_metrics): 
-        print(dict_metrics)
+    def __save_metrics(self, dict_metrics):         
         agent_list=[]
         for agent_name, agent_data in dict_metrics.items():
             agent_info={}
@@ -80,8 +78,8 @@ class MockAgentManager(AgentManagerInterface):
         for metric in agent['metrics']:
             if metric["name"] == metricInfo["name"]:
                 metric['value'] = metricInfo['value']
-                if metricInfo['alert']:
-                    metric['alert'] = metricInfo['alert']
+                if metricInfo['alerts']:
+                    metric['alerts'] = metricInfo['alerts']
                 updated = True
                 break
         if not updated: 

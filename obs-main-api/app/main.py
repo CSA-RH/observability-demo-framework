@@ -1,18 +1,23 @@
 from agent_manager.OpenShiftAgentManager         import OpenShiftAgentManager
 from agent_manager.MockAgentManager              import MockAgentManager
+
 from cluster_connector.OpenShiftClusterConnector import OpenShiftClusterConnector
 from cluster_connector.MockClusterConnector      import MockClusterConnector
 
-from fastapi import FastAPI, HTTPException, Request     # type: ignore
-from fastapi.responses import JSONResponse              # type: ignore
-from fastapi.middleware.cors import CORSMiddleware      # type: ignore
-from typing import List, Dict, Any
+from fastapi                 import FastAPI, HTTPException, Request, Depends  # type: ignore
+from fastapi.responses       import JSONResponse                              # type: ignore
+from fastapi.middleware.cors import CORSMiddleware                            # type: ignore
+from fastapi.security        import HTTPBearer                                # type: ignore
+
+from                 jose import jwt                                          # type: ignore
+from jose.exceptions      import JWTError                                     # type: ignore
+
+from typing import Dict, Any
+from utils  import JSONUtils
+from pprint import pprint
 
 import os
-from utils import JSONUtils
-
-
-from pprint import pprint
+import requests                                                               # type: ignore
 
 def is_using_fake_cluster_connector():
     value = os.environ.get('CLUSTER_CONNECTOR')
@@ -27,6 +32,26 @@ def is_using_fake_agent_manager():
         return False
     else:
         return value == 'mock'
+    
+def get_keycloak_issuer():
+    value = os.environ.get('KEYCLOAK_ISSUER')
+    if value is None: 
+        return "http://127.0.0.1:8080/realms/csa"
+    else:
+        return value
+
+def get_keycloak_certificates_url():
+    value = os.environ.get('KEYCLOAK_CERTS_URL')
+    if value is None: 
+        return f"{KEYCLOAK_ISSUER}/protocol/openid-connect/certs"
+    else:
+        return value
+
+
+# Keycloak Configuration
+KEYCLOAK_ISSUER = get_keycloak_issuer()
+KEYCLOAK_AUDIENCE = "account"
+KEYCLOAK_CERTS_URL = get_keycloak_certificates_url()
 
 #TODO: Improve security. CORS 
 app = FastAPI()
@@ -52,6 +77,8 @@ if is_using_fake_agent_manager():
 else:
     agent_manager = OpenShiftAgentManager()
 
+print(f"... IdP issuer endpoint: {KEYCLOAK_ISSUER}")
+
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
     print(f"Handling exception for request: {request} ")
@@ -62,9 +89,61 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     print(f"Handling HTTP exception for request: {request} ")
     return JSONResponse(status_code=exc.status_code, content={"message": exc.detail})
 
+# Security Dependency
+security = HTTPBearer()
+
+# Fetch Keycloak Public Keys
+def get_public_key(kid: str):
+    try:
+        #TODO: Needs to improve certificate handling. 
+        response = requests.get(KEYCLOAK_CERTS_URL, verify=False)  
+        response.raise_for_status()
+        jwks = response.json()
+        for key in jwks["keys"]:
+            if key["kid"] == kid:
+                # Return the key directly (RSA public key in JSON Web Key format)
+                return key
+    except requests.RequestException as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching public keys: {e}")
+    raise HTTPException(status_code=401, detail="Public key not found")
+
+# Decode and Verify JWT
+def decode_token(token: str) -> Dict:
+    try:
+        # Get the unverified header to extract 'kid'
+        unverified_header = jwt.get_unverified_header(token)
+        kid = unverified_header.get("kid")
+        if not kid:
+            raise HTTPException(status_code=401, detail="Token header missing 'kid'")
+        
+        # Fetch the public key from Keycloak using 'kid'
+        public_key = get_public_key(kid)
+
+        # Decode the token using the public key
+        payload = jwt.decode(
+            token,
+            public_key,  # This is now the public key directly, no need for from_jwk
+            algorithms=["RS256"],
+            audience=KEYCLOAK_AUDIENCE,
+            issuer=KEYCLOAK_ISSUER,
+        )
+        return payload
+    except JWTError as e:
+        raise HTTPException(status_code=401, detail=f"Token validation error: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Error decoding token: {e}")
+
+# Dependency for Secured Endpoints
+def get_current_user(authorization: str = Depends(security)):
+    try:
+        token = authorization.credentials
+        return decode_token(token)
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Unauthorized: {e}")
+
 #TODO: Error handling
 @app.get("/info")
-async def get_info():
+async def get_info(current_user: dict = Depends(get_current_user)):
     return cluster_connector.get_cluster_info()
 
 def get_agent_from_payload(name, payload):
@@ -81,7 +160,7 @@ def add_next_hop_to_agent(name, agent):
         agent["nextHop"] = [name]
 
 @app.post("/simulation")
-async def create_simulation(payload: Dict[str, Any]):    
+async def create_simulation(payload: Dict[str, Any], current_user: dict = Depends(get_current_user)):    
     # Create resources in cluster
     try:        
         json_agents = await cluster_connector.create_simulation_resources(payload["agents"])
@@ -99,12 +178,12 @@ async def create_simulation(payload: Dict[str, Any]):
     return json_agents
 
 @app.delete("/simulation")
-async def delete_simulation():
+async def delete_simulation(current_user: dict = Depends(get_current_user)):
     await cluster_connector.delete_simulation()
     agent_manager.delete_metrics_definitions()    
 
 @app.get("/simulation")
-async def get_simulation():
+async def get_simulation(current_user: dict = Depends(get_current_user)):
     # Get the simulation definition from storage    
     simulation = cluster_connector.retrieve_simulation()    
     if simulation == {}:        
@@ -143,15 +222,15 @@ async def get_simulation():
 
 #TODO: Error handling
 @app.post("/kick")
-async def agent_kick(payload: dict[str, Any]):    
+async def agent_kick(payload: dict[str, Any], current_user: dict = Depends(get_current_user)):    
     return agent_manager.kick(payload)
 
 @app.post("/metrics")
-async def create_agent_metric(payload: dict[str, Any]):
+async def create_agent_metric(payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
     await agent_manager.set_agent_metrics("POST", payload=payload)
 
 @app.put("/metrics")
-async def modify_agent_metric(payload: dict[str, Any]):
+async def modify_agent_metric(payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
     await agent_manager.set_agent_metrics("PUT", payload=payload)
 
 def __map_expression_to_alert(expression):
@@ -233,7 +312,7 @@ def __get_alert_group(alert_data):
     
 
 @app.post("/alerts")
-async def create_alert(payload: dict[str, Any]):
+async def create_alert(payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
     print("Creating alert: ")   
     
     #Create the alert in the cluster
@@ -285,7 +364,7 @@ def __print_exception(e):
     print_red("\033[91m-----\033[0m")
 
 @app.delete("/alerts")
-def delete_alert(payload: dict[str, Any]):
+def delete_alert(payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
     alert_name=payload['alert']
     print(f"Delete alert: {alert_name}")
     
@@ -307,7 +386,7 @@ def delete_alert(payload: dict[str, Any]):
     return None
 
 @app.get("/alerts")
-def get_alerts():
+def get_alerts(current_user: dict = Depends(get_current_user)):
     alerts = []
     alert_data=cluster_connector.get_alert_definitions()    
     for alert in alert_data:
@@ -321,73 +400,6 @@ def get_alerts():
             "summary": __get_alert_summary(alert)
         })
     return alerts
-
-
-from fastapi import FastAPI, Depends, HTTPException
-from fastapi.security import HTTPBearer
-from jose import jwt
-from jose.exceptions import JWTError
-import requests
-from typing import Dict
-
-# Keycloak Configuration
-KEYCLOAK_ISSUER = "http://127.0.0.1:8080/realms/csa"
-KEYCLOAK_AUDIENCE = "account"
-KEYCLOAK_CERTS_URL = f"{KEYCLOAK_ISSUER}/protocol/openid-connect/certs"
-
-# Security Dependency
-security = HTTPBearer()
-
-# Fetch Keycloak Public Keys
-def get_public_key(kid: str):
-    try:
-        response = requests.get(KEYCLOAK_CERTS_URL)
-        response.raise_for_status()
-        jwks = response.json()
-        for key in jwks["keys"]:
-            if key["kid"] == kid:
-                # Return the key directly (RSA public key in JSON Web Key format)
-                return key
-    except requests.RequestException as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching public keys: {e}")
-    raise HTTPException(status_code=401, detail="Public key not found")
-
-# Decode and Verify JWT
-def decode_token(token: str) -> Dict:
-    try:
-        # Get the unverified header to extract 'kid'
-        unverified_header = jwt.get_unverified_header(token)
-        kid = unverified_header.get("kid")
-        if not kid:
-            raise HTTPException(status_code=401, detail="Token header missing 'kid'")
-        
-        # Fetch the public key from Keycloak using 'kid'
-        public_key = get_public_key(kid)
-
-        # Decode the token using the public key
-        payload = jwt.decode(
-            token,
-            public_key,  # This is now the public key directly, no need for from_jwk
-            algorithms=["RS256"],
-            audience=KEYCLOAK_AUDIENCE,
-            issuer=KEYCLOAK_ISSUER,
-        )
-        return payload
-    except JWTError as e:
-        raise HTTPException(status_code=401, detail=f"Token validation error: {e}")
-    except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Error decoding token: {e}")
-
-# Dependency for Secured Endpoints
-def get_current_user(authorization: str = Depends(security)):
-    try:
-        token = authorization.credentials
-        return decode_token(token)
-    except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Unauthorized: {e}")
-
-# Example Endpoints
-app = FastAPI()
 
 @app.get("/secured")
 async def secured_endpoint(current_user: dict = Depends(get_current_user)):

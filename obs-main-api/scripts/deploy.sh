@@ -4,7 +4,8 @@
 SCRIPT_DIR="$(realpath "$(dirname "$0")")"
 SOURCES_DIR=$SCRIPT_DIR/../app/
 
-echo CURRENT NAMESPACE=$(oc project -q)
+export CURRENT_NAMESPACE=$(oc project -q)
+echo CURRENT NAMESPACE=$CURRENT_NAMESPACE
 # Function to check if a resource exists
 check_openshift_resource_exists() {
     local resource_type="$1"
@@ -26,6 +27,8 @@ apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
   name: obs-main-api
+  labels: 
+    observability-demo-framework: 'cicd'
 spec:
   lookupPolicy:
     local: true
@@ -36,7 +39,8 @@ apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
   labels:
-    build: obs-main-api
+    build: obs-main-api    
+    observability-demo-framework: 'cicd'
   name: obs-main-api
 spec:
   output:
@@ -80,6 +84,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: obs-main-api-role
+  labels:
+    observability-demo-framework: 'rbac'
 rules:
   - apiGroups: ["apps"]
     resources: ["deployments"]
@@ -94,8 +100,8 @@ rules:
     resources: ["pods"]
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
-    resources: ["secrets"]
-    verbs: ["create", "delete", "get", "list", "watch"]
+    resources: ["secrets", "configmaps"]
+    verbs: ["create", "delete", "get", "list", "watch", "patch"]
   - apiGroups: ["route.openshift.io"]
     resources: ["routes"]
     verbs: ["list"]
@@ -106,6 +112,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: obs-main-api-clusterrole
+  labels:
+    observability-demo-framework: 'rbac'
 rules:
   - apiGroups: ["config.openshift.io"]
     resources: ["consoles"]
@@ -117,6 +125,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: obs-main-api-rolebinding
+  labels:
+    observability-demo-framework: 'rbac'
 subjects:
   - kind: ServiceAccount
     name: obs-main-api-sa
@@ -128,9 +138,11 @@ roleRef:
 EOF
   cat <<EOF | oc apply -f -
 apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
-  name: obs-main-api-cluster-rolebinding
+  name: obs-main-api-clusterrolebinding
+  labels:
+    observability-demo-framework: 'rbac'
 subjects:
   - kind: ServiceAccount
     name: obs-main-api-sa
@@ -141,12 +153,14 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 EOF
   # Create deployment
+  export route IDP_ISSUER=https://$(oc get route --selector app=keycloak -ojsonpath='{.items[0].spec.host}')/realms/csa
   cat <<EOF | oc create -f - 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
     app: obs-main-api
+    observability-demo-framework: 'backend'
   name: obs-main-api
 spec:
   replicas: 1
@@ -160,10 +174,13 @@ spec:
       labels:
         app: obs-main-api
     spec:
-      serviceAccountName: obs-main-api-sa
+      serviceAccountName: obs-main-api-sa      
       containers:
       - image: obs-main-api:latest
         name: obs-main-api
+        env:
+        - name: KEYCLOAK_ISSUER
+          value: $IDP_ISSUER
 EOF
   # Create service
   oc expose deploy/obs-main-api --port 8000
@@ -174,6 +191,7 @@ kind: Route
 metadata:
   labels:
     app: obs-main-api
+    observability-demo-framework: 'backend'
   name: obs-main-api
 spec:
   port:

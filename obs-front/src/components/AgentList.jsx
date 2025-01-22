@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import * as ApiHelper from '../ApiHelper'
 import '../App.css'
+import { useKeycloak } from "@react-keycloak/web";
 
 // Child component that receives data as a prop
 const AgentList = ({ agents, selectedAgentId, onAgentSelected }) => {
 
     const [selectedRow, setSelectedRow] = useState(selectedAgentId);
     const [toasts, setToasts] = useState([]);
+    const { keycloak, initialized } = useKeycloak();
 
     const addToast = (message) => {
         const id = Date.now();
@@ -42,6 +44,7 @@ const AgentList = ({ agents, selectedAgentId, onAgentSelected }) => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    Authorization: `Bearer ${keycloak.token}`
                 },
                 body: JSON.stringify(kickPayload)
             });

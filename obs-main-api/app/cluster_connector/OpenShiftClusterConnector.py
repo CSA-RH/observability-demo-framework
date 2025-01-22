@@ -610,7 +610,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 print(f"ConfigMap '{config_map}' not found in namespace '{self.__get_current_namespace()}'.")
             else:
                 print(f"Failed to delete ConfigMap '{config_map}': {e}")            
-            raise 
+                raise 
 
         print("All matching resources deleted successfully.")
 

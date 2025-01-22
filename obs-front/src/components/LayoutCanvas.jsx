@@ -217,8 +217,6 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
                 },
                 position: { x: position.x, y: position.y }
             };
-            console.log("------ NODE ------ ");
-            console.log(node.data);
             cy.add(node);
             onLayoutChanged(cy.elements())
         }
@@ -325,15 +323,11 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
     // This effect runs whenever the `simulation` changes
     useEffect(() => {
         // reset the graphic.
-        if (cytoscapeInstance && layout?.length === 0) {
-            console.log("Cleaning the elements....")
+        if (cytoscapeInstance && layout?.length === 0) {            
             cytoscapeInstance.elements().remove();  // Clear the old elements                        
         }
         // load the graphic if simulation is fetched. 
-        if (cytoscapeInstance?.elements().length === 0 && layout?.length > 0) {
-            // Create all nodes. 
-            console.log("Update the visualization")
-            //cytoscapeInstance.add(layout)
+        if (cytoscapeInstance?.elements().length === 0 && layout?.length > 0) {                                    
             layout.forEach(element => {
                 if (element.group === 'nodes') {
                     cytoscapeInstance.add({
