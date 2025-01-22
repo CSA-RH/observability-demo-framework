@@ -23,6 +23,8 @@ apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
   name: obs-client-node
+  labels: 
+    observability-demo-framework: cicd
 spec:
   lookupPolicy:
     local: true
@@ -34,6 +36,7 @@ kind: BuildConfig
 metadata:
   labels:
     build: obs-client-node
+    observability-demo-framework: cicd
   name: obs-client-node
 spec:
   output:

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import * as ApiHelper from '../ApiHelper.js'
+import { useKeycloak } from "@react-keycloak/web";
 
 const AlertManagement = ({ alerts, onAlertsUpdated }) => {
 
@@ -12,6 +13,7 @@ const AlertManagement = ({ alerts, onAlertsUpdated }) => {
         expression: "",
         summary: "",
     });
+    const { keycloak, initialized } = useKeycloak();
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -37,6 +39,7 @@ const AlertManagement = ({ alerts, onAlertsUpdated }) => {
                 method: "POST",
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${keycloak.token}`
                 },
                 body: JSON.stringify(alert)
             });
@@ -53,6 +56,7 @@ const AlertManagement = ({ alerts, onAlertsUpdated }) => {
                 method: "DELETE",
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${keycloak.token}`
                 },
                 body: JSON.stringify({
                     alert: alertName
