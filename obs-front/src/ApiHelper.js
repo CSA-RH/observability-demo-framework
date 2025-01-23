@@ -46,3 +46,7 @@ export function getPodLogsAddress(podName) {
 export function getAlertRulesAddress(){
     return globalRootConsole + "/monitoring/alertrules?rowFilter-alerting-rule-source=user"    
 }
+
+export function getObserveLinkForMetric(metric, job){
+    return `${globalRootConsole}/monitoring/query-browser?query0=${metric}%7Bjob%3D"${job}"%7D`
+}
