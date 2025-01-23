@@ -229,11 +229,12 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                                         <tr key={metric.name}
                                             className={`${metricAlertSelected === metric.name ? 'table-active' : ''}`}>
                                             <td>
-                                                <span key={index} className="label">{metric.name}</span>
+                                                <a key={index} className="label"
+                                                    href={ApiHelper.getObserveLinkForMetric(metric.name, agent.id)}
+                                                    target="_blank" rel="noopener noreferrer">{metric.name}</a>
                                             </td>
                                             <td>
                                                 <span key={index} className="label">{metric.type || "gauge"}</span> {/* TODO: Gnapa fix */}
-
                                             </td>
                                             <td>
                                                 <input
