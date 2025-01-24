@@ -3,4 +3,4 @@ basicConstraints=CA:FALSE
 keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
 subjectAltName = @alt_names
 [alt_names]
-DNS.1 = oauth-obs-df-install-5.apps.sm4036i1c5ea0ae061.germanywestcentral.aroapp.io
+DNS.1 = oauth-obs-df-install-6.apps.sm4036i1c5ea0ae061.germanywestcentral.aroapp.io

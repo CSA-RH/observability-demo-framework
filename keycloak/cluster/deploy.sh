@@ -89,11 +89,16 @@ echo "DNS.1 = $OAUTH_ENDPOINT" >> $CERT_EXT
 openssl x509 -req -in ${CERT_CSR} \
   -CA ${PRIVATE_CA_PEM} -CAkey ${PRIVATE_CA_KEY} -CAcreateserial \
   -out ${CERT_CRT} -days 825 -sha256 -extfile ${CERT_EXT}
-## Create TLS secret
+## Create TLS secrets (CA bundle and Certificate)
 TLS_SECRET_NAME=keycloak-route-tls-secret
+SSL_BUNDLE_NAME=keycloak-route-ca-secret
 oc create secret tls $TLS_SECRET_NAME \
   --cert=$CERT_CRT \
   --key=$CERT_KEY
+oc create secret generic $SSL_BUNDLE_NAME \
+  --from-file=ca.crt=$PRIVATE_CA_PEM
+oc label secret $TLS_SECRET_NAME observability-demo-framework=ssl
+oc label secret $SSL_BUNDLE_NAME observability-demo-framework=ssl
 
 echo .................................
 echo ... Create Postgres Database  ...

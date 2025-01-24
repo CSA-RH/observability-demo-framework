@@ -28,6 +28,8 @@ apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
   name: obs-front
+  labels:
+    observability-demo-framework: 'cicd'
 spec:
   lookupPolicy:
     local: true
@@ -37,8 +39,9 @@ EOF
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
-  labels:
+  labels:    
     build: obs-front
+    observability-demo-framework: 'cicd'
   name: obs-front
 spec:
   output:
@@ -82,8 +85,10 @@ else
   echo "Creating deployment, service and route..."
   # Create deployment
   oc create deploy obs-front --image=obs-front:latest 
+  oc label deploy obs-front observability-demo-framework=frontend
   # Create service
   oc expose deploy/obs-front --port 8080
+  oc label service obs-front observability-demo-framework=frontend
   # Create route
   cat <<EOF | oc apply -f - 
 apiVersion: route.openshift.io/v1
@@ -91,6 +96,7 @@ kind: Route
 metadata:
   labels:
     app: obs-front
+    observability-demo-framework: frontend
   name: obs-front
 spec:
   port:
