@@ -173,14 +173,26 @@ spec:
       creationTimestamp: null
       labels:
         app: obs-main-api
+        observability-demo-framework: 'backend'
     spec:
-      serviceAccountName: obs-main-api-sa      
+      serviceAccountName: obs-main-api-sa
+      volumes:
+      - name: keycloak-route-ca-secret
+        secret:
+          secretName: keycloak-route-ca-secret
+          defaultMode: 420
       containers:
       - image: obs-main-api:latest
         name: obs-main-api
+        volumeMounts:
+        - name: keycloak-route-ca-secret
+          readOnly: true
+          mountPath: /etc/ssl/keycloak
         env:
         - name: KEYCLOAK_ISSUER
           value: $IDP_ISSUER
+        - name: REQUESTS_CA_BUNDLE
+          value: /etc/ssl/keycloak/ca.crt
 EOF
   # Create service
   oc expose deploy/obs-main-api --port 8000

@@ -96,7 +96,7 @@ security = HTTPBearer()
 def get_public_key(kid: str):
     try:
         #TODO: Needs to improve certificate handling. 
-        response = requests.get(KEYCLOAK_CERTS_URL, verify=False)  
+        response = requests.get(KEYCLOAK_CERTS_URL)  
         response.raise_for_status()
         jwks = response.json()
         for key in jwks["keys"]:
