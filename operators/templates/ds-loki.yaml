@@ -1,0 +1,34 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDatasource
+metadata:
+  name: ds-grafana-loki  
+  labels:
+    observability-demo-framework: 'grafana'
+spec:
+  instanceSelector: 
+    matchLabels: 
+      dashboards: grafana-escotilla
+  datasource:
+    name: Loki EsCotilla Automation
+    type: loki
+    access: proxy
+    url: https://loki-query-frontend-http.openshift-logging.svc.cluster.local:3100
+    jsonData:
+      httpHeaderName1: X-Scope-OrgID
+      oauthPassThru: false
+      streamingEnabled:
+        search: false
+      tlsAuth: true
+      tlsAuthWithCACert: false
+      tlsSkipVerify: true
+      serverName: loki-gateway-http.openshift-logging.svc
+      derivedFields:
+      - name: TraceID
+        matcherType: regex
+        matcherRegex: "\"traceid\":\"([a-f0-9]{32})\""
+        url: '/explore?schemaVersion=1&panes={"nm1":{"datasource":"PLACEHOLDER_TEMPO_UID","queries":[{"refId":"A","datasource":{"type":"tempo","uid":"PLACEHOLDER_TEMPO_UID"},"queryType":"traceql","limit":20,"tableType":"traces","query":"${__value.raw}"}],"range":{"from":"now-1h","to":"now"}}}&orgId=1'
+        urlDisplayLabel: Tempo
+    secureJsonData:
+      httpHeaderValue1: application
+      tlsClientCert: PLACEHOLDER
+      tlsClientKey: PLACEHOLDER

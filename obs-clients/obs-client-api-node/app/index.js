@@ -7,6 +7,47 @@ const { MeterRegistry } = require('@opentelemetry/metrics');
 const { PrometheusExporter } = require('@opentelemetry/exporter-prometheus');
 const { v4: uuidv4 } = require('uuid');
 
+const { LoggerProvider, SimpleLogRecordProcessor } = require('@opentelemetry/sdk-logs');
+const { OTLPLogExporter } = require('@opentelemetry/exporter-logs-otlp-http');
+
+// Create a logger provider
+const loggerProvider = new LoggerProvider();
+
+// Configure the OTLP log exporter
+const logExporter = new OTLPLogExporter({
+  url: process.env.OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, // OTel Collector endpoint
+});
+
+// Add a processor to export logs
+loggerProvider.addLogRecordProcessor(new SimpleLogRecordProcessor(logExporter));
+
+// Get a logger
+const logger = loggerProvider.getLogger('node-logger');
+
+const originConsoleError = console.error;
+const originConsoleLog = console.log;
+
+// Custom logging function
+function customLog(severityText, message) {
+    // Log to OpenTelemetry
+    logger.emit({
+      body: message,
+      severityNumber: severityText === 'ERROR' ? 16 : 1, // ERROR=16, INFO=1
+      severityText
+    });
+
+    // Log to console
+    if (severityText === 'ERROR') {
+        originConsoleError(`[${severityText}] ${message}`);
+    } else {
+        originConsoleLog(`[${severityText}] ${message}`);
+    }
+  }
+
+// Override console.log and console.error
+console.log = (message) => customLog('INFO', message);
+console.error = (message) => customLog('ERROR', message);
+
 const metricOrigin = "src"
 console.log("Environment: " + metricOrigin);
 

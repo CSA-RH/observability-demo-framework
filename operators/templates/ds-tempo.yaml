@@ -1,0 +1,38 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDatasource
+metadata:
+  name: ds-grafana-tempo
+  labels: 
+    observability-demo-framework: 'grafana'
+spec:
+  instanceSelector: 
+    matchLabels: 
+      dashboards: grafana-escotilla
+  datasource:
+    name: Tempo EsCotilla Automation
+    type: tempo
+    access: proxy
+    url: https://tempo-escotilla-query-frontend.PLACEHOLDER-6.svc.cluster.local:3200
+    jsonData:
+      httpHeaderName1: X-Scope-OrgID      
+      oauthPassThru: false
+      streamingEnabled:
+        search: false
+      tlsAuth: true
+      tlsAuthWithCACert: false
+      tlsSkipVerify: true
+      serverName: tempo-escotilla-gateway.PLACEHOLDER.svc.cluster.local
+      tracesToLogsV2:
+        customQuery: false
+        datasourceUid: b237de2f-0f7f-4f06-b7f4-06767e56232d        
+        filterBySpanID: false
+        filterByTraceID: true
+        spanEndTimeShift: "2m"
+        spanStartTimeShift: "-2m"
+        tags: 
+        - key: k8s.namespace.name
+          value: kubernetes_namespace_name
+    secureJsonData:
+      httpHeaderValue1: obsdemo
+      tlsClientCert: PLACEHOLDER
+      tlsClientKey: PLACEHOLDER

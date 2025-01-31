@@ -45,7 +45,7 @@ const App = () => {
       LoadingComponent={<div>Loading...</div>}
     >
       <BrowserRouter>
-      <ClusterInfo />
+      <ClusterInfo />      
         <Routes>          
           <Route path="/admin" element={<AdminPage></AdminPage>} />
           <Route path="/simulation" element={<SimulationPage />} />

@@ -273,3 +273,16 @@ button {
   background-color: #ff6666; /* Even darker red on click */
   border-color: #cc3333;
 }
+
+/* Navigation */
+.nav-link {
+  color: #ffffff; /* White text */
+  font-weight: 500;
+  transition: color 0.3s, background-color 0.3s;
+}
+
+.nav-link:hover {
+  color: #f8f9fa; /* Lighter white */
+  background-color: rgba(255, 255, 255, 0.2); /* Slight highlight */
+}
+
