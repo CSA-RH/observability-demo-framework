@@ -19,7 +19,8 @@ class MockClusterConnector(ClusterConnectorInterface):
             "Namespace": "fake-namespace",
             "ConsoleURL": "https://redhat.com", 
             "apiLogsURL": "https://redhat.com", 
-            "JaegerUI": "https://redhat.com"
+            "JaegerUI": "https://redhat.com", 
+            "GrafanaURL": "https://ibm.com"
         }
 
     def __generate_pod_suffix(self):
