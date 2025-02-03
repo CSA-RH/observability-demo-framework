@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import * as ApiHelper from '../ApiHelper';
 import { useKeycloak } from "@react-keycloak/web";
-import { Link } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 
 
 const ClusterInfo = ({ cluster }) => {
@@ -69,23 +69,29 @@ const ClusterInfo = ({ cluster }) => {
                     </div>
                 </div>
                 <div className="col-7 d-flex text-end">
-                    <nav class="navbar navbar-expand-lg navbar-dark">
-                        <div class="container-fluid">
-                            <ul class="navbar-nav">
-                                <li class="nav-item"><a class="nav-link" href={data.ConsoleURL}
+                    <nav className="navbar navbar-expand-lg navbar-dark">
+                        <div className="container-fluid">
+                            <ul className="navbar-nav">
+                                <li className="nav-item"><a className="nav-link" href={data.ConsoleURL}
                                     target="_blank" rel="noopener noreferrer">
-                                    Console</a></li>
-                                <li class="nav-item"><a class="nav-link" href={data.apiLogsURL}
+                                    Console <i className="fas fa-external-link-alt"></i></a></li>
+                                <li className="nav-item"><a className="nav-link" href={data.apiLogsURL}
                                     target="_blank" rel="noopener noreferrer">
-                                    Backend Logs</a></li>
-                                <li class="nav-item"><a class="nav-link" href={data.JaegerUI}
+                                    Backend Logs <i className="fas fa-external-link-alt"></i></a></li>
+                                <li className="nav-item"><a className="nav-link" href={data.JaegerUI}
                                     target="_blank" rel="noopener noreferrer">
-                                    Jaeger UI</a></li>
-                                <li class="nav-item"><a class="nav-link" href={data.GrafanaURL}
+                                    Jaeger UI <i className="fas fa-external-link-alt"></i></a></li>
+                                <li className="nav-item"><a className="nav-link" href={data.GrafanaURL}
                                     target="_blank" rel="noopener noreferrer">
-                                    Grafana</a></li>
-                                {isAdmin && (<li class="nav-item"><Link to="/simulation" class="nav-link">Simulation</Link></li>)}
-                                {isAdmin && (<li class="nav-item"><Link to="/admin" class="nav-link" href="#">Administration</Link></li> )}
+                                    Grafana <i className="fas fa-external-link-alt"></i></a></li>
+                                {isAdmin && (<li className="nav-item"><NavLink to="/simulation"
+                                    className={({ isActive }) =>
+                                        isActive ? "nav-link active border border-primary" : "nav-link"
+                                    }>Simulation</NavLink></li>)}
+                                {isAdmin && (<li className="nav-item active"><NavLink to="/admin"
+                                    className={({ isActive }) =>
+                                        isActive ? "nav-link active border border-primary" : "nav-link"
+                                    }>Administration</NavLink></li>)}
                             </ul>
                         </div>
                     </nav>

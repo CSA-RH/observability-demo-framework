@@ -96,9 +96,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             # Extract cluster URL and parse to use as the cluster name
             console_url = console_resource['status']['consoleURL']
             cluster_name = console_url.split('.')[2]  # Cluster name typically part of the URL
-            jaegerui_route = f"{self.__get_route_url_by_selector(
-                self.__get_current_namespace(), 
-                "app.kubernetes.io/component=gateway")}/obsdemo"
+            jaegerui_route = f"{self.__get_route_url_by_selector(self.__get_current_namespace(), 'app.kubernetes.io/component=gateway')}/obsdemo"
             grafana_url_route = self.__get_route_url_by_selector(
                 self.__get_current_namespace(), 
                 "observability-demo-framework=grafana"
@@ -112,7 +110,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             "Name": cluster_name,
             "Namespace": current_namespace,
             "ConsoleURL": console_url, 
-            "apiLogsURL": f"{console_url}/k8s/ns/{current_namespace}/pods/{os.getenv("HOSTNAME")}/logs", 
+            "apiLogsURL": f"{console_url}/k8s/ns/{current_namespace}/pods/{os.getenv('HOSTNAME')}/logs", 
             "JaegerUI": jaegerui_route, 
             "GrafanaURL": grafana_url_route
         }

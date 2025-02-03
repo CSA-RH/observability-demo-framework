@@ -9,6 +9,8 @@ const AdminPage = () => <h1>Admin Page - Restricted Access</h1>;
 const UserPage = () => <h1>User Page</h1>;
 const Unauthorized = () => <h1>Unauthorized - Access Denied</h1>;
 
+console.log("hellooooo")
+
 const keycloakConfig = new Keycloak({
   url: import.meta.env.VITE_KEYCLOAK_URL,
   realm: import.meta.env.VITE_KEYCLOAK_REALM,
@@ -22,10 +24,7 @@ const App = () => {
         //console.log("Keycloak event:", event);
         console.log(event);
         if (error) console.error("Keycloak error:", error);
-      }}
-      onTokens={(tokens) => {
-        console.log("Keycloak tokens:", tokens);      
-      }}
+      }}      
       initOptions={{ onLoad: "login-required", checkLoginIframe: false }}
     >
       <Nav />

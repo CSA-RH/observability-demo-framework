@@ -11,13 +11,13 @@ USER 0
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install --production
+RUN npm install --omit=dev
 
 # Copy the rest of the application source code
 COPY . .
 
 # Build the React app
-RUN REACT_APP_ENV=docker npm run build
+RUN npm run build
 
 # Set permissions for the /app directory
 RUN chown -R 1001:0 /app
@@ -32,7 +32,7 @@ FROM registry.access.redhat.com/ubi9/nginx-124
 USER 1001
 
 # Copy the built React app from the build stage
-COPY --chown=1001:0 --from=build /app/build /opt/app-root/src
+COPY --chown=1001:0 --from=build /app/dist /opt/app-root/src
 COPY misc/react-app.conf /opt/app-root/etc/nginx.default.d/
 
 # Expose port 8080 (default for UBI8 Nginx)

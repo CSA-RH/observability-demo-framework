@@ -206,12 +206,12 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
         <div className='container'>
             {agent?.id ? (
                 <div>
-                    <h5>
+                    <h6>
                         <span className="value">
                             <a href={ApiHelper.globalRootConsole + '/k8s/ns/' + ApiHelper.globalCurrentNamespace + '/pods/' + agent.pod}
-                                target="_blank" rel="noopener noreferrer">{agent.pod}</a>
+                                target="_blank" rel="noopener noreferrer">{agent.pod} <i className="fas fa-external-link-alt"></i></a>
                         </span> <span className="value">[{agent.ip}] metrics</span>
-                    </h5>
+                    </h6>
                     <div>
                         <div className='table-responsive'>
                             <table className='table w-100'>
@@ -231,7 +231,7 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                                             <td>
                                                 <a key={index} className="label"
                                                     href={ApiHelper.getObserveLinkForMetric(metric.name, agent.id)}
-                                                    target="_blank" rel="noopener noreferrer">{metric.name}</a>
+                                                    target="_blank" rel="noopener noreferrer">{metric.name} <i className="fas fa-external-link-alt"></i></a>
                                             </td>
                                             <td>
                                                 <span key={index} className="label">{metric.type || "gauge"}</span> {/* TODO: Gnapa fix */}
