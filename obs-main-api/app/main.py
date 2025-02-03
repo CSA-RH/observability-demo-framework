@@ -400,11 +400,3 @@ def get_alerts(current_user: dict = Depends(get_current_user)):
             "summary": __get_alert_summary(alert)
         })
     return alerts
-
-@app.get("/secured")
-async def secured_endpoint(current_user: dict = Depends(get_current_user)):
-    return {"message": "Welcome to the secured endpoint!", "user": current_user}
-
-@app.get("/public")
-async def public_endpoint():
-    return {"message": "Welcome to the public endpoint!"}

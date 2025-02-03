@@ -8,9 +8,6 @@ import AdminPage from './pages/AdminPage';
 import HomePage from './pages/HomePage';
 import ClusterInfo from './components/ClusterInfo';
 
-
-console.log(import.meta.env.VITE_KEYCLOAK_URL);
-
 const App = () => {
   const onKeycloakEvent = async (event, error) => {    
     if (event === "onAuthSuccess") {
@@ -45,7 +42,7 @@ const App = () => {
       <BrowserRouter>
       <ClusterInfo />      
         <Routes>          
-          <Route path="/admin" element={<AdminPage></AdminPage>} />
+          <Route path="/admin" element={<PrivateRoute roles={["obs-admin"]}><AdminPage /></PrivateRoute>} />
           <Route path="/simulation" element={<SimulationPage />} />
           <Route path="/" element={<Navigate to="/simulation" />} />
           <Route path="*" element={<Navigate to="/simulation" />} />
