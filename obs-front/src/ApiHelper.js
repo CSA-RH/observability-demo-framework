@@ -1,4 +1,4 @@
-export const MASTER_API_ADDRESS = process.env.REACT_APP_OBSERVABILITY_DEMO_API
+export const MASTER_API_ADDRESS = import.meta.env.VITE_OBSERVABILITY_DEMO_API
 
 
 export function getInfoUrl()  {

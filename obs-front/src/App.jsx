@@ -9,6 +9,7 @@ import HomePage from './pages/HomePage';
 import ClusterInfo from './components/ClusterInfo';
 
 
+console.log(import.meta.env.VITE_KEYCLOAK_URL);
 
 const App = () => {
   const onKeycloakEvent = async (event, error) => {    
@@ -37,10 +38,7 @@ const App = () => {
 
   return (
     <ReactKeycloakProvider authClient={keycloakInstance}
-      onEvent={onKeycloakEvent}
-      onTokens={(tokens) => {
-        console.log("Keycloak tokens:", tokens);
-      }}
+      onEvent={onKeycloakEvent}      
       initOptions={{ onLoad: "login-required", checkLoginIframe: false }}
       LoadingComponent={<div>Loading...</div>}
     >

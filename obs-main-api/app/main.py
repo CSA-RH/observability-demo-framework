@@ -194,7 +194,7 @@ async def get_simulation(current_user: dict = Depends(get_current_user)):
         metrics = agent_manager.get_agent_metrics(id)
         for metric in metrics:
             metric["alerts"] = []
-        print(f"Pod: {item["pod"]}. Metrics: {metrics}")        
+        print(f"Pod: {item['pod']}. Metrics: {metrics}")        
         item["metrics"] = metrics
     # Update alerts of the metrics.
     alerts = cluster_connector.get_alert_definitions() 
@@ -204,12 +204,12 @@ async def get_simulation(current_user: dict = Depends(get_current_user)):
         agent_matches = [agent for agent in simulation["agents"] if agent["id"] == alert["definition"]["agent"]]
         agent = agent_matches[0] if agent_matches else None
         if agent is None: 
-            print(f"WARNING[alerts]: Agent {alert["definition"]["agent"]} Not found")
+            print(f"WARNING[alerts]: Agent {alert['definition']['agent']} Not found")
             continue
         metric_matches = [metric for metric in agent["metrics"] if metric["name"] == alert["definition"]["metric"]]
         metric = metric_matches[0] if metric_matches else None
         if metric is None or metric is []: 
-            print(f"WARNING[alerts]: Metric {alert["definition"]["metric"]} for the agent {agent["id"]} not found")
+            print(f"WARNING[alerts]: Metric {alert['definition']['metric']} for the agent {agent['id']} not found")
             continue
         # Check if the alert is already present.
         alert_matches_in_metric = [item for item in metric.get("alerts", []) if item["name"] == alert["name"]]

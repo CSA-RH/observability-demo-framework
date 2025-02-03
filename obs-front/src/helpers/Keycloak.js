@@ -1,10 +1,9 @@
 import Keycloak from "keycloak-js";
 
-
 const keycloakInstance = new Keycloak({
-      url: process.env.REACT_APP_KEYCLOAK_URL,
-      realm: process.env.REACT_APP_KEYCLOAK_REALM,
-      clientId: process.env.REACT_APP_KEYCLOAK_CLIENT_ID,
+      url: import.meta.env.VITE_KEYCLOAK_URL,
+      realm: import.meta.env.VITE_KEYCLOAK_REALM,
+      clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID,
     });
 
 export default keycloakInstance;

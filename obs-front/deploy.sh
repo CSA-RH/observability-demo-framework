@@ -63,12 +63,12 @@ oc delete build --selector build=obs-front > /dev/null
 # Get keycloak route
 export route IDP_URL=https://$(oc get route --selector app=keycloak -ojsonpath='{.items[0].spec.host}')
 # Retrieve and set .env variables for API address
-export REACT_APP_API_URL=https://$(oc get route obs-main-api -ojsonpath='{.spec.host}')
+export VITE_API_URL=https://$(oc get route obs-main-api -ojsonpath='{.spec.host}')
 cat <<EOF > $SOURCES_DIR/.env
-REACT_APP_OBSERVABILITY_DEMO_API=${REACT_APP_API_URL}
-REACT_APP_KEYCLOAK_URL=${IDP_URL}
-REACT_APP_KEYCLOAK_REALM=csa
-REACT_APP_KEYCLOAK_CLIENT_ID=webauth
+VITE_OBSERVABILITY_DEMO_API=${VITE_API_URL}
+VITE_KEYCLOAK_URL=${IDP_URL}
+VITE_KEYCLOAK_REALM=csa
+VITE_KEYCLOAK_CLIENT_ID=webauth
 EOF
 # Start build for obs-front
 oc start-build obs-front --from-file $SOURCES_DIR 

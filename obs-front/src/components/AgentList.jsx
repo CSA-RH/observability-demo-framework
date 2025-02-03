@@ -32,8 +32,9 @@ const AgentList = ({ agents, selectedAgentId, onAgentSelected }) => {
 
     //For handling the kick
     const handleKick = async (id, ip) => {
-        console.log(`${id}[${ip}] placed an order!`);
-        addToast(`${id}[${ip}] placed an order!`);
+        const message = `${new Date().toLocaleString()} - ${id}[${ip}] placed an order!`;
+        console.log(message);
+        addToast(message);
         try {
             const kickPayload = {
                 ip: ip,
@@ -77,7 +78,7 @@ const AgentList = ({ agents, selectedAgentId, onAgentSelected }) => {
 
                                     <td><a href={ApiHelper.getPodLogsAddress(item.pod)} 
                                            target="_blank" 
-                                           rel="noopener noreferrer"> {item.id}</a></td>
+                                           rel="noopener noreferrer"> {item.id} <i className="fas fa-external-link-alt"></i></a></td>
                                     <td><span className={'label label-' + item.type}>{item.type}</span></td>
                                     {/* Next hops mapped to labels */}
                                     <td>{item.ip ? (
