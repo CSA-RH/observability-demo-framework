@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Concurrent;
 using Prometheus;
+using System.Text;
+using System.Text.Json;
 
 public class KickRequest
 {
@@ -12,6 +14,13 @@ public class AgentData
 {
     public string? Ip { get; set; }
     public int Port { get; set; }
+    public string? Name {get; set;}
+}
+
+public class CustomerRequest
+{
+    public string RequestId { get; set; } = string.Empty;
+    public string Customer { get; set; } = string.Empty;
 }
 
 [Route("")]
@@ -21,10 +30,15 @@ public class ApiController : ControllerBase
     private static readonly ConcurrentDictionary<string, Gauge> _metrics = new();
     private static readonly Dictionary<string, AgentData> _agents = new();
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILogger<ApiController> _logger;
+
+
+
     
-    public ApiController(IHttpClientFactory httpClientFactory)
+    public ApiController(IHttpClientFactory httpClientFactory, ILogger<ApiController> logger)
     {
         _httpClientFactory = httpClientFactory;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -88,6 +102,7 @@ public class ApiController : ControllerBase
 
         // Store the agent data in the dictionary keyed by the IP.
         _agents[agentName] = agentData;
+        agentData.Name = agentName;
 
         // Return a success message with the agent name and IP.
         return Ok();
@@ -98,6 +113,32 @@ public class ApiController : ControllerBase
     public IActionResult GetAllAgents()
     {
         return Ok(_agents);
+    }
+
+    public static AgentData? GetAvailableAgent(string agentType, Dictionary<string, AgentData> agents)
+    {
+        var matches = agents
+            .Where(kv => kv.Key.StartsWith(agentType, StringComparison.OrdinalIgnoreCase))
+            .Select(kv => new AgentData
+            {
+                Name = kv.Key,
+                Ip = kv.Value.Ip,
+                Port = kv.Value.Port
+            })
+            .ToList();
+
+        if (matches.Count > 1)
+        {
+            var random = new Random();
+            return matches[random.Next(matches.Count)];
+        }
+
+        return matches.FirstOrDefault();
+    }
+
+    public static AgentData? GetAvailableCook()
+    {
+        return GetAvailableAgent("cook", _agents);
     }
     
     // DELETE method to remove an agent by IP.
@@ -117,6 +158,63 @@ public class ApiController : ControllerBase
         }
     }
 
+    [HttpPost("operations/request")]
+    public async Task<IActionResult> RequestOperation([FromBody] CustomerRequest customerRequest)
+    {
+        var waiter = Environment.GetEnvironmentVariable("HOSTNAME");
+
+        if (customerRequest == null || string.IsNullOrEmpty(customerRequest.RequestId))
+        {
+            _logger.LogError("[N/A] Error in the request. No request ID");
+            return BadRequest("No request ID found.");
+        }
+
+        string requestId = customerRequest.RequestId;
+        _logger.LogInformation($"[{requestId}] Receiving an order for a tasting menu. Looking for a cook...");
+
+        var cook = GetAvailableCook();
+        if (cook == null)
+        {
+            _logger.LogError($"[{requestId}] There is no cook available. No tip today from {customerRequest.Customer}!");
+            return NotFound("No cook available");
+        }
+
+        _logger.LogInformation($"[{requestId}] Cook {cook.Name} is available!");
+
+        var postData = new
+        {
+            waiter = waiter,
+            requestId = requestId,
+            cook = cook.Name
+        };
+
+        
+        var cookUrl = $"http://{cook.Ip}:{cook.Port}/operations/cook";
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));            
+            var response = await client.PostAsJsonAsync(cookUrl, postData, cts.Token);
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation($"[{requestId}] Serving delicious tasting menu from {cook.Name} to {customerRequest.Customer}");
+                return Ok();
+            }
+            else
+            {
+                _logger.LogError($"[{requestId}] Cook service returned an error: {response.StatusCode}");
+                return StatusCode((int)response.StatusCode);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"[{requestId}] Something went wrong: {ex.Message}");
+            return StatusCode(500, "Internal Server Error");
+        }
+    }
+
+
     [HttpPost("kick")]
     public async Task<IActionResult> Kick([FromBody] KickRequest kickRequest)
     {
@@ -124,15 +222,15 @@ public class ApiController : ControllerBase
 
         if (kickCount == 0)
         {
-            Console.WriteLine("no more kicks");
+            _logger.LogInformation("no more kicks");
             return Ok();
         }
 
         string agentReceived = kickRequest.Sender ?? "INITIAL KICK";
         string sender = Environment.GetEnvironmentVariable("HOSTNAME") ?? "localhost";
         
-        Console.WriteLine("---");
-        Console.WriteLine($"Sent by {agentReceived}. Kicks remaining: {kickCount}");
+        _logger.LogInformation("---");
+        _logger.LogInformation($"Sent by {agentReceived}. Kicks remaining: {kickCount}");
 
         foreach (var (agentId, agentInfo) in _agents)
         {
@@ -143,7 +241,7 @@ public class ApiController : ControllerBase
             };
 
             var agentRequestId = Guid.NewGuid().ToString();
-            Console.WriteLine($"[{agentRequestId}][REQUEST from {sender} to {agentId}]");
+            _logger.LogInformation($"[{agentRequestId}][REQUEST from {sender} to {agentId}]");
 
             try
             {
@@ -152,11 +250,11 @@ public class ApiController : ControllerBase
 
                 var response = await client.PostAsJsonAsync($"http://{agentInfo.Ip}:{agentInfo.Port}/kick", post_data, cts.Token);
 
-                Console.WriteLine($"[{agentRequestId}][RESPONSE from {agentId}]: Status = {response.StatusCode}");
+                _logger.LogInformation($"[{agentRequestId}][RESPONSE from {agentId}]: Status = {response.StatusCode}");
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"Error: {ex.Message}");
+                _logger.LogError($"Error: {ex.Message}");
                 return StatusCode(500);
             }
         }

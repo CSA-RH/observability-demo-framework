@@ -116,18 +116,21 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         }
     
     def __get_image(self, tech_stack):
+        if tech_stack == "waiter":
+            return "obs-client-dotnet:latest"
         #if tech_stack == "nodejs":
         return "obs-client-node:latest"
-        #if tech_stack == "dotnet":
-        #    return "obs-client-dotnet:latest"
+
     
     def __get_inject_annotation(self, tech_stack):
+        if tech_stack == "waiter":
+            return 'instrumentation.opentelemetry.io/inject-dotnet'
         #if tech_stack == "nodejs":
         return 'instrumentation.opentelemetry.io/inject-nodejs'
-        #if tech_stack == "dotnet":
-        #    return 'instrumentation.opentelemetry.io/inject-dotnet'
+
 
     def __create_deployment(self, namespace, item):
+        print("DEPLOYMENT TYPE: " + item['type'])
         deployment_manifest = {
             'apiVersion': 'apps/v1',
             'kind': 'Deployment',

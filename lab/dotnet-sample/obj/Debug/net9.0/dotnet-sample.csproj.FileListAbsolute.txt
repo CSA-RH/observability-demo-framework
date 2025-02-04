@@ -1,0 +1,15 @@
+/Users/apalma/Lab/observability-demo-fmwk/lab/dotnet-sample/bin/Debug/net9.0/dotnet-sample
+/Users/apalma/Lab/observability-demo-fmwk/lab/dotnet-sample/bin/Debug/net9.0/dotnet-sample.deps.json
+/Users/apalma/Lab/observability-demo-fmwk/lab/dotnet-sample/bin/Debug/net9.0/dotnet-sample.runtimeconfig.json
+/Users/apalma/Lab/observability-demo-fmwk/lab/dotnet-sample/bin/Debug/net9.0/dotnet-sample.dll
+/Users/apalma/Lab/observability-demo-fmwk/lab/dotnet-sample/bin/Debug/net9.0/dotnet-sample.pdb
+/Users/apalma/Lab/observability-demo-fmwk/lab/dotnet-sample/obj/Debug/net9.0/dotnet-sample.GeneratedMSBuildEditorConfig.editorconfig
+/Users/apalma/Lab/observability-demo-fmwk/lab/dotnet-sample/obj/Debug/net9.0/dotnet-sample.AssemblyInfoInputs.cache
+/Users/apalma/Lab/observability-demo-fmwk/lab/dotnet-sample/obj/Debug/net9.0/dotnet-sample.AssemblyInfo.cs
+/Users/apalma/Lab/observability-demo-fmwk/lab/dotnet-sample/obj/Debug/net9.0/dotnet-sample.csproj.CoreCompileInputs.cache
+/Users/apalma/Lab/observability-demo-fmwk/lab/dotnet-sample/obj/Debug/net9.0/dotnet-sample.sourcelink.json
+/Users/apalma/Lab/observability-demo-fmwk/lab/dotnet-sample/obj/Debug/net9.0/dotnet-sample.dll
+/Users/apalma/Lab/observability-demo-fmwk/lab/dotnet-sample/obj/Debug/net9.0/refint/dotnet-sample.dll
+/Users/apalma/Lab/observability-demo-fmwk/lab/dotnet-sample/obj/Debug/net9.0/dotnet-sample.pdb
+/Users/apalma/Lab/observability-demo-fmwk/lab/dotnet-sample/obj/Debug/net9.0/dotnet-sample.genruntimeconfig.cache
+/Users/apalma/Lab/observability-demo-fmwk/lab/dotnet-sample/obj/Debug/net9.0/ref/dotnet-sample.dll
