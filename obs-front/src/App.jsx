@@ -11,8 +11,7 @@ import ClusterInfo from './components/ClusterInfo';
 const App = () => {
   const onKeycloakEvent = async (event, error) => {    
     if (event === "onAuthSuccess") {
-      // Redirect to /simulation after successful login
-      console.log(keycloakInstance)
+      // Redirect to /simulation after successful login      
       if (window.location.pathname !== '/simulation' && !sessionStorage.getItem('redirected')) {
         sessionStorage.setItem('redirected', 'true'); // Store the redirect status
         window.location.href = '/simulation'; // Redirect to /simulation after successful login
