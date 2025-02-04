@@ -1,5 +1,5 @@
 # Build Stage
-FROM registry.redhat.io/rhel8/dotnet-80 AS build
+FROM registry.redhat.io/rhel8/dotnet-90 AS build
 WORKDIR /opt/app-root
 
 USER root
@@ -9,7 +9,7 @@ COPY . ./
 RUN dotnet publish -c Release -o out
 
 # Runtime 
-FROM registry.redhat.io/ubi8/dotnet-80-runtime AS runtime
+FROM registry.redhat.io/ubi8/dotnet-90-runtime AS runtime
 WORKDIR /opt/app-root
 
 COPY --from=build /opt/app-root/out .

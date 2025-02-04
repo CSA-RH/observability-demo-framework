@@ -234,6 +234,12 @@ metadata:
 spec:
   exporter:
     endpoint: 'http://otel-collector:4317'
+  dotnet:
+    env:
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: 'http://otel-collector:4318'
+      - name: ASPNETCORE_HOSTINGSTARTUPASSEMBLIES
+        value: OpenTelemetry.AutoInstrumentation.AspNetCoreBootstrapper
   nodejs:    
     env:
       - name: OTEL_NODEJS_AUTO_INSTRUMENTATION_ENABLED

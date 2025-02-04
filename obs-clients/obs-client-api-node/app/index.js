@@ -233,6 +233,7 @@ function cook(req, res){
     const cook = process.env.HOSTNAME;    
     const waiterRequest = req.body;
     const requestId = waiterRequest?.requestId;
+    console.log("REQUEST:", waiterRequest);
     
     if (!requestId) {
         console.log(`[N/A] Error in the request. No request ID`)                
