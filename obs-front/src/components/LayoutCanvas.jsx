@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import cytoscape from 'cytoscape';
+import { getNamesPool } from '../ApiHelper';
 
 const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNodeSelected, nodeType }) => {
 
     const cytoscapeContainerRef = useRef(null);
     const [cytoscapeInstance, setCytoscapeInstance] = useState(null);
-    //const [currentStyle, setCurrentStyle] = useState(nodeType.type)
 
     // Create a ref to track the latest value of locked
     const lockedRef = useRef(readOnly);
@@ -103,106 +103,20 @@ const LayoutCanvas = ({ readOnly, layout, onLayoutChanged, nodeIdSelected, onNod
         let selectedNodes = [];
 
         // List of names
-        const malagaPlayers = [
-            "duda",
-            "sandro",
-            "isco",
-            "santa-cruz",
-            "salva",
-            "roteta",
-            "koke",
-            "weligton",
-            "cazorla",
-            "nacho",
-            "fornals",
-            "van-nistelrooy",
-            "musampa",
-            "rufete",
-            "apono",
-            "rosales",
-            "valcarce",
-            "gamez",
-            "maresca",
-            "baptista",
-            "amrabat",
-            "charles",
-            "joaquin",
-            "samuel-garcia",
-            "eliseu",
-            "kameni",
-            "camacho",
-            "willy-caballero",
-            "migueli",
-            "antonio-hidalgo",
-            "pepillo",
-            "basti",
-            "josemi",
-            "monreal",
-            "quino",
-            "juanmi",
-            "nacho-perez",            
-            "manolo-reina",
-            "pellicer",
-            "jaro",
-            "makanaky",
-            "toulalan",
-            "antonio-benitez",
-            "adrian",
-            "dario-silva",
-            "movilla",
-            "antonito", 
-            "fleitas", 
-            "guerini",
-            "castronovo",
-            "usuriaga",
-            "paquito",
-            "alvarez",
-            "bernardi",
-            "americo",
-            "montero",
-            "arias",
-            "arles",
-            "aido",
-            "viberti",
-            "vilanova",
-            "varela",
-            "rodriguez",
-            "cantaruti",
-            "cabral",
-            "roldan",
-            "canabal",
-            "bazan",
-            "deusto",
-            "goroechea",
-            "peribaldo",
-            "pineda",
-            "husillos",
-            "jantunen",
-            "bonacic",
-            "lauridsen",
-            "pons",
-            "martinez",
-            "borreda",
-            "munoz-perez",
-            "soriano", 
-            "contreras",
-            "elder", 
-            "goitia",
-            "conejo"
-        ];
+        const namesPool = getNamesPool();
 
         // Function to randomly select a name without repeating
         function getRandomName(styleType) {
-            if (malagaPlayers.length === 0) {
+            if (namesPool.length === 0) {
                 console.log("All names have been used.");
                 return null; // or reset the array if needed
             }
 
             // Get a random index
-            const randomIndex = Math.floor(Math.random() * malagaPlayers.length);
+            const randomIndex = Math.floor(Math.random() * namesPool.length);
 
             // Extract the name
-            const selectedName = malagaPlayers.splice(randomIndex, 1)[0];
+            const selectedName = namesPool.splice(randomIndex, 1)[0];
 
             // Return the selected name
             return styleType + '-' + selectedName;
