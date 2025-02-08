@@ -1,31 +1,32 @@
+#!/bin/bash
+set -e 
 # Load environment
-source ./vars.sh
-export LOKISTACK_RESOURCE=loki
-# Deploy Loki Operator
-echo ...LOKI OPERATOR AND LokiStack... 
-if check_openshift_resource_exists Subscription loki-operator openshift-operators-redhat; then
-  echo " - Loki Operator already installed"
+source ./env.sh
+if [[ $INFRASTRUCTURE = "AWS"  ]]; then
+  source ./env-rosa.sh
 else
-  cat <<EOF | oc create -f -
-apiVersion: operators.coreos.com/v1alpha1
-kind: Subscription
-metadata:    
-  labels:
-    operators.coreos.com/loki-operator.openshift-operators-redhat: ""
-    observability-demo-framework: 'operator'
-  name: loki-operator
-  namespace: openshift-operators-redhat
-spec:
-  channel: stable-6.1
-  installPlanApproval: Automatic
-  name: loki-operator
-  source: redhat-operators
-  sourceNamespace: openshift-marketplace
-  startingCSV: loki-operator.v6.1.1
-EOF
-  # Wait for the operator to be created and available. 
-  wait_operator_to_be_installed operators.coreos.com/loki-operator.openshift-operators-redhat openshift-operators-redhat
+  source ./env-aro.sh
 fi
+
+export LOKISTACK_RESOURCE=loki
+
+# Load Hyperscaler infrastructure
+#  - Operator installation 
+cat <<EOF | oc apply -f -
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-logging
+spec: {}
+EOF
+cat <<EOF | oc apply -f -
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-loki-operator
+spec: {}
+EOF
+load_loki_storage_backend
 
 # Create Service Account for loki collector
 export SA_COLLECTOR=loki-collector
@@ -94,33 +95,27 @@ subjects:
   namespace: openshift-logging
 EOF
 
-# TODO: needs refactoring
-echo "  - Checking the container in the storage account for Loki"
-if az storage container show --name "$STORAGE_CONTAINER_LOKI" --account-name "$STORAGE_ACCOUNT_NAME" --account-key "$STORAGE_ACCOUNT_KEY" &>/dev/null; then
-    echo "-  Container '$STORAGE_CONTAINER_LOKI' exists in storage account '$STORAGE_ACCOUNT_NAME'."
+# Deploy Loki Operator
+echo "...LOKI OPERATOR AND LokiStack..."
+if check_openshift_resource_exists Subscription loki-operator openshift-loki-operator; then
+  echo " - Loki Operator already installed"
 else
-    echo " - Container '$STORAGE_CONTAINER_LOKI' does NOT exist in storage account '$STORAGE_ACCOUNT_NAME'."
-    echo "   Creating..."
-    az storage container create \
-      --name "$STORAGE_CONTAINER_LOKI" \
-      --account-name "$STORAGE_ACCOUNT_NAME" \
-      --account-key "$STORAGE_ACCOUNT_KEY"
+  cat <<EOF | oc create -f -
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  annotations:
+    olm.providedAPIs: AlertingRule.v1.loki.grafana.com,LokiStack.v1.loki.grafana.com,RecordingRule.v1.loki.grafana.com,RulerConfig.v1.loki.grafana.com
+  generateName: openshift-loki-operator-
+  namespace: openshift-loki-operator
+spec:
+  upgradeStrategy: Default
+EOF
+  install_loki_subscription  
 fi
 
-echo "  - Checking the backend storage secret for Loki"
-cat <<EOF | oc apply -f - 
-kind: Secret
-apiVersion: v1
-metadata:
-  name: loki-storage-secret
-  namespace: openshift-logging
-data:
-  account_key: $(echo -n $STORAGE_ACCOUNT_KEY | base64 -w 0)
-  account_name: $(echo -n $STORAGE_ACCOUNT_NAME | base64 -w 0)
-  container: $(echo -n $STORAGE_CONTAINER_LOKI | base64 -w 0)
-  environment: QXp1cmVHbG9iYWw=
-type: Opaque
-EOF
+# Wait for the operator to be created and available. 
+wait_operator_to_be_installed operators.coreos.com/loki-operator.openshift-loki-operator openshift-loki-operator
 
 #   RESOURCE LokiStack
 echo " - Install/Configure LokiStack"
@@ -146,9 +141,9 @@ spec:
         version: v13
     secret:
       name: loki-storage-secret
-      type: azure
+      type: $HYPERSCALER_STORAGE_SECRET_TYPE
   hashRing:
     type: memberlist
   size: 1x.demo
-  storageClassName: managed-csi
+  storageClassName: $HYPERSCALER_STORAGE_CLASS
 EOF
