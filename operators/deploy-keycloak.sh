@@ -1,8 +1,6 @@
 #!/bin/bash
-
 set -e
-
-CURRENT_NAMESPACE=$(oc project -q)
+source ./env.sh
 echo CURRENT_NAMESPACE=$CURRENT_NAMESPACE
 # --- Create operator
 echo ....................................
@@ -65,9 +63,15 @@ openssl req -new -key ${CERT_KEY} -out ${CERT_CSR} \
 echo ... Get the TLS certificate from HAProxy router ...
 TMP_TLS_CERT_YAML=./output/cluster-cert.yaml
 TMP_TLS_CERT_CRT=./output/cluster-cert.crt
+if [[ $INFRASTRUCTURE = "AWS"  ]]; then 
+  export SECRET_TLS_FILTER="cert\-bundle\-secret"
+else
+  export SECRET_TLS_FILTER="\-ingress"
+fi
+echo FILTER=$SECRET_TLS_FILTER
 oc get -oyaml \
   -n openshift-ingress \
-  $(oc get secret -n openshift-ingress -oNAME | grep "\-ingress") \
+  $(oc get secret -n openshift-ingress -oNAME | grep $SECRET_TLS_FILTER) \
   | yq - \
   | yq eval '.data."tls.crt"' \
   | base64 -d > $TMP_TLS_CERT_CRT
@@ -103,7 +107,7 @@ oc label secret $SSL_BUNDLE_NAME observability-demo-framework=ssl
 echo .................................
 echo ... Create Postgres Database  ...
 echo .................................
-cat <<EOF | oc create -f -
+cat <<EOF | oc apply -f -
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -172,7 +176,8 @@ oc wait \
     --for=condition=ready \
     --timeout=300s \
     pod postgresql-db-0
-sleep 5
+ # Wait for the operator to be created and available. 
+  wait_operator_to_be_installed operators.coreos.com/rhbk-operator.$CURRENT_NAMESPACE $CURRENT_NAMESPACE
 
 # --- Create keycloak server --- 
 echo .................................
@@ -190,7 +195,7 @@ spec:
   ingress: 
     className: openshift-default
     enabled: true
-  instances: 2
+  instances: 1
   hostname: 
     hostname: ${OAUTH_ENDPOINT}
   http: 

@@ -1,3 +1,6 @@
+#!/bin/bash
+set -e
+source ./env.sh
 # Deploy Cluster Observability Operator
 echo ...CLUSTER OBSERVABILITY OPERATOR AND UI PLUGINS... 
 #  - Operator installation 
@@ -19,6 +22,8 @@ spec:
   sourceNamespace: openshift-marketplace
   startingCSV: cluster-observability-operator.0.4.1
 EOF
+
+wait_operator_to_be_installed operators.coreos.com/cluster-observability-operator.openshift-operators openshift-operators
 
 #  - Operator plugins 
 echo " - Install UI plugins"

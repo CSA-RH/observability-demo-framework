@@ -1,5 +1,5 @@
 # Load environment
-source ./vars.sh
+source ./env.sh
 # Deploy Red Hat build of OpenTelemetry Operator
 echo ...RED HAT BUILD OF OPENTELEMETRY OPERATOR, COLLECTOR AND AUTO-INSTRUMENTATION... 
 #  - Operator installation 
@@ -202,7 +202,7 @@ spec:
             - transform
             - resource
           receivers:
-            - otlp        
+            - otlp
         metrics:
           exporters:
             - prometheus

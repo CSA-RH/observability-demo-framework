@@ -1,4 +1,4 @@
-source ./vars.sh
+source ./env.sh
 echo ...GRAFANA OPERATOR AND GrafanaDatasources for Loki and Tempo...
 if check_openshift_resource_exists Subscription grafana-operator openshift-operators; then
   echo " - Grafana Community Operator already installed"
@@ -131,6 +131,22 @@ oc patch GrafanaDatasource ds-grafana-tempo \
   -p "$(echo '{"spec":{"datasource":{"url": "https://tempo-escotilla-query-frontend.'$CURRENT_NAMESPACE'.svc.cluster.local:3200", "jsonData":{"serverName": "tempo-escotilla-gateway.'$CURRENT_NAMESPACE'.svc.cluster.local", "tracesToLogsV2":{"datasourceUid":"'"$LOKI_DS_UID"'"}}}}}' )"
 
 oc patch GrafanaDatasource ds-grafana-loki \
-  -n $CURRENT_NAMESPACE \
+  -n "$CURRENT_NAMESPACE" \
   --type='merge' \
-  -p "$(echo '{"spec":{"datasource":{"jsonData":{"derivedFields":[{"name":"TraceID","matcherType":"regex","matcherRegex":"\"traceid\":\"([a-f0-9]{32})\"","url":"/explore?schemaVersion=1&panes={\"nm1\":{\"datasource\":\"'"$TEMPO_DS_UID"'\",\"queries\":[{\"refId\":\"A\",\"datasource\":{\"type\":\"tempo\",\"uid\":\"'"$TEMPO_DS_UID"'\"},\"queryType\":\"traceql\",\"limit\":20,\"tableType\":\"traces\",\"query\":\"${__value.raw}\"}],\"range\":{\"from\":\"now-1h\",\"to\":\"now\"}}}&orgId=1","urlDisplayLabel":"Tempo"}]}}}}')"
+  -p '{
+    "spec": {
+      "datasource": {
+        "jsonData": {
+          "derivedFields": [
+            {
+              "name": "TraceID",
+              "matcherType": "regex",
+              "matcherRegex": "\"traceid\":\"([a-f0-9]{32})\"",
+              "url": "/explore?schemaVersion=1&panes={\"nm1\":{\"datasource\":\"'"$TEMPO_DS_UID"'\",\"queries\":[{\"refId\":\"A\",\"datasource\":{\"type\":\"tempo\",\"uid\":\"'"$TEMPO_DS_UID"'\"},\"queryType\":\"traceql\",\"limit\":20,\"tableType\":\"traces\",\"query\":\"\\${__value.raw}\"}],\"range\":{\"from\":\"now-1h\",\"to\":\"now\"}}}&orgId=1",
+              "urlDisplayLabel": "Tempo"
+            }
+          ]
+        }
+      }
+    }
+  }'

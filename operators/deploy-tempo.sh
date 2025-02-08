@@ -1,5 +1,13 @@
+#!/bin/bash
+set -e 
 # Load environment
-source ./vars.sh
+source ./env.sh
+if [[ $INFRASTRUCTURE = "AWS"  ]]; then
+  source ./env-rosa.sh
+else
+  source ./env-aro.sh
+fi
+
 # Deploy Tempo Operator
 echo ...TEMPO OPERATOR AND TempoStack... 
 #  - Operator installation
@@ -112,32 +120,8 @@ subjects:
   namespace: $CURRENT_NAMESPACE
 EOF
 
-echo "  - Checking the container in the storage account for Tempo"
-if az storage container show --name "$STORAGE_CONTAINER_TEMPO" --account-name "$STORAGE_ACCOUNT_NAME" --account-key "$STORAGE_ACCOUNT_KEY" &>/dev/null; then
-    echo "-  Container '$STORAGE_CONTAINER_TEMPO' exists in storage account '$STORAGE_ACCOUNT_NAME'."
-else
-    echo " - Container '$STORAGE_CONTAINER_TEMPO' does NOT exist in storage account '$STORAGE_ACCOUNT_NAME'."
-    echo "   Creating..."
-    az storage container create \
-      --name "$STORAGE_CONTAINER_TEMPO" \
-      --account-name "$STORAGE_ACCOUNT_NAME" \
-      --account-key "$STORAGE_ACCOUNT_KEY"
-fi
-
-echo "  - Checking the backend storage secret for Tempo"
-cat <<EOF | oc apply -f - 
-kind: Secret
-apiVersion: v1
-metadata:
-  name: tempo-storage-secret
-  namespace: $CURRENT_NAMESPACE
-data:
-  account_key: $(echo -n $STORAGE_ACCOUNT_KEY | base64 -w 0)
-  account_name: $(echo -n $STORAGE_ACCOUNT_NAME | base64 -w 0)
-  container: $(echo -n $STORAGE_CONTAINER_TEMPO | base64 -w 0)
-  environment: QXp1cmVHbG9iYWw=
-type: Opaque
-EOF
+# Storage backend in Hyperscaler
+load_tempo_storage_backend
 
 #   RESOURCE TempoStack
 echo " - Install/Configure TempoStack"
@@ -180,5 +164,5 @@ spec:
   storage:
     secret:
       name: tempo-storage-secret
-      type: azure
+      type: $HYPERSCALER_STORAGE_SECRET_TYPE
 EOF
