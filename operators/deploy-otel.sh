@@ -106,7 +106,8 @@ metadata:
     observability-demo-framework: 'otel'
 spec:
   observability:
-    metrics: {}
+    metrics:
+      enableMetrics: true
   config:
     connectors:
       spanmetrics:
