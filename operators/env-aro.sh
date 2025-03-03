@@ -14,7 +14,7 @@ load_environment_storage_backend() {
   if [ $? -eq 0 ]; then
     echo "Found storage account: $STORAGE_ACCOUNT_NAME"
   else
-    echo "No storage account found with name '$$STORAGE_ACCOUNT_NAME'. Creating... "    
+    echo "No storage account found with name '$STORAGE_ACCOUNT_NAME'. Creating... "    
     az storage account create \
       --name "$STORAGE_ACCOUNT_NAME" \
       --resource-group "$STORAGE_RESOURCE_GROUP" \
