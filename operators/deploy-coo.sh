@@ -15,12 +15,12 @@ metadata:
   name: cluster-observability-operator
   namespace: openshift-operators
 spec:
-  channel: development
+  channel: stable
   installPlanApproval: Automatic
   name: cluster-observability-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
-  startingCSV: cluster-observability-operator.0.4.1
+  startingCSV: cluster-observability-operator.v1.0.0
 EOF
 
 wait_operator_to_be_installed operators.coreos.com/cluster-observability-operator.openshift-operators openshift-operators

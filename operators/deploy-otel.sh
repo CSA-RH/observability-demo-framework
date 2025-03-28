@@ -253,6 +253,7 @@ spec:
   sampler: {}
 EOF
 echo "   waiting for OTel Collector to initialize..."
+sleep 2
 oc wait \
     --for=condition=available \
     --timeout=300s \
