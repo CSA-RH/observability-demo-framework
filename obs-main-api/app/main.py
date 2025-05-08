@@ -126,7 +126,7 @@ def decode_token(token: str) -> Dict:
             algorithms=["RS256"],
             audience=KEYCLOAK_AUDIENCE,
             issuer=KEYCLOAK_ISSUER,
-        )
+        )        
         return payload
     except JWTError as e:
         raise HTTPException(status_code=401, detail=f"Token validation error: {e}")
@@ -137,14 +137,15 @@ def decode_token(token: str) -> Dict:
 def get_current_user(authorization: str = Depends(security)):
     try:
         token = authorization.credentials
-        return decode_token(token)
+        return decode_token(token)["preferred_username"]
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Unauthorized: {e}")
 
 #TODO: Error handling
 @app.get("/info")
 async def get_info(current_user: dict = Depends(get_current_user)):
-    return cluster_connector.get_cluster_info()
+    print(f"---> CURRENT USER: {current_user}")
+    return cluster_connector.get_cluster_info(current_user)
 
 def get_agent_from_payload(name, payload):
     for item in payload:
@@ -163,41 +164,43 @@ def add_next_hop_to_agent(name, agent):
 async def create_simulation(payload: Dict[str, Any], current_user: dict = Depends(get_current_user)):    
     # Create resources in cluster
     try:        
-        json_agents = await cluster_connector.create_simulation_resources(payload["agents"])
+        json_agents = await cluster_connector.create_simulation_resources(current_user, payload["agents"])
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=e.args)
     
     for source_agent_data in payload["agents"]: 
         for target_agent_id in source_agent_data["nextHop"]:
-            agent_manager.set_agent_communication_path(source_agent_data["id"], target_agent_id)
+            agent_manager.set_agent_communication_path(
+                cluster_connector.retrieve_hostname_from_service_id(current_user, source_agent_data["id"]),
+                target_agent_id)
 
     # Save simulation
-    cluster_connector.save_simulation(payload)
+    cluster_connector.save_simulation(current_user, payload)
 
     return json_agents
 
 @app.delete("/simulation")
 async def delete_simulation(current_user: dict = Depends(get_current_user)):
-    await cluster_connector.delete_simulation()
-    agent_manager.delete_metrics_definitions()    
+    await cluster_connector.delete_simulation(current_user)
+    await agent_manager.delete_metrics_definitions()
 
 @app.get("/simulation")
 async def get_simulation(current_user: dict = Depends(get_current_user)):
     # Get the simulation definition from storage    
-    simulation = cluster_connector.retrieve_simulation()    
+    simulation = cluster_connector.retrieve_simulation(current_user)    
     if simulation == {}:        
         raise HTTPException(status_code=404, detail="Simulation not found")    
     # Update agent metrics     
     for item in simulation["agents"]:
         id = item["id"]
-        metrics = agent_manager.get_agent_metrics(id)
+        metrics = agent_manager.get_agent_metrics(cluster_connector.retrieve_hostname_from_service_id(current_user, id))
         for metric in metrics:
             metric["alerts"] = []
         print(f"Pod: {item['pod']}. Metrics: {metrics}")        
         item["metrics"] = metrics
     # Update alerts of the metrics.
-    alerts = cluster_connector.get_alert_definitions() 
+    alerts = cluster_connector.get_alert_definitions(current_user) 
     for alert in alerts:
         if alert["scope"] != "metricAgent":
             continue
@@ -332,7 +335,7 @@ async def create_alert(payload: dict[str, Any], current_user: dict = Depends(get
     summary = __get_alert_summary(payload)  
     expression = __get_alert_expression(payload)
         
-    result = cluster_connector.create_alert_resource(alert_id, alert_name, severity, group, expression, summary)
+    result = cluster_connector.create_alert_resource(current_user, alert_id, alert_name, severity, group, expression, summary)
     if result is None: 
         raise HTTPException(status_code=400, detail="Error creating resource in the cluster. See logs for more information.")
     print("-----")
@@ -343,7 +346,7 @@ async def create_alert(payload: dict[str, Any], current_user: dict = Depends(get
     #TODO: Error handling (HTTP 400, 409, 422)
     payload['id'] = alert_id
     payload['name'] = alert_name
-    cluster_connector.save_alert_definition(payload)
+    cluster_connector.save_alert_definition(current_user, payload)
 
     response_data = {
         "id": alert_id,
@@ -371,11 +374,11 @@ def delete_alert(payload: dict[str, Any], current_user: dict = Depends(get_curre
     #Delete alert from the cluster
     #TODO: Error handling (HTTP 400, 404)
     errors = ""
-    resource_deletion_result = cluster_connector.delete_alert(alert_name)
+    resource_deletion_result = cluster_connector.delete_alert(current_user, alert_name)
     if not resource_deletion_result['success']:
         errors += "Error deleting OpenShift alert resource. "                
         __print_exception(resource_deletion_result['error'])
-    definition_deletion_result = cluster_connector.delete_alert_definition(alert_name)
+    definition_deletion_result = cluster_connector.delete_alert_definition(current_user, alert_name)
     if not definition_deletion_result['success']:
         errors += "Error deleting OpenShift alert definition. "        
         __print_exception(definition_deletion_result["error"])
@@ -388,7 +391,7 @@ def delete_alert(payload: dict[str, Any], current_user: dict = Depends(get_curre
 @app.get("/alerts")
 def get_alerts(current_user: dict = Depends(get_current_user)):
     alerts = []
-    alert_data=cluster_connector.get_alert_definitions()    
+    alert_data=cluster_connector.get_alert_definitions(current_user)    
     for alert in alert_data:
         alerts.append({
             "id": alert['id'],
