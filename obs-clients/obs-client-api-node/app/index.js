@@ -180,7 +180,10 @@ function order(req, res) {
         customer : customer,
         requestId: requestId,
         waiter: waiter.name
-    };     
+    };
+    console.log("----")
+    console.log(JSON.stringify(postData, null, 4));
+    console.log("----")
     axios.post("http://" + waiter.ip + ":" + waiter.port + "/operations/request", postData)
         .then(agentResponse => {                
             console.log(`[${requestId}] It was soooo good, almost as good as at Camperos Juanma!`);            

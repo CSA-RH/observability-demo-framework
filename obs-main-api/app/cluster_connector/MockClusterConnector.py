@@ -12,11 +12,11 @@ class MockClusterConnector(ClusterConnectorInterface):
     def __init__(self): 
         print("... Starting Mock Cluster connector.")
 
-    def get_cluster_info(self) -> Dict[str, str]:
+    def get_cluster_info(self, user) -> Dict[str, str]:
         return {
             "Connected": True,
             "Name": "Fake Cluster",
-            "Namespace": "fake-namespace",
+            "Namespace": f"fake-namespace-{user}",
             "ConsoleURL": "https://redhat.com", 
             "apiLogsURL": "https://redhat.com", 
             "JaegerUI": "https://redhat.com", 
@@ -35,18 +35,18 @@ class MockClusterConnector(ClusterConnectorInterface):
         pod_suffix = f"{first_part}-{second_part}"
         return pod_suffix
     
-    async def create_simulation_resources(self, payload: List[Dict[str, Any]]):
+    async def create_simulation_resources(self, user, payload: List[Dict[str, Any]]):
         print("create simulation resources")
         for item in payload:            
                 item["ip"] = "1.2.3.4"
                 item["pod"] = item["id"] + "-" + self.__generate_pod_suffix()                
         return payload
 
-    def save_simulation(self, json_simulation):
+    def save_simulation(self, user, json_simulation):
         print("save simulation")
         JSONUtils.save_json_to_file(json_simulation, self.PATH_SIMULATION_DEF)    
     
-    def retrieve_simulation(self):
+    def retrieve_simulation(self, user):
         print("retrieve simulation")
         json_data = JSONUtils.load_json_from_file(self.PATH_SIMULATION_DEF)
         print(json_data)
@@ -59,7 +59,7 @@ class MockClusterConnector(ClusterConnectorInterface):
 
         return json_data
     
-    async def delete_simulation(self):
+    async def delete_simulation(self, user):
         print("Delete simulation")
         JSONUtils.delete_json_file(self.PATH_ALERTS_DEF)
         JSONUtils.delete_json_file(self.PATH_SIMULATION_DEF)
@@ -91,5 +91,5 @@ class MockClusterConnector(ClusterConnectorInterface):
         JSONUtils.save_json_to_file(cleaned_alerts, self.PATH_ALERTS_DEF)
         return {"success": True}
 
-    def get_alert_definitions(self):
+    def get_alert_definitions(self, user):
         return JSONUtils.load_json_from_file(self.PATH_ALERTS_DEF)

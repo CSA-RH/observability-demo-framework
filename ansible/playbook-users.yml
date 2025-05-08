@@ -1,0 +1,112 @@
+- name: Create user in Keycloak using client_credentials (idempotent)
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    keycloak_url: "https://oauth-observability-demo.apps.ym95wn005072250bca.germanywestcentral.aroapp.io"
+    realm: "csa"
+    client_id: "ansible-admin"
+    client_secret: "eEpYSHLuEc6uwpTpaxKXJ6fXqF38GjC1"
+    user_prefix: "newuser"
+    user_count: 10
+    password_length: 12
+
+  tasks:
+
+    - name: Generate user list with random passwords
+      set_fact:
+        generated_users: []
+        
+    - name: Append users to generated_users
+      set_fact:
+        generated_users: "{{ generated_users + [ user_data ] }}"
+      vars:
+        i: "{{ item }}"
+        user_data:
+          username: "{{ user_prefix }}{{ i }}"
+          firstName: "New"
+          lastName: "User{{ i }}"
+          email: "{{ user_prefix }}{{ i }}@example.com"
+          password: "{{ lookup('password', '/dev/null', chars='ascii_letters,digits', length=password_length) }}"
+      loop: "{{ range(1, user_count + 1) | list }}"
+
+
+    - name: Store users passwords locally
+      copy:
+        content: "{{ generated_users | to_nice_yaml }}"
+        dest: "./generated_users.yml"
+    
+    - name: Show contents of generated_users variable
+      debug:
+        var: generated_users
+
+    - name: Show contents of generated_users.yml
+      debug:
+        msg: "{{ lookup('file', './generated_users.yml') }}"
+
+    - name: Get access token from Keycloak
+      uri:
+        url: "{{ keycloak_url }}/realms/master/protocol/openid-connect/token"
+        method: POST
+        body:
+          grant_type: client_credentials
+          client_id: "{{ client_id }}"
+          client_secret: "{{ client_secret }}"
+        body_format: form-urlencoded
+        return_content: yes
+        validate_certs: false
+      register: token_response
+
+    - name: Debug user check response
+      debug:
+        msg: "User {{ generated_users[item_index].username }} lookup result: {{ generated_users[item_index] }}"
+      loop: "{{ range(0, generated_users | length) | list }}"
+      loop_control:
+        label: "{{ generated_users[item].username }}"
+        index_var: item_index
+        
+    - name: Check if user exists in Keycloak
+      uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ realm }}/users?username={{ item.username }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ token_response.json.access_token }}"
+        return_content: true
+        validate_certs: false
+      loop: "{{ generated_users }}"
+      loop_control:
+        label: "{{ item.username }}"
+      register: user_check_results
+
+    - name: Create user in Keycloak if not exists
+      uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ realm }}/users"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ token_response.json.access_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body: >-
+          {{
+            {
+              "username": generated_users[item_index].username,
+              "enabled": true,
+              "firstName": generated_users[item_index].firstName,
+              "lastName": generated_users[item_index].lastName,
+              "email": generated_users[item_index].email,
+              "credentials": [
+                {
+                  "type": "password",
+                  "value": generated_users[item_index].password,
+                  "temporary": false
+                }
+              ]
+            }
+          }}
+        status_code: 201
+        validate_certs: false
+      loop: "{{ range(0, generated_users | length) | list }}"
+      loop_control:
+        label: "{{ generated_users[item].username }}"
+        index_var: item_index
+      when: (user_check_results.results[item].json | length) == 0

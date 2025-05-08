@@ -73,9 +73,10 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         # If no route matches the selector
         return None, None
 
-    def get_cluster_info(self) -> Dict[str, str]: 
-        # Get current namespace
-        current_namespace = self.__get_current_namespace()
+    def get_cluster_info(self, user) -> Dict[str, str]: 
+        # Get namespace
+        api_namespace = self.__get_current_namespace()
+        user_namespace = f"{api_namespace}-{user}"
 
         # Get cluster name and console link
         try:
@@ -96,9 +97,9 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             # Extract cluster URL and parse to use as the cluster name
             console_url = console_resource['status']['consoleURL']
             cluster_name = console_url.split('.')[2]  # Cluster name typically part of the URL
-            jaegerui_route = f"{self.__get_route_url_by_selector(self.__get_current_namespace(), 'app.kubernetes.io/component=gateway')}/obsdemo"
+            jaegerui_route = f"{self.__get_route_url_by_selector(api_namespace, 'app.kubernetes.io/component=gateway')}/obsdemo"
             grafana_url_route = self.__get_route_url_by_selector(
-                self.__get_current_namespace(), 
+                api_namespace, 
                 "observability-demo-framework=grafana"
             )
 
@@ -108,9 +109,9 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         return {
             "Connected": True,
             "Name": cluster_name,
-            "Namespace": current_namespace,
+            "Namespace": user_namespace,
             "ConsoleURL": console_url, 
-            "apiLogsURL": f"{console_url}/k8s/ns/{current_namespace}/pods/{os.getenv('HOSTNAME')}/logs", 
+            "apiLogsURL": f"{console_url}/k8s/ns/{api_namespace}/pods/{os.getenv('HOSTNAME')}/logs", 
             "JaegerUI": jaegerui_route, 
             "GrafanaURL": grafana_url_route
         }
@@ -129,7 +130,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         return 'instrumentation.opentelemetry.io/inject-nodejs'
 
 
-    def __create_deployment(self, namespace, item):
+    def __create_deployment(self, user_namespace, image_namespace, item):
         print("DEPLOYMENT TYPE: " + item['type'])
         deployment_manifest = {
             'apiVersion': 'apps/v1',
@@ -161,7 +162,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                     'spec': {
                         'containers': [{
                             'name': 'core',
-                            'image': self.__get_image(item['type']),
+                            'image': f"image-registry.openshift-image-registry.svc:5000/{image_namespace}/{self.__get_image(item['type'])}",
                             'ports': [{
                                 'containerPort': 8080
                             }],
@@ -184,10 +185,12 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         deployment_name = "." 
         try:
             deployment_name = item["id"]
-            self.__apps_v1_api.create_namespaced_deployment(namespace=namespace, body=deployment_manifest)
+            self.__apps_v1_api.create_namespaced_deployment(namespace=user_namespace, body=deployment_manifest)
             print(f"Deployment {deployment_name} successfully created.")
         except Exception as e: 
-            print(f"")
+            print(f"Error creating Deployment {deployment_name}. Exception: ")            
+            print(e)
+            print("-------")
             raise        
     
     def __create_service(self, namespace, item):
@@ -230,10 +233,10 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print("-------")
             raise
         
-    async def __get_agent_pods_dictionary(self):
+    async def __get_agent_pods_dictionary(self, namespace):
         try:        
             pods = self.__core_v1_api.list_namespaced_pod(
-                namespace = self.__get_current_namespace(), 
+                namespace, 
                 label_selector = 'observability-demo-framework=agent')
         except Exception as e: 
             print(f"Exception when retrieving pods: {e}")
@@ -281,14 +284,14 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             # Get the deployment status
             deployment = self.__apps_v1_api.read_namespaced_deployment(
                 name=deployment_name, 
-                namespace=namespace)
+                namespace=namespace)            
             
             # Check if the number of ready replicas matches the desired replicas
             if deployment.status.ready_replicas == deployment.spec.replicas:
                 print(f"All pods for deployment '{deployment_name}' are ready.")
                 return True
             else:
-                print(f"Waiting for pods to become ready. Ready pods: {deployment.status.ready_replicas}/{deployment.spec.replicas}")
+                print(f"Waiting for pods of deployment {deployment_name} to become ready. Ready pods: {deployment.status.ready_replicas}/{deployment.spec.replicas}")
             
             # Sleep for the defined interval before checking again
             time.sleep(interval)
@@ -341,7 +344,8 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print("--------")
             raise
        
-    def save_simulation(self, json_data):
+    def save_simulation(self, user, json_data):
+        namespace=f"{self.__get_current_namespace()}-{user}"
         # Encode to base64
         encoded_data = base64.b64encode(json.dumps(json_data).encode('utf-8')).decode('utf-8')
         
@@ -350,14 +354,15 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             data={"simulation": encoded_data},
         )
         try:
-            self.__core_v1_api.create_namespaced_secret(self.__get_current_namespace(), secret)
+            self.__core_v1_api.create_namespaced_secret(namespace, secret)
             print(f"Simulation saved successfully in the cluster as secret obs-demo-fw-state.")
         except client.ApiException as e:
             print(f"Exception when saving simulation as a secret[obs-demo-fw-state]: {e}")
             raise
     
-    async def create_simulation_resources(self, agents: List[Dict[str, Any]]):
-        namespace = self.__get_current_namespace()  # Assuming you have a function to get the current namespace
+    async def create_simulation_resources(self, user, agents: List[Dict[str, Any]]):
+        image_namespace=self.__get_current_namespace()
+        namespace = f"{image_namespace}-{user}"
 
         # Create all deployment and services. 
         for item in agents:
@@ -365,7 +370,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(f'Agent: {item["id"]}')
                 
             # Create Deployment
-            self.__create_deployment(namespace, item)
+            self.__create_deployment(namespace, image_namespace, item)
             print(f"Deployment for {item['id']} created.")
             
             # Create Service
@@ -378,7 +383,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
 
         # Make sure that all pods have started before adding associations
         # Wait for the Service to be ready and get its IP
-        podNames = self.__get_agent_pods_dictionary()
+        podNames = self.__get_agent_pods_dictionary(namespace)
         for item in agents:            
             service_ip = self.__wait_for_service_ready_and_get_ip(namespace, item["id"])
             if service_ip:
@@ -396,10 +401,10 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         print(agents)
         return agents
     
-    def __get_agent_pods_dictionary(self):
+    def __get_agent_pods_dictionary(self, namespace):
         try:
             pods = self.__core_v1_api.list_namespaced_pod(
-                namespace=self.__get_current_namespace(), 
+                namespace, 
                 label_selector='observability-demo-framework=agent')
             pods_dict = {}
         except Exception as e:             
@@ -412,12 +417,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             pods_dict[deployment_name]=item.metadata.name
         return pods_dict
 
-    def retrieve_simulation(self):
+    def retrieve_simulation(self, user):
         # Get the secret
         secret_name="obs-demo-fw-state"
+        user_namespace=f"{self.__get_current_namespace()}-{user}"
         simulation = []
         try:
-            secret = self.__core_v1_api.read_namespaced_secret(secret_name, self.__get_current_namespace())
+            secret = self.__core_v1_api.read_namespaced_secret(secret_name, user_namespace)
             if 'simulation' in secret.data:
                 encoded_json_data = secret.data['simulation']
                 decoded_json_data = base64.b64decode(encoded_json_data).decode('utf-8')
@@ -439,7 +445,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 raise RuntimeError(message)
             return {}
         # Update agent pod name
-        pods = self.__get_agent_pods_dictionary()
+        pods = self.__get_agent_pods_dictionary(user_namespace)
         for agent in simulation["agents"]:
             agent["pod"] = pods[agent["id"]]
 
@@ -488,14 +494,15 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             else:
                 raise
 
-    def save_alert_definition(self, alert):
-        alerts_definition=self.__load_json_from_configmap(self.ALERTS_CONFIGMAP, "alerts", self.__get_current_namespace())
+    def save_alert_definition(self, user, alert):
+        namespace = f"{self.__get_current_namespace()}-{user}"
+        alerts_definition=self.__load_json_from_configmap(self.ALERTS_CONFIGMAP, "alerts", namespace)
         alerts_definition.append(alert)
-        self.__save_json_to_configmap(alerts_definition, self.ALERTS_CONFIGMAP, "alerts", self.__get_current_namespace())
+        self.__save_json_to_configmap(alerts_definition, self.ALERTS_CONFIGMAP, "alerts", namespace)
 
-    def create_alert_resource(self, id, name, severity, group, expression, summary):
+    def create_alert_resource(self, user, id, name, severity, group, expression, summary):
         # Define the PrometheusRule resource
-        namespace = self.__get_current_namespace()
+        namespace = f"{self.__get_current_namespace()}-{user}"
         prometheus_rule_body = {
             "apiVersion": "monitoring.coreos.com/v1",
             "kind": "PrometheusRule",
@@ -542,10 +549,10 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(f"Exception when creating PrometheusRule: {e}")
             return None
 
-    async def delete_simulation(self):        
+    async def delete_simulation(self, user):        
         label_selector = "observability-demo-framework=agent"
 
-        namespace = self.__get_current_namespace()
+        namespace = f"{self.__get_current_namespace()}-{user}"
         # Delete Deployments matching the selector
         deployments = self.__apps_v1_api.list_namespaced_deployment(namespace=namespace, label_selector=label_selector)
         for deployment in deployments.items:
@@ -597,11 +604,11 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         # Delete secret 
         secret_name="obs-demo-fw-state"
         try:
-            self.__core_v1_api.delete_namespaced_secret(secret_name, self.__get_current_namespace())
+            self.__core_v1_api.delete_namespaced_secret(secret_name, namespace)
             print(f"Secret '{secret_name}' deleted successfully.")
         except client.exceptions.ApiException as e:
             if e.status == 404:
-                print(f"Secret '{secret_name}' not found in namespace '{self.__get_current_namespace()}'.")
+                print(f"Secret '{secret_name}' not found in namespace '{namespace}'.")
             else:
                 print(f"Failed to delete Secret '{secret_name}': {e}")            
             raise 
@@ -620,12 +627,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
 
         print("All matching resources deleted successfully.")
 
-    def delete_alert(self, alert_name):        
+    def delete_alert(self, user, alert_name):
+        namespace = f"{self.__get_current_namespace()}-{user}"
         try:
             self.__custom_v1_api.delete_namespaced_custom_object(
                 group="monitoring.coreos.com",
                 version="v1",
-                namespace=self.__get_current_namespace(),
+                namespace=namespace,
                 plural="prometheusrules",
                 name=alert_name)
             return {"success": True}
@@ -636,16 +644,22 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 print(f"Failed to delete PrometheusRule '{alert_name}': {e}")
             return {"success": False, "error": e}            
 
-    def delete_alert_definition(self, alert_id):
+    def delete_alert_definition(self, user, alert_id):
+        namespace = f"{self.__get_current_namespace()}-{user}"
         try:            
-            alerts = self.__load_json_from_configmap(self.ALERTS_CONFIGMAP, "alerts", self.__get_current_namespace())            
+            alerts = self.__load_json_from_configmap(self.ALERTS_CONFIGMAP, "alerts", namespace)            
             cleaned_alerts = [item for item in alerts if item.get("id") != alert_id]
-            self.__save_json_to_configmap(cleaned_alerts, self.ALERTS_CONFIGMAP, "alerts", self.__get_current_namespace())
+            self.__save_json_to_configmap(cleaned_alerts, self.ALERTS_CONFIGMAP, "alerts", namespace)
             return {"success": True}
         except client.exception.ApiException as e: 
             return {"success": False, "error": e}
 
     
-    def get_alert_definitions(self):
-        alerts = self.__load_json_from_configmap(self.ALERTS_CONFIGMAP, "alerts", self.__get_current_namespace())        
+    def get_alert_definitions(self, user):
+        namespace = f"{self.__get_current_namespace()}-{user}"
+        alerts = self.__load_json_from_configmap(self.ALERTS_CONFIGMAP, "alerts", namespace)
         return alerts
+    
+    def retrieve_hostname_from_service_id(self, user, id):
+        namespace = f"{self.__get_current_namespace()}-{user}"
+        return f"{id}.{namespace}.svc"
