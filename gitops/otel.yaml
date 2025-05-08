@@ -9,7 +9,7 @@ kind: OperatorGroup
 metadata:
   annotations:
     olm.providedAPIs: Instrumentation.v1alpha1.opentelemetry.io,OpAMPBridge.v1alpha1.opentelemetry.io,OpenTelemetryCollector.v1alpha1.opentelemetry.io,OpenTelemetryCollector.v1beta1.opentelemetry.io
-  generateName: openshift-opentelemetry-operator-
+  name: openshift-opentelemetry-operator-og
   namespace: openshift-opentelemetry-operator
   labels:
     observability-demo-framework: 'operator'
