@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-logging
+spec: {}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-loki-operator
+spec: {}
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  annotations:
+    olm.providedAPIs: AlertingRule.v1.loki.grafana.com,LokiStack.v1.loki.grafana.com,RecordingRule.v1.loki.grafana.com,RulerConfig.v1.loki.grafana.com
+  generateName: openshift-loki-operator-
+  namespace: openshift-loki-operator
+spec:
+  upgradeStrategy: Default
+# Needs ARN
