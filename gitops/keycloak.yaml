@@ -6,7 +6,7 @@ metadata:
   name: keycloak-operator-group  
 spec:
   targetNamespaces:
-  - observability-demo
+  - observability-demo-gitops
 ---
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
