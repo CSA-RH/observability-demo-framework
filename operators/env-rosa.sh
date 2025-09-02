@@ -1,6 +1,6 @@
 export CLUSTER_NAME=$(oc get infrastructure cluster -o=jsonpath="{.status.apiServerURL}" | awk -F '.' '{print $2}')
 export HYPERSCALER_STORAGE_SECRET_TYPE=s3
-export HYPERSCALER_STORAGE_CLASS=gp3
+export HYPERSCALER_STORAGE_CLASS=gp3-csi
 
 # Get Loki bucket in S3
 get_aws_bucket() {
