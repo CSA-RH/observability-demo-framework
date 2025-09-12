@@ -138,7 +138,6 @@ oc -n openshift-monitoring patch alertingrule.monitoring.openshift.io custom-pla
 oc -n openshift-monitoring patch alertingrule.monitoring.openshift.io custom-platform-alerts \
   --type='json' \
   -p='[{"op": "replace", "path": "/spec/groups/0/rules/2/expr", "value": "(node_filesystem_size_bytes{mountpoint=\"/var\",fstype!~\"tmpfs|overlay\"} - node_filesystem_avail_bytes{mountpoint=\"/var\",fstype!~\"tmpfs|overlay\"}) / node_filesystem_size_bytes{mountpoint=\"/var\",fstype!~\"tmpfs|overlay\"} * 100 > 90"}]'
-'
 ```
 
 ## 4. CustomPersistentVolumeFull
