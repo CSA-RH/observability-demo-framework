@@ -112,14 +112,14 @@ oc -n openshift-monitoring patch alertingrule.monitoring.openshift.io custom-pla
 
 ```bash
 # Force firing (memory usage < 80%)
-oc -n openshift-monitoring patch prometheusrule custom-node-and-pvc-alerts \
+oc -n openshift-monitoring patch prometheusrule custom-platform-alerts \
   --type='json' \
   -p='[{"op": "replace", "path": "/spec/groups/0/rules/1/expr", "value": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 < 80"}]'
 ```
 
 ```bash
 # Restore original
-oc -n openshift-monitoring patch prometheusrule custom-node-and-pvc-alerts \
+oc -n openshift-monitoring patch prometheusrule custom-platform-alerts \
   --type='json' \
   -p='[{"op": "replace", "path": "/spec/groups/0/rules/1/expr", "value": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80"}]'
 ```
@@ -128,14 +128,14 @@ oc -n openshift-monitoring patch prometheusrule custom-node-and-pvc-alerts \
 
 ```bash
 # Force firing (usage < 90%)
-oc -n openshift-monitoring patch prometheusrule custom-node-and-pvc-alerts \
+oc -n openshift-monitoring patch prometheusrule custom-platform-alerts \
   --type='json' \
   -p='[{"op": "replace", "path": "/spec/groups/0/rules/2/expr", "value": "(node_filesystem_avail_bytes{mountpoint=\"/var\",fstype!~\"tmpfs|overlay\"} / node_filesystem_size_bytes{mountpoint=\"/var\",fstype!~\"tmpfs|overlay\"}) * 100 > 10"}]'
 ```
 
 ```bash
 # Restore original
-oc -n openshift-monitoring patch prometheusrule custom-node-and-pvc-alerts \
+oc -n openshift-monitoring patch prometheusrule custom-platform-alerts \
   --type='json' \
   -p='[{"op": "replace", "path": "/spec/groups/0/rules/2/expr", "value": "(node_filesystem_size_bytes{mountpoint=\"/var\",fstype!~\"tmpfs|overlay\"} - node_filesystem_avail_bytes{mountpoint=\"/var\",fstype!~\"tmpfs|overlay\"}) / node_filesystem_size_bytes{mountpoint=\"/var\",fstype!~\"tmpfs|overlay\"} * 100 > 90"}]'
 '
@@ -201,14 +201,14 @@ oc exec pvc-tester -- df -h /test
 
 ```bash
 # Force firing (iowait < 20%)
-oc -n openshift-monitoring patch prometheusrule custom-node-and-pvc-alerts \
+oc -n openshift-monitoring patch prometheusrule custom-platform-alerts \
   --type='json' \
   -p='[{"op": "replace", "path": "/spec/groups/0/rules/4/expr", "value": "avg by(instance) (rate(node_cpu_seconds_total{mode=\"iowait\"}[5m])) * 100 < 20"}]'
 ```
 
 ```bash
 # Restore original
-oc -n openshift-monitoring patch prometheusrule custom-node-and-pvc-alerts \
+oc -n openshift-monitoring patch prometheusrule custom-platform-alerts \
   --type='json' \
   -p='[{"op": "replace", "path": "/spec/groups/0/rules/4/expr", "value": "avg by(instance) (rate(node_cpu_seconds_total{mode=\"iowait\"}[5m])) * 100 > 20"}]'
 ```
@@ -218,14 +218,14 @@ oc -n openshift-monitoring patch prometheusrule custom-node-and-pvc-alerts \
 
 ```bash
 # Force firing (node reachable == 0)
-oc -n openshift-monitoring patch prometheusrule custom-node-and-pvc-alerts \
+oc -n openshift-monitoring patch prometheusrule custom-platform-alerts \
   --type='json' \
   -p='[{"op": "replace", "path": "/spec/groups/0/rules/5/expr", "value": "kube_node_spec_taint{key=\"node.kubernetes.io/unreachable\",effect=\"NoSchedule\"} == 0"}]'
 ```
 
 ```bash
 # Restore original (unreachable == 1)
-oc -n openshift-monitoring patch prometheusrule custom-node-and-pvc-alerts \
+oc -n openshift-monitoring patch prometheusrule custom-platform-alerts \
   --type='json' \
   -p='[{"op": "replace", "path": "/spec/groups/0/rules/5/expr", "value": "kube_node_spec_taint{key=\"node.kubernetes.io/unreachable\",effect=\"NoSchedule\"} == 1"}]'
 ```
