@@ -77,23 +77,6 @@ spec:
         description: "Node {{ $labels.node }} has been unreachable for more than 10 minutes."
 ```
 
-For creating some PVC related alerts
-
-```bash
-oc rsh test-pvc -n pvc-test-2
-```
-
-Inside the pod, at the container, we create dummy load
-
-```bash
-# Write a 900MB file
-dd if=/dev/urandom of=/test/dummyfile bs=1M count=900
-
-# Check usage
-df -h /test
-
-```
-
 With this query, we can get all the rules defined as PrometheusRules in an Openshift cluster with their PrometheusRule CRD and namespace listed. 
 
 ```bash
