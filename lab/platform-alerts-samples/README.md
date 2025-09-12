@@ -216,18 +216,40 @@ oc -n openshift-monitoring patch alertingrule.monitoring.openshift.io custom-pla
 
 ## 6. CustomKubeNodeUnreachable
 
+We modify the rule to check for a fake taint, very similar to the one applied by the API and then set the alert to check if that taint exists. 
+
+Modify the rule to check for the taint fake-unreachable. 
 ```bash
-# Force firing (node reachable == 0)
-oc -n openshift-monitoring patch alertingrule.monitoring.openshift.io custom-platform-alerts \
+oc -n openshift-monitoring patch prometheusrule custom-node-and-pvc-alerts \
   --type='json' \
-  -p='[{"op": "replace", "path": "/spec/groups/0/rules/5/expr", "value": "kube_node_spec_taint{key=\"node.kubernetes.io/unreachable\",effect=\"NoSchedule\"} == 0"}]'
+  -p='[{"op":"replace","path":"/spec/groups/0/rules/5/expr","value":"kube_node_spec_taint{key=\"fake-unreachable\",effect=\"NoSchedule\"} == 1"}]'
 ```
 
+Pick a random node and taint with fake-unreachable
 ```bash
-# Restore original (unreachable == 1)
-oc -n openshift-monitoring patch alertingrule.monitoring.openshift.io custom-platform-alerts \
+#Pick a random node
+UNSCHEDULABLE_NODE=$(oc get nodes -l node-role.kubernetes.io/worker= -o jsonpath='{.items[*].metadata.name}' \
+  | tr ' ' '\n' \
+  | awk -v seed=$RANDOM 'BEGIN{srand(seed)} {a[NR]=$0} END{print a[int(rand()*NR)+1]}')
+echo NODE TO BE TAINTED: $UNSCHEDULABLE_NODE
+oc adm taint nodes $UNSCHEDULABLE_NODE fake-unreachable=true:NoSchedule
+```
+
+Here, wait for the alert to be fired. 
+
+Remove the taint
+
+```bash
+oc adm taint nodes $UNSCHEDULABLE_NODE fake-unreachable-
+
+```
+
+Restore the original alert
+
+```bash
+oc -n openshift-monitoring patch prometheusrule custom-node-and-pvc-alerts \
   --type='json' \
-  -p='[{"op": "replace", "path": "/spec/groups/0/rules/5/expr", "value": "kube_node_spec_taint{key=\"node.kubernetes.io/unreachable\",effect=\"NoSchedule\"} == 1"}]'
+  -p='[{"op":"replace","path":"/spec/groups/0/rules/5/expr","value":"kube_node_spec_taint{key=\"node.kubernetes.io/unreachable\",effect=\"NoSchedule\"} == 1"}]'
 ```
 
 
