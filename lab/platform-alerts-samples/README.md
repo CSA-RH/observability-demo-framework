@@ -219,7 +219,7 @@ We modify the rule to check for a fake taint, very similar to the one applied by
 
 Modify the rule to check for the taint fake-unreachable. 
 ```bash
-oc -n openshift-monitoring patch prometheusrule custom-node-and-pvc-alerts \
+oc -n openshift-monitoring patch alertingrule.monitoring.openshift.io custom-platform-alerts \
   --type='json' \
   -p='[{"op":"replace","path":"/spec/groups/0/rules/5/expr","value":"kube_node_spec_taint{key=\"fake-unreachable\",effect=\"NoSchedule\"} == 1"}]'
 ```
@@ -246,7 +246,7 @@ oc adm taint nodes $UNSCHEDULABLE_NODE fake-unreachable-
 Restore the original alert
 
 ```bash
-oc -n openshift-monitoring patch prometheusrule custom-node-and-pvc-alerts \
+oc -n openshift-monitoring patch alertingrule.monitoring.openshift.io custom-platform-alerts \
   --type='json' \
   -p='[{"op":"replace","path":"/spec/groups/0/rules/5/expr","value":"kube_node_spec_taint{key=\"node.kubernetes.io/unreachable\",effect=\"NoSchedule\"} == 1"}]'
 ```
