@@ -65,8 +65,14 @@ public class ApiController : ControllerBase
     // GET /metrics
     [HttpGet("metrics")]
     public IActionResult GetAllMetrics()
-    {
-        return Ok(_metrics.Keys);
+    {        
+        var result = _metrics.Select(kvp => new
+        {
+            name = kvp.Key,
+            value = kvp.Value.Value
+        });
+
+        return Ok(result);
     }
     
     // GET /metrics/{metricname}
