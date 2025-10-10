@@ -41,7 +41,7 @@ spec:
   name: opentelemetry-product
   source: redhat-operators
   sourceNamespace: openshift-marketplace
-  startingCSV: opentelemetry-operator.v0.113.0-2
+  startingCSV: opentelemetry-operator.v0.135.0-1
 EOF
   # Wait for the operator to be created and available. 
   wait_operator_to_be_installed operators.coreos.com/opentelemetry-product.openshift-opentelemetry-operator openshift-opentelemetry-operator
