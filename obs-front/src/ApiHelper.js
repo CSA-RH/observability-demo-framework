@@ -160,3 +160,14 @@ export function getNamesPool() {
         "conejo"
     ];
 }
+
+export function isValidK8sName(name) {
+    const DNS_SUBDOMAIN_NAME_REGEX = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/;
+    const MAX_LENGTH = 253; // Maximum length for DNS Subdomain Names
+
+    if (!name || name.length > MAX_LENGTH) {
+        return false;
+    }
+
+    return DNS_SUBDOMAIN_NAME_REGEX.test(name);
+}

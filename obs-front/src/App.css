@@ -286,3 +286,30 @@ button {
   background-color: rgba(255, 255, 255, 0.2); /* Slight highlight */
 }
 
+/* GLOBAL CSS FIX - Place this AFTER your Bootstrap imports */
+
+.modal-backdrop {
+    /* Lower the backdrop Z-index */
+    z-index: 1040 !important; 
+    /* Make sure it's positioned fixed for correct global stacking */
+    position: fixed;
+    top: 0;
+    left: 0;
+}
+
+.modal {
+    /* CRANK UP the modal Z-index so it's guaranteed to be on top */
+    z-index: 1051 !important; /* Must be higher than backdrop's 1050 */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+/* Also ensure the actual dialog box inside the modal is not incorrectly positioned */
+.modal-dialog {
+    z-index: 1052 !important; 
+}

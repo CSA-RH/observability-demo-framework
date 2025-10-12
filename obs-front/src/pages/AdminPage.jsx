@@ -1,46 +1,118 @@
 import React, { useState } from 'react';
-import { getNamesPool, getRoleMappings } from '../ApiHelper';
+import { getNamesPool, getRoleMappings, isValidK8sName } from '../ApiHelper';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 const names = getNamesPool();
 
-
-
-
 const AdminPage = () => {
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState(null) // 'create' or 'delete'
+  const [userToProcess, setUserToProcess] = useState(null);
 
-  const [newUser, setNewUser] = useState({ user: "", type: "coo" });
   const [error, setError] = useState("");
-  const [formData, setFormData] = useState({
+  const [users, setUsers] = useState([
+    {
+      user: "user1",
+      monitoringType: "user-workload"
+    },
+    {
+      user: "user2",
+      monitoringType: "coo"
+    },
+    {
+      user: "user3",
+      monitoringType: "mesh"
+    }
+  ]);
+  const [userData, setUserData] = useState({
     user: "",
     monitoringType: "coo",
   });
 
-  const handleObservabilityTypeChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-    //setValidationError(""); // Clear validation error on input change
+  // --- Functions to Trigger Modals ---
+
+  const handleShowCreateModal = () => {
+    setModalType('create');
+    setUserToProcess(userData);
+    setShowModal(true);
   };
 
+  const handleShowDeleteModal = (user) => {
+    setModalType('delete');
+    setUserToProcess(user);
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setModalType(null);
+    setUserToProcess(null);
+  };
+
+  const handleConfirmAction = () => {
+    if (modalType === 'create') {
+      console.log(`CONFIRMED: Creating user ${userData.user}...`);
+      // API call to create user goes here
+      users.push(userData);
+      setUsers(users);
+      setUserData({
+        user: "",
+        monitoringType: "coo"
+      });
+    } else if (modalType === 'delete') {
+      console.log(`CONFIRMED: Deleting user ID ${userToProcess}...`);
+      // API call to delete user goes here
+      const updatedUsers = users.filter(userObj => userObj.user !== userToProcess);
+      setUsers(updatedUsers);
+    }
+    // Close the modal after the action
+    handleCloseModal();
+    setError("");
+  };
+
+  const getModalProps = () => {
+    switch (modalType) {
+      case 'create':
+        return {
+          title: "Confirm User Creation",
+          body: `Are you sure you want to create a new user named "${userData.user}"?`,
+          confirmText: "Create User",
+          // Bootstrap class for success (green)
+          confirmClass: "btn-success"
+        };
+      case 'delete':
+        return {
+          title: "Confirm User Deletion",
+          body: `WARNING: This action cannot be undone. Do you want to permanently delete user "${userToProcess}"?`,
+          confirmText: "Delete User",
+          // Bootstrap class for danger (red)
+          confirmClass: "btn-danger"
+        };
+      default:
+        return {};
+    }
+  };
+
+  const modalProps = getModalProps();
+
   const handleInputChange = (e) => {
-    setNewUser({
-      ...newUser,
+    setUserData({
+      ...userData,
       [e.target.name]: e.target.value,
     });
+    setError("");
   };
-  const users = [
-    {
-      user: "user1",
-      type: "user-workload"
-    },
-    {
-      user: "user2",
-      type: "coo"
-    },
-    {
-      user: "user3",
-      type: "mesh"
+
+  const handleAddNewUser = (e) => {
+    // Validation
+    if (!isValidK8sName(userData.user)) {
+      console.log(userData.user)
+      setError("Name not valid");
+      return;
     }
-  ];
+    // Show Modal Window
+    handleShowCreateModal();
+  }
 
   return (
     <div className="container">
@@ -54,22 +126,23 @@ const AdminPage = () => {
                   <tr>
                     <th>User</th>
                     <th>Observability technology</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((mapping, index) => (
-                    <tr key={mapping.user}>
+                    <tr key={index}>
 
                       <td>
                         <div className="label">{mapping.user}
                         </div>
                       </td>
                       <td>
-                        <code>{mapping.type}</code>
+                        <code>{mapping.monitoringType}</code>
                       </td>
                       <td>
                         <button className="btn-circle btn-red"
-                          onClick={() => alert("DELETE " + mapping.user)}>
+                          onClick={() => handleShowDeleteModal(mapping.user)}>
                           <span>&times;</span>
                         </button>
                       </td>
@@ -79,7 +152,7 @@ const AdminPage = () => {
                       <input
                         type="text"
                         name="user"
-                        value={newUser.user}
+                        value={userData.user}
                         onChange={handleInputChange}
                         placeholder="User"
                         className="form-control"
@@ -91,23 +164,28 @@ const AdminPage = () => {
                         className="form-select"
                         id="monitoringType"
                         name="monitoringType"
-                        value={formData.monitoringType}
-                        onChange={handleObservabilityTypeChange}
+                        value={userData.monitoringType}
+                        onChange={handleInputChange}
                       >
                         <option value="user-workload">User Workload</option>
                         <option value="coo">COO</option>
                         <option value="mesh">Mesh</option>
                       </select>
-
                     </td>
                     <td>
                       <button className="btn-circle btn-green"
-                        onClick={() => { alert("CREATE " + newUser.user); setError("Me lo invento"); }}><span>+</span></button>
+                        onClick={handleAddNewUser}><span>+</span></button>
                     </td>
 
                   </tr>
                 </tbody>
               </table>
+              <ConfirmationModal
+                show={showModal}
+                onHide={handleCloseModal}
+                onConfirm={handleConfirmAction}
+                {...modalProps} // Pass the dynamic props for the current use case
+              />
             </div>
             {/* Validation Error Message */}
             {error && (
@@ -121,7 +199,6 @@ const AdminPage = () => {
       <div className='row'>
         <div className="col-12 border rounded">
           <h2 className="mb-0">Tecnology mapping</h2>
-
           <div>
             <div className='table-responsive'>
               <table className='table w-100'>
