@@ -313,3 +313,19 @@ button {
 .modal-dialog {
     z-index: 1052 !important; 
 }
+
+/* Custom CSS to perfect the square button alignment */
+
+/* Ensures button content (the icon) is centered vertically and horizontally */
+.btn-group button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Ensure the input field inside the cell blends nicely */
+.form-control-plaintext {
+    /* Override Bootstrap's padding reset if necessary */
+    padding: 0 !important; 
+    line-height: 1; /* Keep it compact */
+}

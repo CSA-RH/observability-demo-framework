@@ -171,3 +171,79 @@ export function isValidK8sName(name) {
 
     return DNS_SUBDOMAIN_NAME_REGEX.test(name);
 }
+
+// src/utils/PasswordGeneratorUtil.js
+
+/**
+ * Generates a cryptographically secure random password.
+ * @param {number} length - The desired password length.
+ * @param {Object} options - Character set options.
+ * @param {boolean} [options.upper=true] - Include uppercase letters.
+ * @param {boolean} [options.lower=true] - Include lowercase letters.
+ * @param {boolean} [options.numbers=true] - Include numbers.
+ * @param {boolean} [options.symbols=false] - Include special symbols.
+ * @returns {string} The generated password.
+ */
+export function generateRandomPassword(length = 16, options = {}) {
+  const {
+    upper = true,
+    lower = true,
+    numbers = true,
+    symbols = false,
+  } = options;
+
+  const lowerChars = 'abcdefghijklmnopqrstuvwxyz';
+  const upperChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const numberChars = '0123456789';
+  const symbolChars = '!@#$%^&*()_+=-[]{}|;:,.<>?';
+
+  let allChars = '';
+  const requiredChars = [];
+
+  // 1. Build the character pool and ensure at least one of each selected type is included
+  if (lower) {
+    allChars += lowerChars;
+    requiredChars.push(lowerChars[Math.floor(Math.random() * lowerChars.length)]);
+  }
+  if (upper) {
+    allChars += upperChars;
+    requiredChars.push(upperChars[Math.floor(Math.random() * upperChars.length)]);
+  }
+  if (numbers) {
+    allChars += numberChars;
+    requiredChars.push(numberChars[Math.floor(Math.random() * numberChars.length)]);
+  }
+  if (symbols) {
+    allChars += symbolChars;
+    requiredChars.push(symbolChars[Math.floor(Math.random() * symbolChars.length)]);
+  }
+
+  // Handle case where no options are selected
+  if (allChars.length === 0) {
+    return ''; 
+  }
+
+  // 2. Fill the remaining length randomly from the full character pool
+  const remainingLength = length - requiredChars.length;
+  let randomChars = '';
+
+  // Use crypto API for secure randomness
+  const randomArray = new Uint32Array(remainingLength);
+  window.crypto.getRandomValues(randomArray);
+
+  for (let i = 0; i < remainingLength; i++) {
+    const randomIndex = randomArray[i] % allChars.length;
+    randomChars += allChars[randomIndex];
+  }
+
+  // 3. Combine required and random characters
+  let passwordArray = [...requiredChars, ...randomChars.split('')];
+
+  // 4. Securely shuffle the password array to prevent predictable patterns
+  for (let i = passwordArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [passwordArray[i], passwordArray[j]] = [passwordArray[j], passwordArray[i]];
+  }
+
+  return passwordArray.join('');
+}

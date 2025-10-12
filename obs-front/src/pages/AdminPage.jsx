@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { getNamesPool, getRoleMappings, isValidK8sName } from '../ApiHelper';
+import { getNamesPool, getRoleMappings, isValidK8sName, generateRandomPassword } from '../ApiHelper';
 import ConfirmationModal from '../components/ConfirmationModal';
+import PasswordCell from '../components/PasswordCell';
 
 const names = getNamesPool();
 
@@ -13,15 +14,19 @@ const AdminPage = () => {
   const [users, setUsers] = useState([
     {
       user: "user1",
-      monitoringType: "user-workload"
+      monitoringType: "user-workload",
+      password: "MeLoInvento1"
+
     },
     {
       user: "user2",
-      monitoringType: "coo"
+      monitoringType: "coo",
+      password: "MeLoInvento2"
     },
     {
       user: "user3",
-      monitoringType: "mesh"
+      monitoringType: "mesh",
+      password: "MeLoInvento3"
     }
   ]);
   const [userData, setUserData] = useState({
@@ -53,6 +58,7 @@ const AdminPage = () => {
     if (modalType === 'create') {
       console.log(`CONFIRMED: Creating user ${userData.user}...`);
       // API call to create user goes here
+      userData.password = generateRandomPassword();
       users.push(userData);
       setUsers(users);
       setUserData({
@@ -103,11 +109,18 @@ const AdminPage = () => {
     setError("");
   };
 
+  const isUserUnique = (user) => {
+    return !users.some(userObj => user === userObj.user);
+  }
+
   const handleAddNewUser = (e) => {
     // Validation
-    if (!isValidK8sName(userData.user)) {
-      console.log(userData.user)
+    if (!isValidK8sName(userData.user)) {      
       setError("Name not valid");
+      return;
+    }
+    if (!isUserUnique(userData.user)){
+      setError(`user ${userData.user} already exists`);
       return;
     }
     // Show Modal Window
@@ -125,7 +138,8 @@ const AdminPage = () => {
                 <thead>
                   <tr>
                     <th>User</th>
-                    <th>Observability technology</th>
+                    <th >Observability technology</th>
+                    <th className="w-25">Password</th>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -139,6 +153,9 @@ const AdminPage = () => {
                       </td>
                       <td>
                         <code>{mapping.monitoringType}</code>
+                      </td>
+                      <td>
+                        <PasswordCell password={mapping.password} /> 
                       </td>
                       <td>
                         <button className="btn-circle btn-red"
@@ -156,7 +173,7 @@ const AdminPage = () => {
                         onChange={handleInputChange}
                         placeholder="User"
                         className="form-control"
-                        style={{ width: "120px", textAlign: 'center' }}
+                        style={{ width: "180px", textAlign: 'center' }}
                       />
                     </td>
                     <td>
@@ -165,12 +182,14 @@ const AdminPage = () => {
                         id="monitoringType"
                         name="monitoringType"
                         value={userData.monitoringType}
-                        onChange={handleInputChange}
+                        onChange={handleInputChange}                        
                       >
                         <option value="user-workload">User Workload</option>
                         <option value="coo">COO</option>
                         <option value="mesh">Mesh</option>
                       </select>
+                    </td>
+                    <td>                      
                     </td>
                     <td>
                       <button className="btn-circle btn-green"
