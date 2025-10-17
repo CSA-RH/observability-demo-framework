@@ -21,6 +21,10 @@ export function getClusterAlertDefinitionUrl() {
     return `${MASTER_API_ADDRESS}/alerts`
 }
 
+export function getUserListUrl() {
+    return `${MASTER_API_ADDRESS}/users`
+}
+
 //Root console address
 export let globalRootConsole = 'N/A';
 

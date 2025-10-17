@@ -46,3 +46,11 @@ class ClusterConnectorInterface(ABC):
     @abstractmethod
     def retrieve_hostname_from_service_id(self, user, id):
         pass
+    
+    @abstractmethod
+    def update_users_json(self, users):
+        pass
+    
+    @abstractmethod
+    def get_users_json(self, users):
+        pass

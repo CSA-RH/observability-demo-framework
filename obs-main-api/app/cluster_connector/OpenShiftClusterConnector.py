@@ -9,6 +9,7 @@ import os, time, json, http.client, socket, base64
 class OpenShiftClusterConnector(ClusterConnectorInterface):
 
     ALERTS_CONFIGMAP = "obs-demo-fwk-alerts"
+    USERS_CONFIGMAP = "obs-demo-fwk-users"
 
     def __init__(self):        
         # Load Kubernetes configuration depending on the environment        
@@ -467,6 +468,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 raise
  
     def __save_json_to_configmap(self, json_data, configmap_name, key, namespace):
+        print(f"CONFIG MAP: '{configmap_name}'. NAMESPACE: '{namespace}'")
         json_str = json.dumps(json_data)
         configmap_data = {
             "metadata": {
@@ -654,7 +656,6 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         except client.exception.ApiException as e: 
             return {"success": False, "error": e}
 
-    
     def get_alert_definitions(self, user):
         namespace = f"{self.__get_current_namespace()}-{user}"
         alerts = self.__load_json_from_configmap(self.ALERTS_CONFIGMAP, "alerts", namespace)
@@ -663,3 +664,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
     def retrieve_hostname_from_service_id(self, user, id):
         namespace = f"{self.__get_current_namespace()}-{user}"
         return f"{id}.{namespace}.svc"
+
+    def get_users_json(self):
+        namespace = self.__get_current_namespace()
+        users = self.__load_json_from_configmap(self.USERS_CONFIGMAP, "users", namespace)
+        return users
+    
+    def update_users_json(self, users):
+        namespace = self.__get_current_namespace()
+        print(users)
+        self.__save_json_to_configmap(users, self.USERS_CONFIGMAP, "users", namespace)

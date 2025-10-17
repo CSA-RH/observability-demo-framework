@@ -93,3 +93,10 @@ class MockClusterConnector(ClusterConnectorInterface):
 
     def get_alert_definitions(self, user):
         return JSONUtils.load_json_from_file(self.PATH_ALERTS_DEF)
+
+    
+    def put_users_json(self, users):
+        pass
+        
+    def get_users_json(self, users):
+        pass

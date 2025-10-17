@@ -283,7 +283,7 @@ button {
 
 .nav-link:hover {
   color: #f8f9fa; /* Lighter white */
-  background-color: rgba(255, 255, 255, 0.2); /* Slight highlight */
+  background-color: rgba(255, 255, 255, 0.5); /* Slight highlight */
 }
 
 /* GLOBAL CSS FIX - Place this AFTER your Bootstrap imports */

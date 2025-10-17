@@ -403,3 +403,33 @@ def get_alerts(current_user: dict = Depends(get_current_user)):
             "summary": __get_alert_summary(alert)
         })
     return alerts
+
+@app.get("/users")
+def get_users(current_user: dict = Depends(get_current_user)):    
+    return cluster_connector.get_users_json()
+
+@app.post("/users")
+def post_user(user_payload: dict[str, Any], current_user: dict = Depends(get_current_user)):    
+    users = cluster_connector.get_users_json()
+    users.append(user_payload)
+    cluster_connector.update_users_json(users)
+
+@app.delete("/users")
+def delete_user(user_payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
+    username_to_delete = user_payload.get("username")
+
+    if username_to_delete:
+        new_users_list = [
+            user for user in cluster_connector.get_users_json()
+            if user.get("username") != username_to_delete
+        ]
+        
+        cluster_connector.update_users_json(new_users_list)
+
+        # Print the result
+        print(f"Username to delete: {username_to_delete}")
+        print("Updated users list:")
+        print(new_users_list)
+    else:
+        print("Error: 'username' key not found in the payload.")
+    
