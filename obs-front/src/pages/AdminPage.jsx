@@ -15,7 +15,7 @@ const AdminPage = () => {
   const [error, setError] = useState("");
   const [users, setUsers] = useState([]);
   const { keycloak, initialized } = useKeycloak();
-  const [userData, setUserData] = useState({
+  const [newUserData, setNewUserData] = useState({
     username: "",
     monitoringType: "coo",
   });
@@ -103,7 +103,7 @@ const AdminPage = () => {
 
   const handleShowCreateModal = () => {
     setModalType('create');
-    setUserToProcess(userData);
+    setUserToProcess(newUserData);
     setShowModal(true);
   };
 
@@ -121,18 +121,18 @@ const AdminPage = () => {
 
   const handleConfirmAction = async () => {
     if (modalType === 'create') {
-      console.log(`CONFIRMED: Creating user ${userData.username}...`);
+      console.log(`CONFIRMED: Creating user ${newUserData.username}...`);
       // API call to create user goes here
 
-      userData.password = generateRandomPassword();
-      users.push(userData);
+      newUserData.password = generateRandomPassword();
+      users.push(newUserData);
       setUsers(users);
-      setUserData({
+      setNewUserData({
         username: "",
         monitoringType: "coo"
       });
       //PUSH USER
-      await postUser(userData);
+      await postUser(newUserData);
     } else if (modalType === 'delete') {
       console.log(`CONFIRMED: Deleting user ID ${userToProcess}...`);
       // API call to delete user 
@@ -143,7 +143,7 @@ const AdminPage = () => {
     // Close the modal after the action
     handleCloseModal();
     setError("");
-    setUserData({username: "", monitoringType: "coo"})
+    setNewUserData({username: "", monitoringType: "coo"})
   };
 
   const getModalProps = () => {
@@ -151,7 +151,7 @@ const AdminPage = () => {
       case 'create':
         return {
           title: "Confirm User Creation",
-          body: `Are you sure you want to create a new user named "${userData.username}"?`,
+          body: `Are you sure you want to create a new user named "${newUserData.username}"?`,
           confirmText: "Create User",
           // Bootstrap class for success (green)
           confirmClass: "btn-success"
@@ -172,8 +172,8 @@ const AdminPage = () => {
   const modalProps = getModalProps();
 
   const handleInputChange = (e) => {
-    setUserData({
-      ...userData,
+    setNewUserData({
+      ...newUserData,
       [e.target.name]: e.target.value,
     });
     setError("");
@@ -183,14 +183,21 @@ const AdminPage = () => {
     return !users.some(userObj => user === userObj.username);
   }
 
+  const isReservedName = (user) => {
+    return ["admin", "cluster-admin"].includes(user);
+  }
+
   const handleAddNewUser = (e) => {
     // Validation
-    if (!isValidK8sName(userData.username)) {      
-      setError("Name not valid");
+    if (!isValidK8sName(newUserData.username)) {      
+      setError("Name not valid.");
       return;
     }
-    if (!isUserUnique(userData.username)){
-      setError(`user ${userData.username} already exists`);
+    if (!isReservedName(newUserData.username)) {
+      setError(`Username ${newUserData.username} is reserved.`);
+    }
+    if (!isUserUnique(newUserData.username)){
+      setError(`user ${newUserData.username} already exists.`);
       return;
     }
     // Show Modal Window
@@ -236,7 +243,7 @@ const AdminPage = () => {
                       <input
                         type="text"
                         name="username"
-                        value={userData.username}
+                        value={newUserData.username}
                         onChange={handleInputChange}
                         placeholder="User"
                         className="form-control"
@@ -248,7 +255,7 @@ const AdminPage = () => {
                         className="form-select"
                         id="monitoringType"
                         name="monitoringType"
-                        value={userData.monitoringType}
+                        value={newUserData.monitoringType}
                         onChange={handleInputChange}                        
                       >
                         <option value="user-workload">User Workload</option>

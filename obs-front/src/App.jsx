@@ -1,4 +1,4 @@
-import React  from 'react';
+import React, { useState }  from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ReactKeycloakProvider } from "@react-keycloak/web";
 import keycloakInstance from './helpers/Keycloak';
@@ -9,6 +9,9 @@ import HomePage from './pages/HomePage';
 import ClusterInfo from './components/ClusterInfo';
 
 const App = () => {
+  
+  const [selectedUserNamespace, setSelectedUserNamespace] = useState(null);
+
   const onKeycloakEvent = async (event, error) => {    
     if (event === "onAuthSuccess") {
       // Redirect to /simulation after successful login      
@@ -39,10 +42,12 @@ const App = () => {
       LoadingComponent={<div>Loading...</div>}
     >
       <BrowserRouter>
-      <ClusterInfo />      
+      <ClusterInfo 
+        selectedUserNamespace={selectedUserNamespace}
+        setSelectedUserNamespace={setSelectedUserNamespace}/>      
         <Routes>          
           <Route path="/admin" element={<PrivateRoute roles={["obs-admin"]}><AdminPage /></PrivateRoute>} />
-          <Route path="/simulation" element={<SimulationPage />} />
+          <Route path="/simulation" element={<SimulationPage selectedNamespace={selectedUserNamespace} />} />
           <Route path="/" element={<Navigate to="/simulation" />} />
           <Route path="*" element={<Navigate to="/simulation" />} />
         </Routes>

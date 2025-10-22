@@ -24,7 +24,8 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         
         self.__core_v1_api = client.CoreV1Api()
         self.__apps_v1_api = client.AppsV1Api()
-        self.__custom_v1_api = client.CustomObjectsApi()        
+        self.__custom_v1_api = client.CustomObjectsApi()
+        self.__batch_v1_api = client.BatchV1Api()
     
     def __get_current_namespace(self, context: str = None) -> str | None:
         ns_path = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
@@ -73,11 +74,43 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
 
         # If no route matches the selector
         return None, None
+    
+    def __get_user_namespaces_names(self):
+        label_selector = "observability-demo-framework=users"
+        print(f"Searching for namespaces with label: {label_selector}")
+
+        try:
+            # The list_namespace call accepts the label_selector parameter
+            api_response = self.__core_v1_api.list_namespace(
+                label_selector=label_selector
+            )
+            
+            # The response contains the list of found objects under the 'items' attribute
+            if api_response.items:
+                print(f"Found {len(api_response.items)} matching namespace(s).")
+                return [ns.metadata.name for ns in api_response.items]
+            else:
+                print("No namespaces found matching the label selector.")
+                return []
+
+        except ApiException as e:
+            # Handle potential API errors (like 403 Forbidden, 404 Not Found, etc.)
+            print(f"Error retrieving namespaces (Code {e.status}): {e.reason}")
+            print("Check RBAC permissions for the active user/service account.")
+            return []
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            return []
 
     def get_cluster_info(self, user) -> Dict[str, str]: 
         # Get namespace
         api_namespace = self.__get_current_namespace()
-        user_namespace = f"{api_namespace}-{user}"
+        user_namespaces = []
+        if user=="admin":
+            user_namespace = api_namespace
+            user_namespaces = self.__get_user_namespaces_names()
+        else:
+            user_namespace = f"{api_namespace}-{user}"
 
         # Get cluster name and console link
         try:
@@ -114,7 +147,8 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             "ConsoleURL": console_url, 
             "apiLogsURL": f"{console_url}/k8s/ns/{api_namespace}/pods/{os.getenv('HOSTNAME')}/logs", 
             "JaegerUI": jaegerui_route, 
-            "GrafanaURL": grafana_url_route
+            "GrafanaURL": grafana_url_route, 
+            "UserNamespaces": user_namespaces
         }
     
     def __get_image(self, tech_stack):
@@ -674,3 +708,134 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         namespace = self.__get_current_namespace()
         print(users)
         self.__save_json_to_configmap(users, self.USERS_CONFIGMAP, "users", namespace)
+        
+    def __wait_for_job_completion(self, batch_v1, job_name, timeout=300, interval=5):
+        """Waits for the specified Job to either Complete or Fail."""
+        print(f"Polling for Job '{job_name}' status (Interval: {interval}s, Timeout: {timeout}s)...")
+        start_time = time.time()        
+        
+        while (time.time() - start_time) < timeout:
+            time.sleep(interval)
+            
+            try:
+                job = batch_v1.read_namespaced_job_status(name=job_name, namespace=self.__get_current_namespace())
+            except ApiException as e:
+                print(f"Error reading Job status: {e}")
+                return False
+
+            # Check for completion condition
+            if job.status.conditions:
+                for condition in job.status.conditions:
+                    if condition.type == "Complete" and condition.status == "True":
+                        print(f"✅ Job {job_name} completed successfully.")
+                        return True
+                    
+                    if condition.type == "Failed" and condition.status == "True":
+                        print(f"❌ Job {job_name} failed. Reason: {condition.reason}, Message: {condition.message}")
+                        return False
+
+        print(f"❌ Job {job_name} timed out after {timeout} seconds.")
+        return False
+    
+    def sync_users(self):
+        print("Users")
+        sync_users_service_account = "obs-sync-users"
+        job_manifest_body = {
+            "apiVersion": "batch/v1",
+            "kind": "Job",
+            "metadata": {
+                "generateName": "sync-users-"
+            },
+            "spec": {
+                "template": {
+                    "spec": {
+                        "serviceAccountName": sync_users_service_account,
+                        "containers": [
+                        {
+                            "name": "ansible",
+                            "image": "registry.redhat.io/ansible-automation-platform-24/ee-supported-rhel9",
+                            "command": ["bash",  "-c", "ansible-galaxy collection install kubernetes.core middleware_automation.keycloak && ansible-playbook /runner/playbook-sync-users.yml"],
+                            "env": [
+                            {
+                                "name": "KC_API_URL",
+                                "valueFrom": 
+                                {
+                                    "configMapKeyRef": 
+                                    {
+                                        "name": "idp-data",
+                                        "key": "endpoint"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "KC_API_CLIENT_ID",
+                                "valueFrom":
+                                {
+                                    "configMapKeyRef":
+                                    {
+                                        "name": "idp-data",
+                                        "key": "client_id"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "KC_API_CLIENT_SECRET",
+                                "valueFrom":
+                                {    
+                                    "configMapKeyRef": 
+                                    {
+                                        "name": "idp-data",
+                                        "key": "client_secret"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "KC_API_REALM",
+                                "valueFrom":
+                                {
+                                    "configMapKeyRef":
+                                    {    
+                                        "name": "idp-data",
+                                        "key": "realm"
+                                    }
+                                }
+                            }
+                            ],
+                            "volumeMounts": [
+                            {
+                                "name": "runner-vol",
+                                "mountPath": "/runner"
+                            }
+                            ]
+                        }
+                        ],
+                        "restartPolicy": "Never",
+                        "volumes": [
+                        {
+                            "name": "runner-vol",
+                            "configMap": {
+                            "name": "sync-users-playbook"
+                            }
+                        }
+                        ]
+                    },
+                },
+                "ttlSecondsAfterFinished": 180,
+                "backoffLimit": 0
+            }
+        }
+        
+        try:
+            api_response = self.__batch_v1_api.create_namespaced_job(namespace=self.__get_current_namespace(), body=job_manifest_body)
+            job_name = api_response.metadata.name
+        except ApiException as e:
+            print(f"Exception when calling BatchV1Api->create_namespaced_job: {e}")
+            return False #TODO: Overall error handling. 
+        
+        # Fire and forget. TODO: Check from the front about availability and task progress. 
+        #job_succeeded = self.__wait_for_job_completion(self.__batch_v1_api, job_name)
+        #if not job_succeeded:
+        #    print("JOB FAILED: Review logs above for error details.")
+        #    return False
+        #else:
+        #    print("Execution complete and successful.")

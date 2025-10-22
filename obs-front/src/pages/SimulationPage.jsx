@@ -12,7 +12,7 @@ import AlertManagement from '../components/AlertManagement';
 import { useKeycloak } from "@react-keycloak/web";
 
 
-const SimulationPage = () => {
+const SimulationPage = ({ selectedNamespace }) => {
 
   const agentTypes = [
     { type: "customer", image: "logo-customer.svg", enabled: true },
@@ -28,6 +28,7 @@ const SimulationPage = () => {
   const [selectedAgenType, setSelectedAgentType] = useState(agentTypes[0]);
   const [simulationLoaded, setSimulationLoaded] = useState(false);
   const { keycloak, initialized } = useKeycloak();
+  const [currentNamespaceLoaded, setCurrentNamespaceLoaded] = useState("");
 
 
   const agentsRef = useRef([]);
@@ -164,8 +165,10 @@ const SimulationPage = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      const apiUrl = selectedNamespace ? `${ApiHelper.getSimulationUrl()}/${selectedNamespace}`: ApiHelper.getSimulationUrl();
+      
       try {
-        const requestResponse = await fetch(ApiHelper.getSimulationUrl(), {
+        const requestResponse = await fetch(apiUrl, {
           method: "GET", 
           headers: {
             'Content-Type': 'application/json',
@@ -173,16 +176,18 @@ const SimulationPage = () => {
           }
         });
         if (requestResponse.status > 299) {
-          console.log("No simulation available")
+          console.log("No simulation available", apiUrl);
           setAgents([]);
           setLayout([]);
           setSimulationLoaded(false)
         }
-        else {
+        else {          
           const simulation_json = await requestResponse.json();
+          console.log("Simulation found", apiUrl, currentNamespaceLoaded, selectedNamespace, simulation_json);
           setAgents(simulation_json.agents);
           setLayout(simulation_json.layout);
-          setSimulationLoaded(simulation_json.layout.length > 0)
+          setSimulationLoaded(simulation_json.layout.length)
+          setCurrentNamespaceLoaded(selectedNamespace);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -191,7 +196,7 @@ const SimulationPage = () => {
 
     fetchData();
     fetchAlerts();
-  }, [keycloak.token, keycloak.authenticated]); // Empty dependency array to run once on component mount
+  }, [keycloak.token, keycloak.authenticated, selectedNamespace]); // Empty dependency array to run once on component mount
 
   return (
     <div className="container">      

@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Get the directory where the script is located
+SCRIPT_DIR="$(realpath "$(dirname "$0")")"
+# Prerequisites
+source $SCRIPT_DIR/env.sh
+
 NAMESPACE="openshift-monitoring"
 CONFIGMAP_NAME="cluster-monitoring-config"
 

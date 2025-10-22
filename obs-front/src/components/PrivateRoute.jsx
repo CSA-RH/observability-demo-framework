@@ -1,4 +1,5 @@
 import { useKeycloak } from "@react-keycloak/web";
+import { Navigate } from 'react-router-dom';
 
 const PrivateRoute = ({ roles, children }) => {
   const { keycloak } = useKeycloak();
@@ -9,7 +10,7 @@ const PrivateRoute = ({ roles, children }) => {
   };
   const isLoggedIn = keycloak.authenticated;
 
-  return isLoggedIn && hasRequiredRole() ? children : (<div>No Access</div>);
+  return isLoggedIn && hasRequiredRole() ? children : (<Navigate to="/" replace />);
 };
 
 export default PrivateRoute;

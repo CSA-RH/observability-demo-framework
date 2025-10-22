@@ -185,22 +185,21 @@ async def delete_simulation(current_user: dict = Depends(get_current_user)):
     await cluster_connector.delete_simulation(current_user)
     await agent_manager.delete_metrics_definitions()
 
-@app.get("/simulation")
-async def get_simulation(current_user: dict = Depends(get_current_user)):
+def get_user_simulation(user):
     # Get the simulation definition from storage    
-    simulation = cluster_connector.retrieve_simulation(current_user)    
+    simulation = cluster_connector.retrieve_simulation(user)    
     if simulation == {}:        
         raise HTTPException(status_code=404, detail="Simulation not found")    
     # Update agent metrics     
     for item in simulation["agents"]:
         id = item["id"]
-        metrics = agent_manager.get_agent_metrics(cluster_connector.retrieve_hostname_from_service_id(current_user, id))
+        metrics = agent_manager.get_agent_metrics(cluster_connector.retrieve_hostname_from_service_id(user, id))
         for metric in metrics:
             metric["alerts"] = []
         print(f"Pod: {item['pod']}. Metrics: {metrics}")        
         item["metrics"] = metrics
     # Update alerts of the metrics.
-    alerts = cluster_connector.get_alert_definitions(current_user) 
+    alerts = cluster_connector.get_alert_definitions(user) 
     for alert in alerts:
         if alert["scope"] != "metricAgent":
             continue
@@ -222,6 +221,22 @@ async def get_simulation(current_user: dict = Depends(get_current_user)):
             metric.setdefault("alerts", []).append(alert)
     
     return simulation
+
+@app.get("/simulation/{user_namespace}")
+async def get_simulation(
+    # Receive the value directly from the path parameter
+    user_namespace: str, 
+    current_user: dict = Depends(get_current_user)
+):
+    print(f"Received userNamespace from path: {user_namespace}")
+    #TODO: REMOVE GNAPA: 
+    user = user_namespace.removeprefix("obs-demo-")
+    return get_user_simulation(user)
+    
+
+@app.get("/simulation")
+async def get_simulation(current_user: dict = Depends(get_current_user)):    
+    return get_user_simulation(current_user)
 
 #TODO: Error handling
 @app.post("/kick")
@@ -412,7 +427,10 @@ def get_users(current_user: dict = Depends(get_current_user)):
 def post_user(user_payload: dict[str, Any], current_user: dict = Depends(get_current_user)):    
     users = cluster_connector.get_users_json()
     users.append(user_payload)
+    # Update Backend. 
     cluster_connector.update_users_json(users)
+    # Sync Users. 
+    cluster_connector.sync_users()
 
 @app.delete("/users")
 def delete_user(user_payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
@@ -424,7 +442,10 @@ def delete_user(user_payload: dict[str, Any], current_user: dict = Depends(get_c
             if user.get("username") != username_to_delete
         ]
         
+        # Update backend
         cluster_connector.update_users_json(new_users_list)
+        # Sync Users. 
+        cluster_connector.sync_users()
 
         # Print the result
         print(f"Username to delete: {username_to_delete}")

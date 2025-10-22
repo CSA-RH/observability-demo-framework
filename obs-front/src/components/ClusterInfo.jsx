@@ -1,21 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import * as ApiHelper from '../ApiHelper';
 import { useKeycloak } from "@react-keycloak/web";
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useLocation } from 'react-router-dom';
 
 
-const ClusterInfo = ({ cluster }) => {
+const ClusterInfo = ({ selectedUserNamespace, setSelectedUserNamespace }) => {
+
+    const location = useLocation();
+    const isAdminRoute = location.pathname === "/admin";
 
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const { keycloak, initialized } = useKeycloak();
-
+    const { keycloak, initialized } = useKeycloak();    
     const userRoles = keycloak.realmAccess?.roles
     const isAdmin = userRoles?.includes("obs-admin") || false
 
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchData = async () => {            
             var data = []
             try {
                 let headers = new Headers();
@@ -26,6 +28,9 @@ const ClusterInfo = ({ cluster }) => {
                 const response = await fetch(ApiHelper.getInfoUrl(), { headers: headers });
                 data = await response.json();
                 setData(data);
+                console.log("Selecting namespace 0")
+                setSelectedUserNamespace(
+                    (data.UserNamespaces?.length > 0 ? data.UserNamespaces[0] : null) ?? null);
             } catch (err) {
                 setError(err.message);
                 console.error('Error fetching data:', error);
@@ -36,9 +41,10 @@ const ClusterInfo = ({ cluster }) => {
             ApiHelper.setglobalCurrentNamespace(data.Namespace);
         };
 
-        fetchData();
+        fetchData();        
     }, [keycloak.token, keycloak.authenticated]);
 
+    //TODO: Improve user experience (conditional appearance of all items). 
     if (loading) {
         return <div>Loading...</div>
     }
@@ -49,6 +55,11 @@ const ClusterInfo = ({ cluster }) => {
 
     if (!data.Connected) {
         return (<div>Cluster not connected</div>)
+    }
+
+    const handleUserNamespaceChange = (e) => {
+        const { name, value } = e.target;
+        setSelectedUserNamespace(value);
     }
 
     return (
@@ -63,8 +74,32 @@ const ClusterInfo = ({ cluster }) => {
                     </div>
                     <div className='row'>
                         <div className="col-12">
-                            <strong className="me-2">Namespace:</strong>
-                            <span>{data.Namespace}</span>
+                            {isAdmin && !isAdminRoute ? (
+                                <select
+                                    className="py-1.5 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm transition duration-150"
+                                    id="namespace"
+                                    name="user-namespace"
+                                    // You should bind the value to a state variable (e.g., selectedNamespace) 
+                                    // instead of a static value like "coo" for real usage.
+                                    value={selectedUserNamespace} 
+                                    onChange={handleUserNamespaceChange}
+                                >                                    
+                                    {data.UserNamespaces && data.UserNamespaces.map((namespaceName) => (
+                                        <option 
+                                            key={namespaceName} 
+                                            value={namespaceName}
+                                        >
+                                            {namespaceName}
+                                        </option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <div>
+                                    <strong className="me-2">Namespace:</strong>
+                                    <span>{data.Namespace}</span>
+                                </div>
+                            )}
+
                         </div>
                     </div>
                 </div>
@@ -86,11 +121,11 @@ const ClusterInfo = ({ cluster }) => {
                                     Grafana <i className="fas fa-external-link-alt"></i></a></li>
                                 {isAdmin && (<li className="nav-item"><NavLink to="/simulation"
                                     className={({ isActive }) =>
-                                        isActive ? "nav-link active border border-primary" : "nav-link"
+                                        isActive ? "nav-link active border border-primary bg-primary text-light rounded" : "nav-link"
                                     }>Simulation</NavLink></li>)}
                                 {isAdmin && (<li className="nav-item active"><NavLink to="/admin"
                                     className={({ isActive }) =>
-                                        isActive ? "nav-link active border border-primary" : "nav-link"
+                                        isActive ? "nav-link active border border-primary bg-primary text-light rounded" : "nav-link"
                                     }>Administration</NavLink></li>)}
                             </ul>
                         </div>

@@ -54,3 +54,7 @@ class ClusterConnectorInterface(ABC):
     @abstractmethod
     def get_users_json(self, users):
         pass
+    
+    @abstractmethod
+    def sync_users(self):
+        pass

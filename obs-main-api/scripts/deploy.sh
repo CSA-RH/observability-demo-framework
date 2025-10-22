@@ -3,6 +3,8 @@
 # Get the directory where the script is located
 SCRIPT_DIR="$(realpath "$(dirname "$0")")"
 SOURCES_DIR=$SCRIPT_DIR/../app/
+# Prerequisites
+source $SCRIPT_DIR/env.sh
 
 export CURRENT_NAMESPACE=$(oc project -q)
 echo CURRENT NAMESPACE=$CURRENT_NAMESPACE
@@ -87,24 +89,15 @@ metadata:
   labels:
     observability-demo-framework: 'rbac'
 rules:
-  - apiGroups: ["apps"]
-    resources: ["deployments"]
-    verbs: ["create", "delete", "get", "list", "watch"]
-  - apiGroups: ["monitoring.coreos.com"]
-    resources: ["servicemonitors", "prometheusrules"]
-    verbs: ["create", "delete", "get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["services"]
-    verbs: ["create", "delete", "get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["pods"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: [""]
-    resources: ["secrets", "configmaps"]
-    verbs: ["create", "delete", "get", "list", "watch", "patch"]
   - apiGroups: ["route.openshift.io"]
     resources: ["routes"]
     verbs: ["list"]
+  - apiGroups: ["batch"]
+    verbs: ["create", "watch", "get"]
+    resources: ["jobs"]
+  - apiGroups: ["batch"]
+    verbs: ["get"]
+    resources: ["jobs/status"]
 EOF
 
   cat <<EOF | oc apply -f -
@@ -118,6 +111,24 @@ rules:
   - apiGroups: ["config.openshift.io"]
     resources: ["consoles"]
     verbs: ["get"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["create", "delete", "get", "list", "watch"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["servicemonitors", "prometheusrules"]
+    verbs: ["create", "delete", "get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["create", "delete", "get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""] #TODO we can limit it to resource names. 
+    resources: ["secrets", "configmaps"]
+    verbs: ["create", "delete", "get", "list", "watch", "patch"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
 EOF
   # - Create role binding (obs-main-api-role and obs-main-api-clusterrole to obs-main-api-sa)
   cat <<EOF | oc apply -f -

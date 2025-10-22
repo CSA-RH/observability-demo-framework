@@ -85,14 +85,36 @@ kind: Job
 metadata:
   generateName: sync-users-
 spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 180  
   template:
-    spec:
-      ttlSecondsAfterFinished: 180
+    spec:      
       serviceAccountName:  $SA_SYNC_USERS
       containers:
       - name: ansible
         image: registry.redhat.io/ansible-automation-platform-24/ee-supported-rhel9
         command: ["bash",  "-c", "ansible-galaxy collection install kubernetes.core middleware_automation.keycloak && ansible-playbook /runner/playbook-sync-users.yml"]
+        env:
+        - name: KC_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: idp-data
+              key: endpoint
+        - name: KC_API_CLIENT_ID
+          valueFrom:
+            configMapKeyRef:
+              name: idp-data
+              key: client_id
+        - name: KC_API_CLIENT_SECRET
+          valueFrom:
+            configMapKeyRef:
+              name: idp-data
+              key: client_secret
+        - name: KC_API_REALM
+          valueFrom:
+            configMapKeyRef:
+              name: idp-data
+              key: realm
         volumeMounts:
         - name: runner-vol
           mountPath: /runner
@@ -101,7 +123,6 @@ spec:
       - name: runner-vol
         configMap:
           name: sync-users-playbook
-  backoffLimit: 0
 EOF
 )
 JOB_NAME=$(echo "$MANIFEST" | oc create -f - -ojsonpath='{.metadata.name}')
