@@ -77,10 +77,7 @@ oc get -oyaml \
   | base64 -d > $TMP_TLS_CERT_CRT
 ## Get the wildcard address form the general cert
 echo "... Get the wildcard address form the general cert ..."
-WILDCARD_ADDRESS=$(openssl x509 -in $TMP_TLS_CERT_CRT -noout -ext subjectAltName \
-  | grep DNS \
-  | cut -d ':' -f 2 \
-  | cut -d ',' -f 1)
+WILDCARD_ADDRESS=."$(oc get ingress.config/cluster -o 'jsonpath={.spec.domain}')"
 rm ${TMP_TLS_CERT_CRT}
 export OAUTH_ENDPOINT=oauth-${PROJECT_NAME}${WILDCARD_ADDRESS//\*}
 echo "...    OAUTH_ENDPOINT=${OAUTH_ENDPOINT}"
