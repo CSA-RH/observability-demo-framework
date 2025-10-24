@@ -213,6 +213,7 @@
                 name: "{{ root_namespace }}-{{ user_item.username }}" 
                 labels:
                   observability-demo-framework: "users"
+                  observability-stack: "{{ user_item.monitoringType }}"
           loop: "{{ generated_users }}"
           loop_control:
             loop_var: user_item

@@ -18,7 +18,7 @@ spec:
   name: grafana-operator
   source: community-operators
   sourceNamespace: openshift-marketplace
-  startingCSV: grafana-operator.v5.16.0
+  startingCSV: grafana-operator.v5.20.0
 EOF
   # Wait for the operator to be created and available. 
   wait_operator_to_be_installed operators.coreos.com/grafana-operator.openshift-operators openshift-operators

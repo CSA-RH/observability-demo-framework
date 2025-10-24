@@ -34,7 +34,7 @@ const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreate
     const handleCreate = async () => {
         setLoading(true); // Start loading and show the spinner
         try {
-            const response = await fetch(ApiHelper.getSimulationUrl(), {
+            const response = await fetch(ApiHelper.getSimulationUrl(simulation?.user?.username), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -57,17 +57,20 @@ const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreate
         setLoading(true);
         try {
             if (simulationLoaded) {
-                const response = await fetch(ApiHelper.getSimulationUrl(), {
+                const response = await fetch(ApiHelper.getSimulationUrl(simulation?.user?.username), {
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
                         Authorization: `Bearer ${keycloak.token}`                        
                     },
                     body: JSON.stringify(simulation),
-                });
-
-                const result = await response.json();
-                console.log('Simulation reset', result);
+                });                
+                if (response.status != 204) {
+                    console.error(`Error deleting simulation[${response.status}]`);
+                } 
+                else {
+                    console.log("Simulation reset successfully.");
+                }
             }
             onSimulationReset({ layout: [], agents: [] });
         } catch (error) {

@@ -4,20 +4,23 @@ from agent_manager.MockAgentManager              import MockAgentManager
 from cluster_connector.OpenShiftClusterConnector import OpenShiftClusterConnector
 from cluster_connector.MockClusterConnector      import MockClusterConnector
 
-from fastapi                 import FastAPI, HTTPException, Request, Depends  # type: ignore
-from fastapi.responses       import JSONResponse                              # type: ignore
-from fastapi.middleware.cors import CORSMiddleware                            # type: ignore
-from fastapi.security        import HTTPBearer                                # type: ignore
+from fastapi                 import FastAPI, HTTPException, Request, Depends, status, Response  # type: ignore
+                                    
+from fastapi.responses       import JSONResponse                                                # type: ignore
+from fastapi.middleware.cors import CORSMiddleware                                              # type: ignore
+from fastapi.security        import HTTPBearer                                                  # type: ignore
 
-from                 jose import jwt                                          # type: ignore
-from jose.exceptions      import JWTError                                     # type: ignore
+from jose                 import jwt                                                            # type: ignore
+from jose.exceptions      import JWTError                                                       # type: ignore
 
 from typing import Dict, Any
 from utils  import JSONUtils
 from pprint import pprint
 
 import os
-import requests                                                               # type: ignore
+import requests                                                                                 # type: ignore
+
+#RESPONSE CODES HERE: https://github.com/Kludex/starlette/blob/main/starlette/status.py
 
 def is_using_fake_cluster_connector():
     value = os.environ.get('CLUSTER_CONNECTOR')
@@ -52,6 +55,7 @@ def get_keycloak_certificates_url():
 KEYCLOAK_ISSUER = get_keycloak_issuer()
 KEYCLOAK_AUDIENCE = "account"
 KEYCLOAK_CERTS_URL = get_keycloak_certificates_url()
+print(f"... IdP issuer endpoint: {KEYCLOAK_ISSUER}")
 
 #TODO: Improve security. CORS 
 app = FastAPI()
@@ -76,8 +80,6 @@ if is_using_fake_agent_manager():
     agent_manager = MockAgentManager()
 else:
     agent_manager = OpenShiftAgentManager()
-
-print(f"... IdP issuer endpoint: {KEYCLOAK_ISSUER}")
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
@@ -142,8 +144,8 @@ def get_current_user(authorization: str = Depends(security)):
         raise HTTPException(status_code=401, detail=f"Unauthorized: {e}")
 
 #TODO: Error handling
-@app.get("/info")
-async def get_info(current_user: dict = Depends(get_current_user)):
+@app.get("/api/v1/escotilla")
+async def get_escotilla_info(current_user: dict = Depends(get_current_user)):
     print(f"---> CURRENT USER: {current_user}")
     return cluster_connector.get_cluster_info(current_user)
 
@@ -160,32 +162,13 @@ def add_next_hop_to_agent(name, agent):
         # If the key doesn't exist, create a new list with the string
         agent["nextHop"] = [name]
 
-@app.post("/simulation")
-async def create_simulation(payload: Dict[str, Any], current_user: dict = Depends(get_current_user)):    
-    # Create resources in cluster
-    try:        
-        json_agents = await cluster_connector.create_simulation_resources(current_user, payload["agents"], payload["monitoringStack"])
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=e.args)
-    
-    for source_agent_data in payload["agents"]: 
-        for target_agent_id in source_agent_data["nextHop"]:
-            agent_manager.set_agent_communication_path(
-                cluster_connector.retrieve_hostname_from_service_id(current_user, source_agent_data["id"]),
-                target_agent_id)
-
-    # Save simulation
-    cluster_connector.save_simulation(current_user, payload)
-
-    return json_agents
-
-@app.delete("/simulation")
-async def delete_simulation(current_user: dict = Depends(get_current_user)):
-    await cluster_connector.delete_simulation(current_user)
-    await agent_manager.delete_metrics_definitions()
-
-def get_user_simulation(user):
+@app.get("/api/v1/users/{user_id}/simulation")
+#@app.get("/simulation/{user_namespace}")
+async def get_simulation(user_id: str, current_user: dict = Depends(get_current_user)
+):
+    print(f"Received user from path: {user_id}")
+    #TODO: REMOVE GNAPA: 
+    user = user_id.removeprefix("obs-demo-")
     # Get the simulation definition from storage    
     simulation = cluster_connector.retrieve_simulation(user)    
     if simulation == {}:        
@@ -222,31 +205,63 @@ def get_user_simulation(user):
     
     return simulation
 
-@app.get("/simulation/{user_namespace}")
-async def get_simulation(
-    # Receive the value directly from the path parameter
-    user_namespace: str, 
-    current_user: dict = Depends(get_current_user)
-):
-    print(f"Received userNamespace from path: {user_namespace}")
-    #TODO: REMOVE GNAPA: 
-    user = user_namespace.removeprefix("obs-demo-")
-    return get_user_simulation(user)
-    
+@app.post("/api/v1/users/{user_id}/simulation")
+#@app.post("/simulation")
+async def create_simulation(user_id: str, payload: Dict[str, Any], current_user: dict = Depends(get_current_user)):    
+    print (f"Starting creating simulation for user {user_id}")
+    # Create resources in cluster
+    try:        
+        json_agents = await cluster_connector.create_simulation_resources(
+            user_id, 
+            payload["agents"], 
+            payload["user"]["monitoringType"])
 
-@app.get("/simulation")
-async def get_simulation(current_user: dict = Depends(get_current_user)):    
-    return get_user_simulation(current_user)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=e.args)
+    
+    for source_agent_data in payload["agents"]: 
+        for target_agent_id in source_agent_data["nextHop"]:
+            agent_manager.set_agent_communication_path(
+                cluster_connector.retrieve_hostname_from_service_id(user_id, source_agent_data["id"]),
+                target_agent_id)
+
+    # Save simulation
+    cluster_connector.save_simulation(user_id, payload)
+
+    return json_agents
+
+@app.delete("/api/v1/users/{user_id}/simulation")
+async def delete_simulation(user_id: str, current_user: dict = Depends(get_current_user)):
+    try:
+        await cluster_connector.delete_simulation(user_id)
+    except Exception as e:
+        print_red("--- Deleting simulation.") 
+        __print_exception(e)
+        raise HTTPException(
+            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail = f"Error deleting simulation resource for user_id {user_id}. Error: {e}")
+    try:
+        await agent_manager.delete_metrics_definitions()
+    except Exception as e:
+        print_red("--- Deleting simulation (metrics)")
+        __print_exception(e)
+        raise HTTPException(
+            status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail = f"Error deleting metrics for user_id {user_id}. Error {e}")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 #TODO: Error handling
+#@app.post("/users/{username}/kick/{agent}")
 @app.post("/kick")
 async def agent_kick(payload: dict[str, Any], current_user: dict = Depends(get_current_user)):    
     return agent_manager.kick(payload)
 
+#@app.post("/users/{username}/metrics")
 @app.post("/metrics")
 async def create_agent_metric(payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
     await agent_manager.set_agent_metrics("POST", payload=payload)
 
+#@app.put("/users/{username}/metrics")
 @app.put("/metrics")
 async def modify_agent_metric(payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
     await agent_manager.set_agent_metrics("PUT", payload=payload)
@@ -328,7 +343,7 @@ def __get_alert_group(alert_data):
     else:
         return "custom"
     
-
+#@app.post("/users/{username}/alerts")
 @app.post("/alerts")
 async def create_alert(payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
     print("Creating alert: ")   
@@ -381,6 +396,7 @@ def __print_exception(e):
     print("<<<--")
     print_red("\033[91m-----\033[0m")
 
+#@app.delete("/users/{username}/alerts/{alert_id}")
 @app.delete("/alerts")
 def delete_alert(payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
     alert_name=payload['alert']
@@ -403,6 +419,7 @@ def delete_alert(payload: dict[str, Any], current_user: dict = Depends(get_curre
 
     return None
 
+#@app.get("/users/{username}/alerts")
 @app.get("/alerts")
 def get_alerts(current_user: dict = Depends(get_current_user)):
     alerts = []
@@ -419,6 +436,7 @@ def get_alerts(current_user: dict = Depends(get_current_user)):
         })
     return alerts
 
+# ==== USERS MANAGEMENT ====
 @app.get("/users")
 def get_users(current_user: dict = Depends(get_current_user)):    
     return cluster_connector.get_users_json()
@@ -432,6 +450,7 @@ def post_user(user_payload: dict[str, Any], current_user: dict = Depends(get_cur
     # Sync Users. 
     cluster_connector.sync_users()
 
+#@app.delete("/users/{username}")
 @app.delete("/users")
 def delete_user(user_payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
     username_to_delete = user_payload.get("username")

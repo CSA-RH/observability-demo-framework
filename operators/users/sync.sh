@@ -92,8 +92,8 @@ spec:
       serviceAccountName:  $SA_SYNC_USERS
       containers:
       - name: ansible
-        image: registry.redhat.io/ansible-automation-platform-24/ee-supported-rhel9
-        command: ["bash",  "-c", "ansible-galaxy collection install kubernetes.core middleware_automation.keycloak && ansible-playbook /runner/playbook-sync-users.yml"]
+        image: image-registry.openshift-image-registry.svc:5000/obs-demo/obs-sync-users
+        command: ["ansible-playbook",  "/runner/playbook-sync-users.yml"]
         env:
         - name: KC_API_URL
           valueFrom:

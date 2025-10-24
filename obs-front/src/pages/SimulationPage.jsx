@@ -35,8 +35,7 @@ const SimulationPage = ({ selectedUser }) => {
   // Keep refs updated (cytoscape inside a closure)
   useEffect(() => {
     agentsRef.current = agents;
-    layoutRef.current = layout;
-    console.log(selectedUser);
+    layoutRef.current = layout;    
   }, [agents, layout]);
 
   function handleCreateSimulation(updatedAgents) {
@@ -164,7 +163,7 @@ const SimulationPage = ({ selectedUser }) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const apiUrl = selectedUser ? `${ApiHelper.getSimulationUrl()}/${selectedUser.username}`: ApiHelper.getSimulationUrl();
+      const apiUrl = ApiHelper.getSimulationUrl(selectedUser?.username);
       
       try {
         const requestResponse = await fetch(apiUrl, {
@@ -217,7 +216,7 @@ const SimulationPage = ({ selectedUser }) => {
           />
           <SimulationManagement
             simulationLoaded={simulationLoaded}
-            simulation={{ layout: layout, agents: agents, monitoringStack: selectedUser?.monitoringType}}
+            simulation={{ layout: layout, agents: agents, user: selectedUser}}
             onSimulationCreated={handleCreateSimulation}
             onSimulationReset={handleResetSimulation} />
         </div>

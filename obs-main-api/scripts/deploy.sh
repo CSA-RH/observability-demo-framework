@@ -98,6 +98,9 @@ rules:
   - apiGroups: ["batch"]
     verbs: ["get"]
     resources: ["jobs/status"]
+  - apiGroups: ["grafana.integreatly.org"]
+    resources: ["grafanadatasources"]
+    verbs: ["create", "get", "list", "watch", "delete", "patch", "update"]
 EOF
 
   cat <<EOF | oc apply -f -
@@ -130,7 +133,7 @@ rules:
     resources: ["namespaces"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["monitoring.rhobs"] 
-    resources: ["monitoringstacks", "servicemonitors"] 
+    resources: ["monitoringstacks", "servicemonitors", "prometheusrules"] 
     verbs: ["create", "get", "list", "watch", "delete"]
 EOF
   # - Create role binding (obs-main-api-role and obs-main-api-clusterrole to obs-main-api-sa)

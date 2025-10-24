@@ -2,11 +2,11 @@ export const MASTER_API_ADDRESS = import.meta.env.VITE_OBSERVABILITY_DEMO_API
 
 
 export function getInfoUrl() {
-    return `${MASTER_API_ADDRESS}/info`
+    return `${MASTER_API_ADDRESS}/api/v1/escotilla`
 }
 
-export function getSimulationUrl() {
-    return `${MASTER_API_ADDRESS}/simulation`
+export function getSimulationUrl(userId) {
+    return `${MASTER_API_ADDRESS}/api/v1/users/${userId}/simulation`
 }
 
 export function getKickUrl(agentIp) {

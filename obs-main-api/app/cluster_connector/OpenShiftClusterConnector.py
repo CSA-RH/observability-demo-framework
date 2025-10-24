@@ -388,6 +388,49 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(e)
             print("--------")
             raise
+
+        # Define Grafana Datasource
+        main_namespace = self.__get_current_namespace()
+        grafana_user_datasource = f"ds-grafana-coo-prometheus-{user}"
+        grafana_datasource_body = {
+            "apiVersion": "grafana.integreatly.org/v1beta1",
+            "kind": "GrafanaDatasource",
+            "metadata": {
+                "name": grafana_user_datasource,
+                "namespace": main_namespace, 
+                "labels": {                    
+                    'observability-demo-framework': 'grafana',
+                    "monitoring-stack": user
+                }
+            },
+            "spec": {
+                "instanceSelector": {
+                    "matchLabels": {
+                        "dashboards": "grafana-escotilla"
+                    }
+                }, 
+                "datasource": {
+                    "name": f"Prometheus[COO]: {user}",
+                    "type": "prometheus", 
+                    "access": "proxy",
+                    "url": f"http://prometheus-operated.{namespace}.svc:9090"
+                }
+            }
+        }
+        try:            
+            self.__custom_v1_api.create_namespaced_custom_object(
+                group="grafana.integreatly.org",
+                version="v1beta1",
+                namespace=main_namespace,
+                plural="grafanadatasources",
+                body=grafana_datasource_body
+            )
+            print(f"Grafana Datasource {grafana_user_datasource} created successfully.")
+        except client.exceptions.ApiException as e:
+            print(f"Exception when creating Grafana Datasource {grafana_user_datasource}")
+            print(e)
+            print("--------")
+            raise
         
         
     def __create_service_monitor_coo(self, namespace, item, user):
@@ -693,6 +736,37 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(f"Exception when creating PrometheusRule: {e}")
             return None
 
+    def __get_namespace_label_value(self, namespace_name: str, label_key: str) -> str | None:
+        """
+        Retrieves the value of a specific label from a Kubernetes namespace.
+
+        Args:
+            namespace_name: The name of the namespace (e.g., "my-app-prod").
+            label_key: The key of the label to retrieve (e.g., "environment").
+
+        Returns:
+            The string value of the label, or None if the namespace or label is not found.
+        """
+
+        try:
+            # 3. Read the namespace object
+            namespace = self.__core_v1_api.read_namespace(name=namespace_name)
+            
+            # 4. Access the labels dictionary and retrieve the specific key
+            labels = namespace.metadata.labels
+            
+            if labels and label_key in labels:
+                return labels[label_key]
+            else:
+                return None
+
+        except client.ApiException as e:
+            if e.status == 404:
+                print(f"Error: Namespace '{namespace_name}' not found (Status 404).")
+            else:
+                print(f"Error retrieving namespace: {e}")
+            return None
+    
     async def delete_simulation(self, user):        
         label_selector = "observability-demo-framework=agent"
 
@@ -709,10 +783,39 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(f"Deleting Service: {service.metadata.name}")
             self.__core_v1_api.delete_namespaced_service(name=service.metadata.name, namespace=service.metadata.namespace)
 
+        # User Workload monitoring
+        observability_stack = self.__get_namespace_label_value(namespace, "observability-stack")
+        print (f"Observability stack: {observability_stack}")
+        api_group_name = "monitoring.coreos.com"
+        match observability_stack:                
+            case "coo":
+                api_group_name = "monitoring.rhobs"
+                # Delete MonitoringStack
+                monitoring_stack_name = f"monitoring-stack-{user}"
+                print (f"Deleting MonitoringStack {monitoring_stack_name}")
+                self.__custom_v1_api.delete_namespaced_custom_object(
+                    group=api_group_name,
+                    version="v1alpha1",
+                    namespace=namespace,
+                    plural="monitoringstacks",
+                    name=monitoring_stack_name)                
+                # Delete Grafana Datasource from current namespace
+                grafana_datasource_name = f"ds-grafana-coo-prometheus-{user}"
+                print (f"Deleting Grafana Datasource {grafana_datasource_name}")
+                self.__custom_v1_api.delete_namespaced_custom_object(
+                    group="grafana.integreatly.org",
+                    version="v1beta1",
+                    namespace=self.__get_current_namespace(),
+                    plural="grafanadatasources",
+                    name=grafana_datasource_name)                
+            case "mesh":
+                #TODO
+                print("TODO")
+            
         # Delete ServiceMonitors matching the selector
         # Assuming ServiceMonitors are custom resources from the Prometheus operator
         service_monitors = self.__custom_v1_api.list_namespaced_custom_object(
-            group="monitoring.coreos.com",
+            group=api_group_name,
             version="v1",
             namespace=namespace,
             plural="servicemonitors",
@@ -721,7 +824,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         for sm in service_monitors.get("items", []):
             print(f"Deleting ServiceMonitor: {sm['metadata']['name']}")
             self.__custom_v1_api.delete_namespaced_custom_object(
-                group="monitoring.coreos.com",
+                group=api_group_name,
                 version="v1",
                 namespace=namespace,
                 plural="servicemonitors",
@@ -729,7 +832,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             )
         # Delete prometheus rules. 
         prometheus_rules = self.__custom_v1_api.list_namespaced_custom_object(
-            group="monitoring.coreos.com",
+            group=api_group_name,
             version="v1", 
             namespace=namespace, 
             plural="prometheusrules", 
@@ -738,13 +841,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         for pm in prometheus_rules.get("items", []):
             print(f"Deleting PrometheusRule: {pm['metadata']['name']}")
             self.__custom_v1_api.delete_namespaced_custom_object(
-                group="monitoring.coreos.com",
+                group=api_group_name,
                 version="v1",
                 namespace=namespace,
                 plural="prometheusrules",
                 name=pm['metadata']['name']
             )
-
+                
         # Delete secret 
         secret_name="obs-demo-fw-state"
         try:
@@ -861,8 +964,8 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                         "containers": [
                         {
                             "name": "ansible",
-                            "image": "registry.redhat.io/ansible-automation-platform-24/ee-supported-rhel9",
-                            "command": ["bash",  "-c", "ansible-galaxy collection install kubernetes.core middleware_automation.keycloak && ansible-playbook /runner/playbook-sync-users.yml"],
+                            "image": f"image-registry.openshift-image-registry.svc:5000/{self.__get_current_namespace()}/obs-sync-users",
+                            "command": ["ansible-playbook",  "/runner/playbook-sync-users.yml"],
                             "env": [
                             {
                                 "name": "KC_API_URL",
