@@ -8,7 +8,7 @@ class ClusterConnectorInterface(ABC):
         pass 
 
     @abstractmethod
-    async def create_simulation_resources(self, user, payload: List[Dict[str, Any]]):
+    async def create_simulation_resources(self, user, payload: List[Dict[str, Any]], stack):
         pass 
 
     @abstractmethod

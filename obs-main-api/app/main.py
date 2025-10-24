@@ -164,7 +164,7 @@ def add_next_hop_to_agent(name, agent):
 async def create_simulation(payload: Dict[str, Any], current_user: dict = Depends(get_current_user)):    
     # Create resources in cluster
     try:        
-        json_agents = await cluster_connector.create_simulation_resources(current_user, payload["agents"])
+        json_agents = await cluster_connector.create_simulation_resources(current_user, payload["agents"], payload["monitoringStack"])
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=e.args)

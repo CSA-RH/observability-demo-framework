@@ -4,7 +4,7 @@ import { useKeycloak } from "@react-keycloak/web";
 import { NavLink, Link, useLocation } from 'react-router-dom';
 
 
-const ClusterInfo = ({ selectedUserNamespace, setSelectedUserNamespace }) => {
+const ClusterInfo = ({ selectedUser, setSelectedUser }) => {
 
     const location = useLocation();
     const isAdminRoute = location.pathname === "/admin";
@@ -29,8 +29,8 @@ const ClusterInfo = ({ selectedUserNamespace, setSelectedUserNamespace }) => {
                 data = await response.json();
                 setData(data);
                 console.log("Selecting namespace 0")
-                setSelectedUserNamespace(
-                    (data.UserNamespaces?.length > 0 ? data.UserNamespaces[0] : null) ?? null);
+                setSelectedUser(
+                    (data.Users?.length > 0 ? data.Users[0] : null) ?? null);
             } catch (err) {
                 setError(err.message);
                 console.error('Error fetching data:', error);
@@ -57,9 +57,17 @@ const ClusterInfo = ({ selectedUserNamespace, setSelectedUserNamespace }) => {
         return (<div>Cluster not connected</div>)
     }
 
+    const findUserByUsername = (targetUsername, userList) => {        
+        const selectedUser = userList.find(user => user.username === targetUsername);
+        console.log("** User: ", selectedUser);
+        return selectedUser;
+    }
+
     const handleUserNamespaceChange = (e) => {
-        const { name, value } = e.target;
-        setSelectedUserNamespace(value);
+        const { name, value } = e.target;        
+        
+        console.log(e.target);
+        setSelectedUser(findUserByUsername(value, data.Users));
     }
 
     return (
@@ -81,15 +89,15 @@ const ClusterInfo = ({ selectedUserNamespace, setSelectedUserNamespace }) => {
                                     name="user-namespace"
                                     // You should bind the value to a state variable (e.g., selectedNamespace) 
                                     // instead of a static value like "coo" for real usage.
-                                    value={selectedUserNamespace} 
+                                    value={selectedUser?.username} 
                                     onChange={handleUserNamespaceChange}
                                 >                                    
-                                    {data.UserNamespaces && data.UserNamespaces.map((namespaceName) => (
+                                    {data.Users && data.Users.map((user) => (
                                         <option 
-                                            key={namespaceName} 
-                                            value={namespaceName}
+                                            key={user.username} 
+                                            value={user.username}
                                         >
-                                            {namespaceName}
+                                            {user.username}
                                         </option>
                                     ))}
                                 </select>

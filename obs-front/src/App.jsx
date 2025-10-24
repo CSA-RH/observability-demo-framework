@@ -5,12 +5,11 @@ import keycloakInstance from './helpers/Keycloak';
 import PrivateRoute from "./components/PrivateRoute";
 import SimulationPage from './pages/SimulationPage';
 import AdminPage from './pages/AdminPage';
-import HomePage from './pages/HomePage';
 import ClusterInfo from './components/ClusterInfo';
 
 const App = () => {
   
-  const [selectedUserNamespace, setSelectedUserNamespace] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
 
   const onKeycloakEvent = async (event, error) => {    
     if (event === "onAuthSuccess") {
@@ -43,11 +42,17 @@ const App = () => {
     >
       <BrowserRouter>
       <ClusterInfo 
-        selectedUserNamespace={selectedUserNamespace}
-        setSelectedUserNamespace={setSelectedUserNamespace}/>      
+        selectedUser={selectedUser}
+        setSelectedUser={setSelectedUser}/>      
         <Routes>          
           <Route path="/admin" element={<PrivateRoute roles={["obs-admin"]}><AdminPage /></PrivateRoute>} />
-          <Route path="/simulation" element={<SimulationPage selectedNamespace={selectedUserNamespace} />} />
+          <Route 
+            path="/simulation" 
+            element={selectedUser 
+              ? <SimulationPage selectedUser={selectedUser} /> 
+              : <div>Loading user data...</div>
+            } 
+          />
           <Route path="/" element={<Navigate to="/simulation" />} />
           <Route path="*" element={<Navigate to="/simulation" />} />
         </Routes>

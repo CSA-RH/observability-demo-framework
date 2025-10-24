@@ -222,7 +222,6 @@ const AdminPage = () => {
                 <tbody>
                   {users.map((mapping, index) => (
                     <tr key={index}>
-
                       <td>
                         <div className="label">{mapping.username}
                         </div>

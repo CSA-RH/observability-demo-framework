@@ -75,7 +75,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         # If no route matches the selector
         return None, None
     
-    def __get_user_namespaces_names(self):
+    def __get_users(self):
         label_selector = "observability-demo-framework=users"
         print(f"Searching for namespaces with label: {label_selector}")
 
@@ -102,16 +102,30 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(f"An unexpected error occurred: {e}")
             return []
 
+    def __remove_password_in_place(self, user_list):
+        """Removes the 'password' field from all items in the list (modifies original list)."""
+        for user_item in user_list:
+            # Use .get() to check if the key exists before attempting deletion.
+            # This prevents a KeyError if some items don't have a password field.
+            if 'password' in user_item:
+                del user_item['password']
+        return user_list
+
     def get_cluster_info(self, user) -> Dict[str, str]: 
         # Get namespace
         api_namespace = self.__get_current_namespace()
-        user_namespaces = []
+        allUsers = self.__remove_password_in_place(self.get_users_json())
         if user=="admin":
             user_namespace = api_namespace
-            user_namespaces = self.__get_user_namespaces_names()
+            users = allUsers
         else:
             user_namespace = f"{api_namespace}-{user}"
-
+            users = [next(
+                        (user_item for user_item in allUsers if user_item.get("username") == user),
+                        None
+                    )]
+            
+        
         # Get cluster name and console link
         try:
             # OpenShift API group, version, and resource to retrieve the Console
@@ -148,7 +162,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             "apiLogsURL": f"{console_url}/k8s/ns/{api_namespace}/pods/{os.getenv('HOSTNAME')}/logs", 
             "JaegerUI": jaegerui_route, 
             "GrafanaURL": grafana_url_route, 
-            "UserNamespaces": user_namespaces
+            "Users": users
         }
     
     def __get_image(self, tech_stack):
@@ -335,6 +349,92 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         print(f"Timeout: Not all pods for deployment '{deployment_name}' are ready after {timeout} seconds.")
         return False
     
+    def __create_monitoring_stack_coo(self, namespace, user):
+        # Define the MonitoringStack 
+        monitoring_stack_body = {
+            "apiVersion": "monitoring.rhobs/v1alpha1",
+            "kind": "MonitoringStack",
+            "metadata": {
+                "name": f"monitoring-stack-{user}",
+                "labels": {                    
+                    'observability-demo-framework': 'coo',
+                    "monitoring-stack": user
+                }
+            },
+            "spec": {
+                "logLevel": "debug", 
+                "retention": "1d",
+                "resourceSelector": {
+                    "matchLabels": {
+                        "monitoring-stack": user
+                    }
+                }
+            }
+        }
+        
+        monitoring_stack_name = "."
+        try:
+            monitoring_stack_name = f"monitoring-stack-{user}"
+            self.__custom_v1_api.create_namespaced_custom_object(
+                group="monitoring.rhobs",
+                version="v1alpha1",
+                namespace=namespace,
+                plural="monitoringstacks",
+                body=monitoring_stack_body
+            )
+            print(f"MonitoringStack {monitoring_stack_name} created successfully.")
+        except client.exceptions.ApiException as e:
+            print(f"Exception when creating MonitoringStack {monitoring_stack_name}")
+            print(e)
+            print("--------")
+            raise
+        
+        
+    def __create_service_monitor_coo(self, namespace, item, user):
+        # Define the ServiceMonitor specification
+        service_monitor_body = {
+            "apiVersion": "monitoring.rhobs/v1",
+            "kind": "ServiceMonitor",
+            "metadata": {
+                "name": item["id"],
+                "labels": {
+                    "app": item["id"],
+                    'observability-demo-framework': 'agent',
+                    "monitoring-stack": user
+                }
+            },
+            "spec": {
+                "selector": {
+                    "matchLabels": {
+                        "app": item["id"]
+                    }
+                },
+                "endpoints": [
+                    {
+                        "port": "metrics",
+                        "interval": "30s"
+                    }
+                ]
+            }
+        }
+        
+        service_monitor_name = "."
+        try:
+            service_monitor_name = item["id"]
+            self.__custom_v1_api.create_namespaced_custom_object(
+                group="monitoring.rhobs",
+                version="v1",
+                namespace=namespace,
+                plural="servicemonitors",
+                body=service_monitor_body
+            )
+            print(f"ServiceMonitor {service_monitor_name} created successfully.")
+        except client.exceptions.ApiException as e:
+            print(f"Exception when creating ServiceMonitor {service_monitor_name}")
+            print(e)
+            print("--------")
+            raise
+        
     def __create_service_monitor(self, namespace, item):
         # Define the ServiceMonitor specification
         service_monitor_body = {
@@ -395,10 +495,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(f"Exception when saving simulation as a secret[obs-demo-fw-state]: {e}")
             raise
     
-    async def create_simulation_resources(self, user, agents: List[Dict[str, Any]]):
+    async def create_simulation_resources(self, user, agents: List[Dict[str, Any]], stack):
+        
         image_namespace=self.__get_current_namespace()
         namespace = f"{image_namespace}-{user}"
 
+        if stack == "coo":
+            self.__create_monitoring_stack_coo(namespace, user)
         # Create all deployment and services. 
         for item in agents:
             
@@ -413,8 +516,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(f"Service for {item['id']} created.")
             
             # Create service monitor
-            self.__create_service_monitor(namespace, item)
-            print(f"ServiceMonitor for {item['id']} created.")
+            if stack == "user-workload":
+                self.__create_service_monitor(namespace, item)            
+                print(f"ServiceMonitor[UW] for {item['id']} created.")
+            else:
+                self.__create_service_monitor_coo(namespace, item, user)
+                print(f"ServiceMonitor[COO] for {item['id']} created.")
+            
 
         # Make sure that all pods have started before adding associations
         # Wait for the Service to be ready and get its IP
@@ -652,13 +760,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         # Delete config map
         config_map = self.ALERTS_CONFIGMAP
         try:
-            self.__core_v1_api.delete_namespaced_config_map(config_map, self.__get_current_namespace())
+            self.__core_v1_api.delete_namespaced_config_map(config_map, namespace)
             print(f"ConfigMap '{config_map}' deleted successfully.")
         except client.exceptions.ApiException as e:
             if e.status == 404:
-                print(f"ConfigMap '{config_map}' not found in namespace '{self.__get_current_namespace()}'.")
+                print(f"ConfigMap '{config_map}' not found in namespace '{namespace}'.")
             else:
-                print(f"Failed to delete ConfigMap '{config_map}': {e}")            
+                print(f"Failed to delete ConfigMap '{config_map}': {e}")
                 raise 
 
         print("All matching resources deleted successfully.")

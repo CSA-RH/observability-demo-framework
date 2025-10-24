@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-
 import * as ApiHelper from '../ApiHelper'
 import '../App.css'
-
 import LayoutCanvas from '../components/LayoutCanvas';
 import SimulationManagement from '../components/SimulationManagement';
 import AgentList from '../components/AgentList';
@@ -12,7 +10,7 @@ import AlertManagement from '../components/AlertManagement';
 import { useKeycloak } from "@react-keycloak/web";
 
 
-const SimulationPage = ({ selectedNamespace }) => {
+const SimulationPage = ({ selectedUser }) => {
 
   const agentTypes = [
     { type: "customer", image: "logo-customer.svg", enabled: true },
@@ -20,7 +18,7 @@ const SimulationPage = ({ selectedNamespace }) => {
     //{ type: "java", image: "logo-java.png", enabled: false },
     { type: "cook", image: "logo-cook.svg", enabled: true }
   ]
-
+    
   const [layout, setLayout] = useState([])
   const [agents, setAgents] = useState([])
   const [alerts, setAlerts] = useState([])
@@ -38,6 +36,7 @@ const SimulationPage = ({ selectedNamespace }) => {
   useEffect(() => {
     agentsRef.current = agents;
     layoutRef.current = layout;
+    console.log(selectedUser);
   }, [agents, layout]);
 
   function handleCreateSimulation(updatedAgents) {
@@ -165,7 +164,7 @@ const SimulationPage = ({ selectedNamespace }) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const apiUrl = selectedNamespace ? `${ApiHelper.getSimulationUrl()}/${selectedNamespace}`: ApiHelper.getSimulationUrl();
+      const apiUrl = selectedUser ? `${ApiHelper.getSimulationUrl()}/${selectedUser.username}`: ApiHelper.getSimulationUrl();
       
       try {
         const requestResponse = await fetch(apiUrl, {
@@ -183,11 +182,10 @@ const SimulationPage = ({ selectedNamespace }) => {
         }
         else {          
           const simulation_json = await requestResponse.json();
-          console.log("Simulation found", apiUrl, currentNamespaceLoaded, selectedNamespace, simulation_json);
           setAgents(simulation_json.agents);
           setLayout(simulation_json.layout);
           setSimulationLoaded(simulation_json.layout.length)
-          setCurrentNamespaceLoaded(selectedNamespace);
+          setCurrentNamespaceLoaded(selectedUser?.username);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -196,13 +194,13 @@ const SimulationPage = ({ selectedNamespace }) => {
 
     fetchData();
     fetchAlerts();
-  }, [keycloak.token, keycloak.authenticated, selectedNamespace]); // Empty dependency array to run once on component mount
+  }, [keycloak.token, keycloak.authenticated, selectedUser]);
 
   return (
     <div className="container">      
       <div className="row">
         <div className="col-12">
-          <h2>Communications</h2>
+          <h2>Communications<code>[{selectedUser?.monitoringType}]</code></h2>
           {!simulationLoaded && (
             <AgentTypePicker
               nodeTypes={agentTypes}
@@ -219,7 +217,7 @@ const SimulationPage = ({ selectedNamespace }) => {
           />
           <SimulationManagement
             simulationLoaded={simulationLoaded}
-            simulation={{ layout: layout, agents: agents }}
+            simulation={{ layout: layout, agents: agents, monitoringStack: selectedUser?.monitoringType}}
             onSimulationCreated={handleCreateSimulation}
             onSimulationReset={handleResetSimulation} />
         </div>

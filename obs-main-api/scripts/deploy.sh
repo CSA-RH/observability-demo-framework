@@ -129,6 +129,9 @@ rules:
   - apiGroups: [""]
     resources: ["namespaces"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: ["monitoring.rhobs"] 
+    resources: ["monitoringstacks", "servicemonitors"] 
+    verbs: ["create", "get", "list", "watch", "delete"]
 EOF
   # - Create role binding (obs-main-api-role and obs-main-api-clusterrole to obs-main-api-sa)
   cat <<EOF | oc apply -f -
