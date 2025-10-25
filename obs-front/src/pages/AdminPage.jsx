@@ -55,7 +55,7 @@ const AdminPage = () => {
   const deleteUser = async (user) => {    
     setError("");
     try {      
-      const deleteUserResponse = await fetch(getUserListUrl(), {
+      const deleteUserResponse = await fetch(`${getUserListUrl()}/${user}`, {
         method: "DELETE",
         headers: {
           'Content-Type': 'application/json',

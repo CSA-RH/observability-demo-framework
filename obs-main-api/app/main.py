@@ -437,11 +437,11 @@ def get_alerts(current_user: dict = Depends(get_current_user)):
     return alerts
 
 # ==== USERS MANAGEMENT ====
-@app.get("/users")
-def get_users(current_user: dict = Depends(get_current_user)):    
+@app.get("/api/v1/users")
+def get_users(current_user: dict = Depends(get_current_user)):
     return cluster_connector.get_users_json()
 
-@app.post("/users")
+@app.post("/api/v1/users")
 def post_user(user_payload: dict[str, Any], current_user: dict = Depends(get_current_user)):    
     users = cluster_connector.get_users_json()
     users.append(user_payload)
@@ -451,14 +451,12 @@ def post_user(user_payload: dict[str, Any], current_user: dict = Depends(get_cur
     cluster_connector.sync_users()
 
 #@app.delete("/users/{username}")
-@app.delete("/users")
-def delete_user(user_payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
-    username_to_delete = user_payload.get("username")
-
-    if username_to_delete:
+@app.delete("/api/v1/users/{user_id}")
+def delete_user(user_id: str, current_user: dict = Depends(get_current_user)):
+    if user_id:
         new_users_list = [
             user for user in cluster_connector.get_users_json()
-            if user.get("username") != username_to_delete
+            if user.get("username") != user_id
         ]
         
         # Update backend
@@ -467,9 +465,11 @@ def delete_user(user_payload: dict[str, Any], current_user: dict = Depends(get_c
         cluster_connector.sync_users()
 
         # Print the result
-        print(f"Username to delete: {username_to_delete}")
-        print("Updated users list:")
-        print(new_users_list)
+        print(f"Deleted user: {user_id}")
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+        
     else:
-        print("Error: 'username' key not found in the payload.")
+        message=f"Error: user {user_id} not found"
+        print_red(message)
+        return JSONResponse(content=message, status_code=404)
     

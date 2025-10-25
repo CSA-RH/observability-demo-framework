@@ -22,7 +22,7 @@ export function getClusterAlertDefinitionUrl() {
 }
 
 export function getUserListUrl() {
-    return `${MASTER_API_ADDRESS}/users`
+    return `${MASTER_API_ADDRESS}/api/v1/users`
 }
 
 //Root console address
