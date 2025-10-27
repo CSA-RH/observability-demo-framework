@@ -106,7 +106,7 @@ class OpenShiftAgentManager(AgentManagerInterface):
             # Ensure the connection is closed
             conn.close()
     
-    def kick(self, user_id, agent_ip, agent_id, kick_initial_count):
+    def kick(self, user_id, agent_id, agent_dns, kick_initial_count):
         #agent_ip = payload['ip']
         #agent_id = payload['id']
         #kick_initial_count = payload['count']
@@ -116,12 +116,12 @@ class OpenShiftAgentManager(AgentManagerInterface):
         }
         json_agent_kick_payload = json.dumps(agent_kick_payload)
         try:
-            conn = http.client.HTTPConnection(agent_ip, 8080, timeout=2)
+            conn = http.client.HTTPConnection(agent_dns, 8080, timeout=2)
             headers = {
                 'Content-Type': 'application/json'
             }
             # Make the POST request, attaching the JSON body
-            print(f"Agent {agent_id}[{agent_ip}] kicking (count={kick_initial_count})...")
+            print(f"Agent {agent_id}[{agent_dns}] kicking (count={kick_initial_count})...")
             conn.request("POST", "/operations/order", body=json_agent_kick_payload, headers=headers)
             # Get the response
             response = conn.getresponse()

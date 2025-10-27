@@ -230,7 +230,7 @@ const AgentInfo = ({ agent, userId, onAgentUpdated }) => {
                 <div>
                     <h6>
                         <span className="value">
-                            <a href={ApiHelper.globalRootConsole + '/k8s/ns/' + ApiHelper.globalCurrentNamespace + '/pods/' + agent.pod}
+                            <a href={ApiHelper.getPodAddress(agent.pod, userId)}
                                 target="_blank" rel="noopener noreferrer">{agent.pod} <i className="fas fa-external-link-alt"></i></a>
                         </span> <span className="value">[{agent.ip}] metrics</span>
                     </h6>

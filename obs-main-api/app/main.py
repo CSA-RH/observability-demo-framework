@@ -226,7 +226,7 @@ async def create_simulation(user_id: str, payload: Dict[str, Any], current_user:
         for target_agent_id in source_agent_data["nextHop"]:
             agent_manager.set_agent_communication_path(
                 user_id, 
-                cluster_connector.retrieve_hostname_from_service_id(user_id, source_agent_data["id"]),
+                source_agent_data["dns"],
                 target_agent_id)
 
     # Save simulation
@@ -260,9 +260,10 @@ async def delete_simulation(user_id: str, current_user: dict = Depends(get_curre
 
 @app.post("/api/v1/users/{user_id}/simulation/kick/{agent_id}")
 async def agent_kick(user_id, agent_id: str, payload: dict[str, Any], current_user: dict = Depends(get_current_user)):    
-    agent_ip = payload['ip']
+    agent_dns = payload['dns']
+    print(f"DNS: {agent_dns}")
     kick_initial_count = payload['count']    
-    return agent_manager.kick(user_id, agent_id, agent_ip, kick_initial_count)
+    return agent_manager.kick(user_id, agent_id, agent_dns, kick_initial_count)
 
 @app.post("/api/v1/users/{user_id}/simulation/metrics")
 async def create_agent_metric(user_id: str, payload: dict[str, Any], current_user: dict = Depends(get_current_user)):

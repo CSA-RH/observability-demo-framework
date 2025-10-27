@@ -573,6 +573,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             if service_ip:
                 print(f"The Service IP address of {item['id']} is: {service_ip}")
                 item["ip"] = service_ip
+                item["dns"] = f"{item["id"]}.{namespace}.svc"
             else:
                 print(f"Failed to retrieve the Service IP address for {item['id']}.")
                 continue

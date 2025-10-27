@@ -39,12 +39,12 @@ export const setglobalCurrentNamespace = (newValue) => {
     globalCurrentNamespace = newValue;
 };
 
-export function getPodAddress(podName) {
-    return globalRootConsole + '/k8s/ns/' + globalCurrentNamespace + '/pods/' + podName;
+export function getPodAddress(podName,userId) {    
+    return `${globalRootConsole}/k8s/ns/${globalCurrentNamespace}-${userId}/pods/${podName}`;
 }
 
-export function getPodLogsAddress(podName) {
-    return getPodAddress(podName) + "/logs"
+export function getPodLogsAddress(podName, userId) {
+    return getPodAddress(podName, userId) + "/logs"
 }
 
 export function getAlertRulesAddress() {

@@ -12,7 +12,7 @@ class AgentManagerInterface(ABC):
         pass
 
     @abstractmethod
-    def kick(self, user_id, agent_ip, agent_id, kick_initial_count):
+    def kick(self, user_id, agent_id, agent_dns, kick_initial_count):
         pass
 
     @abstractmethod

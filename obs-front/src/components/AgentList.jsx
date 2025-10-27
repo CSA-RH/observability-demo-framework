@@ -20,12 +20,12 @@ const AgentList = ({ agents, userId, selectedAgentId, onAgentSelected }) => {
 
     //For handling the kick
     
-    const handleKick = async (id, ip) => {
-        const message = `${new Date().toLocaleString()} - ${id}[${ip}] placed an order!`;
-        //addToast(message);
+    const handleKick = async (id, dns) => {
+        const message = `${new Date().toLocaleString()} - ${id}[${dns}] placed an order!`;
+        
         try {
             const kickPayload = {
-                ip: ip,                
+                dns: dns,
                 count: 4 //No tiki-taka
             }
             const response = await fetch(ApiHelper.getKickUrl(userId, id), {
@@ -67,8 +67,7 @@ const AgentList = ({ agents, userId, selectedAgentId, onAgentSelected }) => {
                                 <tr key={item.id}
                                     className={`${selectedRow === item.id ? 'table-active' : ''} `}
                                     onClick={() => handleRowClick(item.id)}>
-
-                                    <td><a href={ApiHelper.getPodLogsAddress(item.pod)} 
+                                    <td><a href={ApiHelper.getPodLogsAddress(item.pod, userId)}
                                            target="_blank" 
                                            rel="noopener noreferrer"> {item.id} <i className="fas fa-external-link-alt"></i></a></td>
                                     <td><span className={'label label-' + item.type}>{item.type}</span></td>
@@ -80,7 +79,7 @@ const AgentList = ({ agents, userId, selectedAgentId, onAgentSelected }) => {
                                     ) : "n/a"}</td>
                                     <td>{item.ip ? (item.metrics ? item.metrics.length + "/" + item.metrics.reduce((sum, metric) => sum + (metric.alerts?.length || 0), 0) : "0") : "n/a"}</td>
                                     <td>{item.ip && item.type == "customer" && <button className="agent-button" onClick={
-                                        () => handleKick(item.id, item.ip)}>Order!
+                                        () => handleKick(item.id, item.dns)}>Order!
                                     </button>}
                                     </td>
                                 </tr>
