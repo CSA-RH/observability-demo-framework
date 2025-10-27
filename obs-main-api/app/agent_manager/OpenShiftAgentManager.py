@@ -11,7 +11,7 @@ class OpenShiftAgentManager(AgentManagerInterface):
     def __init__(self):
         print("... Starting OpenShift Agent Manager")
     
-    def get_agent_metrics(self, id):
+    def get_agent_metrics(self, user_id, id):
         print(f"Agent {id}. Getting metrics")
         
         json_result = []
@@ -47,7 +47,7 @@ class OpenShiftAgentManager(AgentManagerInterface):
             conn.close()
         return json_result
 
-    async def set_agent_metrics(self, method: str, payload: dict[str, Any]):
+    async def set_agent_metrics(self, method: str, user_id:str, payload: dict[str, Any]):
         print("set_agent_metric")
         print(payload)
         print("----------------")
@@ -106,10 +106,11 @@ class OpenShiftAgentManager(AgentManagerInterface):
             # Ensure the connection is closed
             conn.close()
     
-    def kick(self, payload: dict[str, Any]):
-        agent_ip = payload['ip']
-        agent_id = payload['id']
-        kick_initial_count = payload['count']
+    def kick(self, user_id, agent_ip, agent_id, kick_initial_count):
+        #agent_ip = payload['ip']
+        #agent_id = payload['id']
+        #kick_initial_count = payload['count']
+        
         agent_kick_payload = {
             "count": kick_initial_count        
         }
@@ -142,7 +143,7 @@ class OpenShiftAgentManager(AgentManagerInterface):
             conn.close()
         return True
     
-    def set_agent_communication_path(self, sourceAgent, targetAgent):        
+    def set_agent_communication_path(self, user_id, sourceAgent, targetAgent):
         print(f"Calling POST http://{sourceAgent}:8080/agents/{targetAgent}")
         print(targetAgent)
         next_hop_address = {
@@ -176,5 +177,5 @@ class OpenShiftAgentManager(AgentManagerInterface):
             # Close the connection
             conn.close()
 
-    async def delete_metrics_definitions(self):
+    async def delete_metrics_definitions(self, user_id):
         pass

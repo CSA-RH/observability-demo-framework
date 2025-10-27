@@ -2,24 +2,12 @@ import React, { useState, useEffect } from 'react';
 import * as ApiHelper from '../ApiHelper'
 import '../App.css'
 import { useKeycloak } from "@react-keycloak/web";
+import { notifySuccess, notifyError } from '../services/NotificationService';
 
-// Child component that receives data as a prop
-const AgentList = ({ agents, selectedAgentId, onAgentSelected }) => {
+const AgentList = ({ agents, userId, selectedAgentId, onAgentSelected }) => {
 
     const [selectedRow, setSelectedRow] = useState(selectedAgentId);
-    const [toasts, setToasts] = useState([]);
     const { keycloak, initialized } = useKeycloak();
-
-    const addToast = (message) => {
-        const id = Date.now();
-        setToasts([...toasts, { id, message }]);
-
-        // Remove the toast after 3 seconds
-        setTimeout(() => {
-            setToasts((prev) => prev.filter((toast) => toast.id !== id));
-        }, 3000);
-    };
-
 
     const handleRowClick = (agentId) => {
         setSelectedRow(agentId); // Set the selected row when clicked
@@ -31,17 +19,16 @@ const AgentList = ({ agents, selectedAgentId, onAgentSelected }) => {
     }, [selectedAgentId]);
 
     //For handling the kick
+    
     const handleKick = async (id, ip) => {
         const message = `${new Date().toLocaleString()} - ${id}[${ip}] placed an order!`;
-        console.log(message);
-        addToast(message);
+        //addToast(message);
         try {
             const kickPayload = {
-                ip: ip,
-                id: id,
+                ip: ip,                
                 count: 4 //No tiki-taka
             }
-            const response = await fetch(ApiHelper.getKickUrl(ip), {
+            const response = await fetch(ApiHelper.getKickUrl(userId, id), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -49,10 +36,15 @@ const AgentList = ({ agents, selectedAgentId, onAgentSelected }) => {
                 },
                 body: JSON.stringify(kickPayload)
             });
-            const result = await response.json();
-            console.log('Success:', result);  //TODO: wat-error handling
+            if (response.status == 200) {
+                notifySuccess(message);
+            }
+            else {
+                const responsePayload = await response.json();
+                notifyError("Error placing an order. " + responsePayload?.message)
+            }
         } catch (error) {
-            console.error('Error:', error);
+            notifyError('Error:', error);
         }
     }
 
@@ -96,34 +88,7 @@ const AgentList = ({ agents, selectedAgentId, onAgentSelected }) => {
                         </tbody>
                     </table>)}
             </div>
-
-            <div className="position-fixed top-0 start-0 p-3" style={{ zIndex: 1055 }}>
-                {toasts.map((toast) => (
-                    <div
-                        key={toast.id}
-                        className="toast show mb-2"
-                        role="alert"
-                        aria-live="assertive"
-                        aria-atomic="true"
-                    >
-                        <div className="toast-header" style={{ backgroundColor: '#f2d1d1' }}>
-                            <strong className="me-auto">Notification</strong>
-                            <button
-                                type="button"
-                                className="btn-close"
-                                aria-label="Close"
-                                onClick={() =>
-                                    setToasts((prev) => prev.filter((t) => t.id !== toast.id))
-                                }
-                            ></button>
-                        </div>
-                        <div className="toast-body">{toast.message}</div>
-                    </div>
-                ))}
-            </div>
-
         </div>
-
     );
 };
 

@@ -229,8 +229,6 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             }
         }
 
-        print(deployment_manifest)
-
         deployment_name = "." 
         try:
             deployment_name = item["id"]
@@ -810,7 +808,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                     name=grafana_datasource_name)                
             case "mesh":
                 #TODO
-                print("TODO")
+                print("Service Mesh handling not implemented.")
             
         # Delete ServiceMonitors matching the selector
         # Assuming ServiceMonitors are custom resources from the Prometheus operator

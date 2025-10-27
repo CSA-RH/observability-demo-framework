@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import * as ApiHelper from '../ApiHelper';
 import { useKeycloak } from "@react-keycloak/web";
 import { NavLink, Link, useLocation } from 'react-router-dom';
+import { notifyError } from '../services/NotificationService';
 
 
 const ClusterInfo = ({ selectedUser, setSelectedUser }) => {
@@ -12,28 +13,33 @@ const ClusterInfo = ({ selectedUser, setSelectedUser }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const { keycloak, initialized } = useKeycloak();    
+    const { keycloak, initialized } = useKeycloak();
     const userRoles = keycloak.realmAccess?.roles
     const isAdmin = userRoles?.includes("obs-admin") || false
 
     useEffect(() => {
-        const fetchData = async () => {            
+        const fetchData = async () => {
             var data = []
             try {
                 let headers = new Headers();
                 headers.append('Content-Type', 'application/json');
                 headers.append('Accept', 'application/json');
-                headers.append('Authorization', 'Bearer ' + keycloak.token)
+                headers.append('Authorization', 'Bearer ' + keycloak.token);
 
                 const response = await fetch(ApiHelper.getInfoUrl(), { headers: headers });
                 data = await response.json();
-                setData(data);
-                console.log("Selecting namespace 0")
-                setSelectedUser(
-                    (data.Users?.length > 0 ? data.Users[0] : null) ?? null);
+                if (response.status == 200) {
+                    setData(data);
+                    setSelectedUser(
+                        (data.Users?.length > 0 ? data.Users[0] : null) ?? null);
+                }
+                else {
+                    setError(`Error fetching data[${response.status}]`);
+                    notifyError("Error fetching cluster data. " + data);
+                }
             } catch (err) {
                 setError(err.message);
-                console.error('Error fetching data:', error);
+                notifyError('Error fetching data:', err);
             } finally {
                 setLoading(false);
             }
@@ -41,7 +47,7 @@ const ClusterInfo = ({ selectedUser, setSelectedUser }) => {
             ApiHelper.setglobalCurrentNamespace(data.Namespace);
         };
 
-        fetchData();        
+        fetchData();
     }, [keycloak.token, keycloak.authenticated]);
 
     //TODO: Improve user experience (conditional appearance of all items). 
@@ -57,15 +63,15 @@ const ClusterInfo = ({ selectedUser, setSelectedUser }) => {
         return (<div>Cluster not connected</div>)
     }
 
-    const findUserByUsername = (targetUsername, userList) => {        
+    const findUserByUsername = (targetUsername, userList) => {
         const selectedUser = userList.find(user => user.username === targetUsername);
         console.log("** User: ", selectedUser);
         return selectedUser;
     }
 
     const handleUserNamespaceChange = (e) => {
-        const { name, value } = e.target;        
-        
+        const { name, value } = e.target;
+
         console.log(e.target);
         setSelectedUser(findUserByUsername(value, data.Users));
     }
@@ -89,12 +95,12 @@ const ClusterInfo = ({ selectedUser, setSelectedUser }) => {
                                     name="user-namespace"
                                     // You should bind the value to a state variable (e.g., selectedNamespace) 
                                     // instead of a static value like "coo" for real usage.
-                                    value={selectedUser?.username} 
+                                    value={selectedUser?.username}
                                     onChange={handleUserNamespaceChange}
-                                >                                    
+                                >
                                     {data.Users && data.Users.map((user) => (
-                                        <option 
-                                            key={user.username} 
+                                        <option
+                                            key={user.username}
                                             value={user.username}
                                         >
                                             {user.username}
@@ -115,18 +121,34 @@ const ClusterInfo = ({ selectedUser, setSelectedUser }) => {
                     <nav className="navbar navbar-expand-lg navbar-dark">
                         <div className="container-fluid">
                             <ul className="navbar-nav">
-                                <li className="nav-item"><a className="nav-link" href={data.ConsoleURL}
-                                    target="_blank" rel="noopener noreferrer">
-                                    Console <i className="fas fa-external-link-alt"></i></a></li>
-                                <li className="nav-item"><a className="nav-link" href={data.apiLogsURL}
-                                    target="_blank" rel="noopener noreferrer">
-                                    Backend Logs <i className="fas fa-external-link-alt"></i></a></li>
-                                <li className="nav-item"><a className="nav-link" href={data.JaegerUI}
-                                    target="_blank" rel="noopener noreferrer">
-                                    Jaeger UI <i className="fas fa-external-link-alt"></i></a></li>
-                                <li className="nav-item"><a className="nav-link" href={data.GrafanaURL}
-                                    target="_blank" rel="noopener noreferrer">
-                                    Grafana <i className="fas fa-external-link-alt"></i></a></li>
+                                <li className="nav-item">
+                                    <a className="nav-link" href={data.ConsoleURL}
+                                        target="_blank" rel="noopener noreferrer">
+                                        <img src="/openshift.svg" className="nav-icon-svg" style={{ backgroundColor: "white", height: "40px", width: "auto", verticalAlign: "middle" }}
+                                            alt="OpenShift" />
+                                    </a>
+                                </li>
+                                <li className="nav-item">
+                                    <a className="nav-link" href={data.apiLogsURL}
+                                        target="_blank" rel="noopener noreferrer">
+                                        <img src="/logging.svg" className="nav-icon-svg" style={{ height: "40px", width: "auto", verticalAlign: "middle" }}
+                                            alt="Logging" />
+                                    </a>
+                                </li>
+                                <li className="nav-item">
+                                    <a className="nav-link" href={data.JaegerUI}
+                                        target="_blank" rel="noopener noreferrer" title="JaegerUI">
+                                        <img src="/jaeger.svg" className="nav-icon-svg" style={{ backgroundColor: "white", height: "40px", width: "auto", verticalAlign: "middle" }}
+                                            alt="Jaeger UI" />
+                                    </a>
+                                </li>
+                                <li className="nav-item">
+                                    <a className="nav-link" href={data.GrafanaURL}
+                                        target="_blank" rel="noopener noreferrer" title="Grafana">
+                                        <img src="/grafana.svg" className="nav-icon-svg" style={{ height: "40px", width: "auto", verticalAlign: "middle" }}
+                                            alt="Grafana" />
+                                    </a>
+                                </li>
                                 {isAdmin && (<li className="nav-item"><NavLink to="/simulation"
                                     className={({ isActive }) =>
                                         isActive ? "nav-link active border border-primary bg-primary text-light rounded" : "nav-link"

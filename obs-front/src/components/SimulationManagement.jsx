@@ -1,23 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import * as ApiHelper from '../ApiHelper';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { useKeycloak } from "@react-keycloak/web";
-
-
-const showError = (text) => {
-    toast.error(text, {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        width: 600,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-    });
-}
-
+import { notifySuccess, notifyError } from '../services/NotificationService';
 
 const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreated, onSimulationReset }) => {
     const [isCreateDisabled, setIsCreateDisabled] = useState(true);
@@ -44,10 +28,16 @@ const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreate
             });
 
             const agentsUpdated = await response.json();
+            if (response.status <= 299) {
+                notifySuccess("Simulation created");
+            }
+            else
+            {
+                notifyError(`Error creating simulation: ${(agentsUpdated?.message || "No info available")}[${response.status}]`);
+            }
             onSimulationCreated(agentsUpdated);
         } catch (error) {
-            //console.error('Error:', error);
-            showError(`Error:${error}`, error)
+            notifyError(`Error:${error}`);
         } finally {
             setLoading(false); // Stop loading and hide the spinner
         }
@@ -61,20 +51,23 @@ const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreate
                     method: 'DELETE',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${keycloak.token}`                        
+                        Authorization: `Bearer ${keycloak.token}`
                     },
                     body: JSON.stringify(simulation),
-                });                
+                });
                 if (response.status != 204) {
-                    console.error(`Error deleting simulation[${response.status}]`);
-                } 
+                    const errorMessageJson = await response.json();
+                    const errorMessage = errorMessageJson?.message;
+                    notifyError(`Error deleting simulation[${response.status}].\n${(errorMessage || "")}`);
+
+                }
                 else {
-                    console.log("Simulation reset successfully.");
+                    notifySuccess("Simulation reset successfully.");
                 }
             }
             onSimulationReset({ layout: [], agents: [] });
         } catch (error) {
-            console.error('Error:', error);
+            notifyError("Error: " + error);
         } finally {
             setLoading(false); // Stop loading and hide the spinner
         }
@@ -91,8 +84,6 @@ const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreate
     return (
 
         <div className="d-flex justify-content-center">
-            {/* Overlay and Spinner */}
-            <ToastContainer></ToastContainer>
             {loading && (
                 <div style={overlayStyles}>
                     <div style={spinnerStyles}></div>
@@ -105,9 +96,7 @@ const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreate
             <button className="btn btn-secondary me-2 mb-2" id="primary-button" disabled={isResetDisabled} onClick={handleReset}>
                 Reset
             </button>
-
         </div>
-
     );
 };
 

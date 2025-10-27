@@ -9,16 +9,16 @@ export function getSimulationUrl(userId) {
     return `${MASTER_API_ADDRESS}/api/v1/users/${userId}/simulation`
 }
 
-export function getKickUrl(agentIp) {
-    return `${MASTER_API_ADDRESS}/kick`
+export function getKickUrl(userId, agentId) {
+    return `${MASTER_API_ADDRESS}/api/v1/users/${userId}/simulation/kick/${agentId}`
 }
 
-export function getAgentsMetricsUrl() {
-    return `${MASTER_API_ADDRESS}/metrics`
+export function getAgentsMetricsUrl(userId) {
+    return `${MASTER_API_ADDRESS}/api/v1/users/${userId}/simulation/metrics`
 }
 
-export function getClusterAlertDefinitionUrl() {
-    return `${MASTER_API_ADDRESS}/alerts`
+export function getClusterAlertDefinitionUrl(userId, alertId) {
+    return `${MASTER_API_ADDRESS}/api/v1/users/${userId}/simulation/alerts` + (alertId ? "/" + alertId: "")
 }
 
 export function getUserListUrl() {

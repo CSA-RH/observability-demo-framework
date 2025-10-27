@@ -50,7 +50,6 @@ def get_keycloak_certificates_url():
     else:
         return value
 
-
 # Keycloak Configuration
 KEYCLOAK_ISSUER = get_keycloak_issuer()
 KEYCLOAK_AUDIENCE = "account"
@@ -98,7 +97,7 @@ security = HTTPBearer()
 def get_public_key(kid: str):
     try:
         #TODO: Needs to improve certificate handling. 
-        response = requests.get(KEYCLOAK_CERTS_URL)  
+        response = requests.get(KEYCLOAK_CERTS_URL)
         response.raise_for_status()
         jwks = response.json()
         for key in jwks["keys"]:
@@ -106,6 +105,7 @@ def get_public_key(kid: str):
                 # Return the key directly (RSA public key in JSON Web Key format)
                 return key
     except requests.RequestException as e:
+        __print_exception(e)
         raise HTTPException(status_code=500, detail=f"Error fetching public keys: {e}")
     raise HTTPException(status_code=401, detail="Public key not found")
 
@@ -131,8 +131,10 @@ def decode_token(token: str) -> Dict:
         )        
         return payload
     except JWTError as e:
+        __print_exception(e)
         raise HTTPException(status_code=401, detail=f"Token validation error: {e}")
     except Exception as e:
+        __print_exception(e)
         raise HTTPException(status_code=401, detail=f"Error decoding token: {e}")
 
 # Dependency for Secured Endpoints
@@ -141,12 +143,12 @@ def get_current_user(authorization: str = Depends(security)):
         token = authorization.credentials
         return decode_token(token)["preferred_username"]
     except Exception as e:
+        __print_exception(e)
         raise HTTPException(status_code=401, detail=f"Unauthorized: {e}")
 
-#TODO: Error handling
 @app.get("/api/v1/escotilla")
 async def get_escotilla_info(current_user: dict = Depends(get_current_user)):
-    print(f"---> CURRENT USER: {current_user}")
+    #TODO: Improve server error handling (balance mock and cluster)
     return cluster_connector.get_cluster_info(current_user)
 
 def get_agent_from_payload(name, payload):
@@ -163,7 +165,6 @@ def add_next_hop_to_agent(name, agent):
         agent["nextHop"] = [name]
 
 @app.get("/api/v1/users/{user_id}/simulation")
-#@app.get("/simulation/{user_namespace}")
 async def get_simulation(user_id: str, current_user: dict = Depends(get_current_user)
 ):
     print(f"Received user from path: {user_id}")
@@ -176,7 +177,9 @@ async def get_simulation(user_id: str, current_user: dict = Depends(get_current_
     # Update agent metrics     
     for item in simulation["agents"]:
         id = item["id"]
-        metrics = agent_manager.get_agent_metrics(cluster_connector.retrieve_hostname_from_service_id(user, id))
+        metrics = agent_manager.get_agent_metrics(
+            user_id, 
+            cluster_connector.retrieve_hostname_from_service_id(user, id))
         for metric in metrics:
             metric["alerts"] = []
         print(f"Pod: {item['pod']}. Metrics: {metrics}")        
@@ -206,7 +209,6 @@ async def get_simulation(user_id: str, current_user: dict = Depends(get_current_
     return simulation
 
 @app.post("/api/v1/users/{user_id}/simulation")
-#@app.post("/simulation")
 async def create_simulation(user_id: str, payload: Dict[str, Any], current_user: dict = Depends(get_current_user)):    
     print (f"Starting creating simulation for user {user_id}")
     # Create resources in cluster
@@ -217,54 +219,58 @@ async def create_simulation(user_id: str, payload: Dict[str, Any], current_user:
             payload["user"]["monitoringType"])
 
     except Exception as e:
+        __print_exception(e)
         raise HTTPException(status_code=500, detail=e.args)
     
     for source_agent_data in payload["agents"]: 
         for target_agent_id in source_agent_data["nextHop"]:
             agent_manager.set_agent_communication_path(
+                user_id, 
                 cluster_connector.retrieve_hostname_from_service_id(user_id, source_agent_data["id"]),
                 target_agent_id)
 
     # Save simulation
-    cluster_connector.save_simulation(user_id, payload)
+    try:
+        cluster_connector.save_simulation(user_id, payload)
+    except Exception as e:
+        __print_exception(e)
+        raise HTTPException(status_code=500, detail=e.args)
 
     return json_agents
 
 @app.delete("/api/v1/users/{user_id}/simulation")
 async def delete_simulation(user_id: str, current_user: dict = Depends(get_current_user)):
     try:
+        print("--- Deleting simulation.") 
         await cluster_connector.delete_simulation(user_id)
-    except Exception as e:
-        print_red("--- Deleting simulation.") 
+    except Exception as e:        
         __print_exception(e)
         raise HTTPException(
             status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, 
             detail = f"Error deleting simulation resource for user_id {user_id}. Error: {e}")
     try:
-        await agent_manager.delete_metrics_definitions()
+        print("--- Deleting simulation (metrics)")
+        await agent_manager.delete_metrics_definitions(user_id)
     except Exception as e:
-        print_red("--- Deleting simulation (metrics)")
         __print_exception(e)
         raise HTTPException(
             status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, 
             detail = f"Error deleting metrics for user_id {user_id}. Error {e}")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-#TODO: Error handling
-#@app.post("/users/{username}/kick/{agent}")
-@app.post("/kick")
-async def agent_kick(payload: dict[str, Any], current_user: dict = Depends(get_current_user)):    
-    return agent_manager.kick(payload)
+@app.post("/api/v1/users/{user_id}/simulation/kick/{agent_id}")
+async def agent_kick(user_id, agent_id: str, payload: dict[str, Any], current_user: dict = Depends(get_current_user)):    
+    agent_ip = payload['ip']
+    kick_initial_count = payload['count']    
+    return agent_manager.kick(user_id, agent_id, agent_ip, kick_initial_count)
 
-#@app.post("/users/{username}/metrics")
-@app.post("/metrics")
-async def create_agent_metric(payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
-    await agent_manager.set_agent_metrics("POST", payload=payload)
+@app.post("/api/v1/users/{user_id}/simulation/metrics")
+async def create_agent_metric(user_id: str, payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
+    await agent_manager.set_agent_metrics("POST", user_id, payload=payload)
 
-#@app.put("/users/{username}/metrics")
-@app.put("/metrics")
-async def modify_agent_metric(payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
-    await agent_manager.set_agent_metrics("PUT", payload=payload)
+@app.put("/api/v1/users/{user_id}/simulation/metrics")
+async def modify_agent_metric(user_id: str, payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
+    await agent_manager.set_agent_metrics("PUT", user_id, payload=payload)
 
 def __map_expression_to_alert(expression):
     """
@@ -343,9 +349,8 @@ def __get_alert_group(alert_data):
     else:
         return "custom"
     
-#@app.post("/users/{username}/alerts")
-@app.post("/alerts")
-async def create_alert(payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
+@app.post("/api/v1/users/{user_id}/simulation/alerts")
+async def create_alert(user_id: str, payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
     print("Creating alert: ")   
     
     #Create the alert in the cluster
@@ -365,7 +370,7 @@ async def create_alert(payload: dict[str, Any], current_user: dict = Depends(get
     summary = __get_alert_summary(payload)  
     expression = __get_alert_expression(payload)
         
-    result = cluster_connector.create_alert_resource(current_user, alert_id, alert_name, severity, group, expression, summary)
+    result = cluster_connector.create_alert_resource(user_id, alert_id, alert_name, severity, group, expression, summary)
     if result is None: 
         raise HTTPException(status_code=400, detail="Error creating resource in the cluster. See logs for more information.")
     print("-----")
@@ -387,29 +392,48 @@ async def create_alert(payload: dict[str, Any], current_user: dict = Depends(get
 def print_red(str):
     print(f"\033[91m{str}\033[0m")
 
-def __print_exception(e):
+def __print_exception(e):    
     print_red("ERROR INFORMATION:")
-    print(f"- HTTP status: {e.status}")
-    print(f"- Reason: {e.reason} ")
-    print("- Body: -->>>")
-    JSONUtils.print_pretty_json(e.body)
-    print("<<<--")
-    print_red("\033[91m-----\033[0m")
+    
+    # Print the exception's type and standard message, which always exist
+    print(f"- Type: {type(e).__name__}")
+    print(f"- Message: {e}")
 
-#@app.delete("/users/{username}/alerts/{alert_id}")
-@app.delete("/alerts")
-def delete_alert(payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
-    alert_name=payload['alert']
+    # Safely get HTTP attributes using getattr(object, attribute_name, default_value)
+    status = getattr(e, 'status', 'N/A')
+    reason = getattr(e, 'reason', 'N/A')
+    body = getattr(e, 'body', None)  # Default to None if 'body' doesn't exist
+
+    print(f"- HTTP status: {status}")
+    print(f"- Reason: {reason}")
+    print("- Body: -->>>")
+
+    try:
+        if body is not None:
+            JSONUtils.print_pretty_json(body)
+        else:
+            print("(No body attribute or body is None)")
+    except Exception as body_print_error:
+        # Added this in case JSONUtils fails (e.g., body isn't JSON)
+        print(f"(Could not print body details: {body_print_error})")
+        print(f"Raw body: {body}") # Try to print the raw body as a fallback
+
+    print("<<<--")
+    print_red("-------------")
+
+@app.delete("/api/v1/users/{user_id}/simulation/alerts/{alert_id}")
+def delete_alert(user_id, alert_id: str, current_user: dict = Depends(get_current_user)):
+    alert_name=alert_id
     print(f"Delete alert: {alert_name}")
     
     #Delete alert from the cluster
     #TODO: Error handling (HTTP 400, 404)
     errors = ""
-    resource_deletion_result = cluster_connector.delete_alert(current_user, alert_name)
+    resource_deletion_result = cluster_connector.delete_alert(user_id, alert_name)
     if not resource_deletion_result['success']:
         errors += "Error deleting OpenShift alert resource. "                
         __print_exception(resource_deletion_result['error'])
-    definition_deletion_result = cluster_connector.delete_alert_definition(current_user, alert_name)
+    definition_deletion_result = cluster_connector.delete_alert_definition(user_id, alert_name)
     if not definition_deletion_result['success']:
         errors += "Error deleting OpenShift alert definition. "        
         __print_exception(definition_deletion_result["error"])
@@ -419,11 +443,10 @@ def delete_alert(payload: dict[str, Any], current_user: dict = Depends(get_curre
 
     return None
 
-#@app.get("/users/{username}/alerts")
-@app.get("/alerts")
-def get_alerts(current_user: dict = Depends(get_current_user)):
+@app.get("/api/v1/users/{user_id}/simulation/alerts")
+def get_alerts(user_id: str, current_user: dict = Depends(get_current_user)):
     alerts = []
-    alert_data=cluster_connector.get_alert_definitions(current_user)    
+    alert_data=cluster_connector.get_alert_definitions(user_id)
     for alert in alert_data:
         alerts.append({
             "id": alert['id'],
@@ -436,7 +459,7 @@ def get_alerts(current_user: dict = Depends(get_current_user)):
         })
     return alerts
 
-# ==== USERS MANAGEMENT ====
+# ==== USER MANAGEMENT ====
 @app.get("/api/v1/users")
 def get_users(current_user: dict = Depends(get_current_user)):
     return cluster_connector.get_users_json()
@@ -450,7 +473,6 @@ def post_user(user_payload: dict[str, Any], current_user: dict = Depends(get_cur
     # Sync Users. 
     cluster_connector.sync_users()
 
-#@app.delete("/users/{username}")
 @app.delete("/api/v1/users/{user_id}")
 def delete_user(user_id: str, current_user: dict = Depends(get_current_user)):
     if user_id:

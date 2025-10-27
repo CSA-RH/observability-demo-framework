@@ -25,7 +25,7 @@ const AdminPage = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       setError("");
-      try {        
+      try { 
         const userListResponse = await fetch(getUserListUrl(), {
           method: "GET",
           headers: {
@@ -54,7 +54,7 @@ const AdminPage = () => {
   // --- Functions to manage users ---
   const deleteUser = async (user) => {    
     setError("");
-    try {      
+    try {
       const deleteUserResponse = await fetch(`${getUserListUrl()}/${user}`, {
         method: "DELETE",
         headers: {
@@ -79,7 +79,7 @@ const AdminPage = () => {
 
   const postUser = async (user) => {
     setError("");
-    try {      
+    try {
       const postUserResponse = await fetch(getUserListUrl(), {
         method: "POST",
         headers: {

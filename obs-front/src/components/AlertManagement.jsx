@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import * as ApiHelper from '../ApiHelper.js'
 import { useKeycloak } from "@react-keycloak/web";
+import { notifyError, notifySuccess } from '../services/NotificationService.jsx';
 
-const AlertManagement = ({ alerts, onAlertsUpdated }) => {
+const AlertManagement = ({ alerts, userId, onAlertsUpdated }) => {
 
     const [addNewAlert, setAddNewAlert] = useState(false)
     const [validationError, setValidationError] = useState("");
@@ -35,7 +36,7 @@ const AlertManagement = ({ alerts, onAlertsUpdated }) => {
 
     async function saveAlert(alert) {
         try {
-            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(), {
+            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(userId), {
                 method: "POST",
                 headers: {
                     'Content-Type': 'application/json',
@@ -43,16 +44,21 @@ const AlertManagement = ({ alerts, onAlertsUpdated }) => {
                 },
                 body: JSON.stringify(alert)
             });
-            return response;
+            if (response.status == 200){
+                notifySuccess("Alert saved");
+            }
+            else {
+                const responsePayload = response.json();
+                notifyError(`Error saving alert[${response.status}]. ` + responsePayload?.message);
+            }
         } catch (error) {
-            console.error('Error:', error);
-            return;
+            notifyError('Error:', error);
         }
     }
 
     async function deleteAlert(alertName) {
         try {
-            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(), {
+            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(userId), {
                 method: "DELETE",
                 headers: {
                     'Content-Type': 'application/json',
@@ -62,10 +68,16 @@ const AlertManagement = ({ alerts, onAlertsUpdated }) => {
                     alert: alertName
                 })
             });
+            if (response.status == 200) {
+                notifySuccess("Alert deleted.");
+            }
+            else {
+                const responsePayload = response.json();
+                notifyError(`Error deleting alert[${response.status}].` + responsePayload?.message);
+            }
             return response;
         } catch (error) {
-            console.error('Error:', error);
-            return;
+            notifyError('Error:', error);
         }
     }
 

@@ -8,6 +8,7 @@ import AgentInfo from '../components/AgentInfo';
 import AgentTypePicker from '../components/AgentTypePicker';
 import AlertManagement from '../components/AlertManagement';
 import { useKeycloak } from "@react-keycloak/web";
+import { notifyError } from '../services/NotificationService';
 
 
 const SimulationPage = ({ selectedUser }) => {
@@ -142,29 +143,31 @@ const SimulationPage = ({ selectedUser }) => {
 
   const fetchAlerts = async () => {
     try {
-      const alertListResponse = await fetch(ApiHelper.getClusterAlertDefinitionUrl(), {
+      const alertListResponse = await fetch(ApiHelper.getClusterAlertDefinitionUrl(selectedUser?.username), {
         method: "GET",
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${keycloak.token}` 
        }});
       if (alertListResponse.status > 299) {
+        const alertListPayload = alertListResponse.json();
+        notifyError(`Error fetching alerts[${alertListResponse.status}]. ` + alertListPayload?.message);
         setAlerts([]);
       }
       else {
         const alerts_json = await alertListResponse.json();
         setAlerts(alerts_json);
       }
-    } catch(error) {
-      //TODO: Global error handling
-      console.error("Error fetching alerts", error);
+    }
+    catch(error) {
+      notifyError("Error fetching alerts", error);
     }
   };
 
   useEffect(() => {
     const fetchData = async () => {
       const apiUrl = ApiHelper.getSimulationUrl(selectedUser?.username);
-      
+
       try {
         const requestResponse = await fetch(apiUrl, {
           method: "GET", 
@@ -174,7 +177,6 @@ const SimulationPage = ({ selectedUser }) => {
           }
         });
         if (requestResponse.status > 299) {
-          console.log("No simulation available", apiUrl);
           setAgents([]);
           setLayout([]);
           setSimulationLoaded(false)
@@ -187,7 +189,7 @@ const SimulationPage = ({ selectedUser }) => {
           setCurrentNamespaceLoaded(selectedUser?.username);
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
+        notifyError('Error fetching data:', error);
       }
     };
 
@@ -228,15 +230,16 @@ const SimulationPage = ({ selectedUser }) => {
               <h2>Agents</h2>
               <AgentList
                 agents={agents}
+                userId={selectedUser?.username}
                 selectedAgentId={selectedAgent?.id}
                 onAgentSelected={onAgentSelected} />
             </div>
             <div className="col-12 col-xl-6 border rounded mt-3">
-              <AgentInfo agent={selectedAgent} onAgentUpdated={handleAgentUpdated} />
+              <AgentInfo agent={selectedAgent} userId={selectedUser?.username} onAgentUpdated={handleAgentUpdated} />
             </div>
           </div>
           <div className="row mt-3">
-            <AlertManagement alerts={alerts} onAlertsUpdated={fetchAlerts}></AlertManagement>
+            <AlertManagement alerts={alerts} userId={selectedUser?.username} onAlertsUpdated={fetchAlerts}></AlertManagement>
           </div>
         </div>
       )}
