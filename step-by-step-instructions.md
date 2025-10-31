@@ -105,6 +105,13 @@ To get the keycloak route
 
 ![alt text](./img/keycloak-users.png)
 
+### Create Ansible based image for sync userse
+
+```bash
+cd ./users
+./create-sync-users-image.sh
+```
+
 ## 4 Apps
 
 ### 4.1 Clients

@@ -113,7 +113,7 @@ spec:
       spanmetrics:
         metrics_flush_interval: 15s
     exporters:      
-      loki:
+      otlphttp:
         auth:
           authenticator: bearertokenauth
         endpoint: 'https://loki-gateway-http.openshift-logging.svc.cluster.local:8080/api/logs/v1/application/loki/api/v1/push'
@@ -197,7 +197,7 @@ spec:
       pipelines:
         logs:
           exporters:
-            - loki
+            - otlphttp
           processors:
             - k8sattributes
             - transform
@@ -215,9 +215,6 @@ spec:
             - spanmetrics
           receivers:
             - otlp
-      telemetry:
-        metrics:
-          address: '0.0.0.0:8888'
   mode: deployment
   managementState: managed  
   serviceAccount: otel-collector
