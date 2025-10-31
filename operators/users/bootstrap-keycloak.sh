@@ -13,7 +13,7 @@ echo "Using namespace: $NAMESPACE"
 # ---!! SET YOUR TARGET REALM HERE !! ---
 # All operations will be performed on this realm.
 # It will be created if it does not exist.
-PRIMARY_REALM="csa2"
+PRIMARY_REALM="csa"
 # -----------------------------------------
 
 KEYCLOAK_URL="https://$(oc get route -n $NAMESPACE --selector app=keycloak -ojsonpath='{.items[0].spec.host}')"
@@ -30,6 +30,9 @@ PORTAL_ADMIN_USER="admin"
 PORTAL_ADMIN_ROLE="obs-admin"
 PORTAL_ADMIN_ROLE_DESC="Observability Demo Framework administrator role for Portal Management"
 PORTAL_ADMIN_SECRET="obs-demo-admin-creds" # K8s Secret name
+
+# Vars for Web Client (in $PRIMARY_REALM)
+WEB_CLIENT_ID="webauth"
 
 
 # --- 2. Get Admin Token ---
@@ -101,7 +104,20 @@ if [ "$CLIENT_UUID" == "null" ] || [ -z "$CLIENT_UUID" ]; then
   fi
   echo "Client created with UUID: $CLIENT_UUID"
 else
-  echo "Client '$SERVICE_CLIENT_ID' already exists. Using UUID: $CLIENT_UUID"
+  echo "Client '$SERVICE_CLIENT_ID' already exists. Updating settings... (UUID: $CLIENT_UUID)"
+  curl -s -k -X PUT \
+    "$KEYCLOAK_URL/admin/realms/$PRIMARY_REALM/clients/$CLIENT_UUID" \
+    -H "Authorization: Bearer $ADMIN_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{
+          "clientId": "'"$SERVICE_CLIENT_ID"'",
+          "serviceAccountsEnabled": true,
+          "clientAuthenticatorType": "client-secret",
+          "publicClient": false,
+          "standardFlowEnabled": false,
+          "directAccessGrantsEnabled": false
+        }' > /dev/null
+  echo "Client '$SERVICE_CLIENT_ID' settings updated."
 fi
 
 # 4.2. Assign Admin Roles
@@ -217,6 +233,10 @@ else
       -d '{
             "username": "'"$PORTAL_ADMIN_USER"'",
             "enabled": true,
+            "email": "admin@observability.com",
+            "emailVerified": true,
+            "firstName": "Mikel",
+            "lastName": "Roteta",
             "credentials": [
               {
                 "type": "password",
@@ -227,7 +247,21 @@ else
           }' > /dev/null
     echo "User '$PORTAL_ADMIN_USER' created."
   else
-    echo "User '$PORTAL_ADMIN_USER' already exists. Resetting password..."
+    echo "User '$PORTAL_ADMIN_USER' already exists. Resetting password and updating profile..."
+    # 1. Update user profile
+    curl -s -k -X PUT "$KEYCLOAK_URL/admin/realms/$PRIMARY_REALM/users/$USER_ID" \
+      -H "Authorization: Bearer $ADMIN_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+            "username": "'"$PORTAL_ADMIN_USER"'",
+            "enabled": true,
+            "email": "admin@observability.com",
+            "emailVerified": true,
+            "firstName": "Mikel",
+            "lastName": "Roteta"
+          }' > /dev/null
+    
+    # 2. Reset password
     curl -s -k -X PUT "$KEYCLOAK_URL/admin/realms/$PRIMARY_REALM/users/$USER_ID/reset-password" \
       -H "Authorization: Bearer $ADMIN_TOKEN" \
       -H "Content-Type: application/json" \
@@ -236,7 +270,7 @@ else
             "value": "'"$NEW_ADMIN_PASS"'",
             "temporary": false
           }' > /dev/null
-    echo "Password for user '$PORTAL_ADMIN_USER' reset."
+    echo "Password for user '$PORTAL_ADMIN_USER' reset and profile updated."
   fi
   
   # Create the K8s secret
@@ -284,6 +318,51 @@ else
 fi
 
 
+# --- 6. Setup for '$PRIMARY_REALM' (Web Client) ---
+echo "--- Configuring '$WEB_CLIENT_ID' in realm '$PRIMARY_REALM' ---"
+
+echo "Checking for existing client '$WEB_CLIENT_ID'..."
+WEB_CLIENT_UUID=$(curl -s -k -X GET \
+  "$KEYCLOAK_URL/admin/realms/$PRIMARY_REALM/clients?clientId=$WEB_CLIENT_ID" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.[0].id')
+
+if [ "$WEB_CLIENT_UUID" == "null" ] || [ -z "$WEB_CLIENT_UUID" ]; then
+  echo "Client not found. Creating '$WEB_CLIENT_ID'..."
+  
+  curl -s -k -X POST \
+    "$KEYCLOAK_URL/admin/realms/$PRIMARY_REALM/clients" \
+    -H "Authorization: Bearer $ADMIN_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{
+          "clientId": "'"$WEB_CLIENT_ID"'",
+          "protocol": "openid-connect",
+          "publicClient": true,
+          "standardFlowEnabled": true,
+          "directAccessGrantsEnabled": true,
+          "redirectUris": ["*"],
+          "webOrigins": ["*"]
+        }' > /dev/null
+  
+  echo "Client '$WEB_CLIENT_ID' created."
+else
+  echo "Client '$WEB_CLIENT_ID' already exists. Updating settings... (UUID: $WEB_CLIENT_UUID)"
+  curl -s -k -X PUT \
+    "$KEYCLOAK_URL/admin/realms/$PRIMARY_REALM/clients/$WEB_CLIENT_UUID" \
+    -H "Authorization: Bearer $ADMIN_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{
+          "clientId": "'"$WEB_CLIENT_ID"'",
+          "protocol": "openid-connect",
+          "publicClient": true,
+          "standardFlowEnabled": true,
+          "directAccessGrantsEnabled": true,
+          "redirectUris": ["*"],
+          "webOrigins": ["*"]
+        }' > /dev/null
+  echo "Client '$WEB_CLIENT_ID' settings updated."
+fi
+
+
 echo ""
 echo "--- ✅ All Keycloak Bootstrapping Complete for realm '$PRIMARY_REALM'! ---"
 echo ""
@@ -295,3 +374,4 @@ echo "Admin user for '$PRIMARY_REALM' realm (in Secret '$PORTAL_ADMIN_SECRET'):"
 echo "  USERNAME: $PORTAL_ADMIN_USER"
 echo "  PASSWORD: [stored in secret]"
 echo "----------------------------------------------------"
+
