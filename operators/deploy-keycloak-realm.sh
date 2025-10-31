@@ -3,7 +3,7 @@ set -e
 set -o pipefail
 
 # Load environment
-# source ../env.sh
+source ./env.sh
 # Using NAMESPACE from env.sh, or providing a default
 NAMESPACE=${NAMESPACE:-"obs-demo"}
 echo "Using namespace: $NAMESPACE"

@@ -1,4 +1,4 @@
-import React, { useEffect, useState,useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import * as ApiHelper from '../ApiHelper';
 import { useKeycloak } from "@react-keycloak/web";
 import { NavLink, Link, useLocation } from 'react-router-dom';
@@ -110,31 +110,37 @@ const ClusterInfo = ({ selectedUser, setSelectedUser }) => {
                     <div className='row'>
                         <div className="col-12">
                             {isAdmin && !isAdminRoute ? (
-                                <select
-                                    className="py-1.5 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm transition duration-150"
-                                    id="namespace"
-                                    name="user-namespace"
-                                    // You should bind the value to a state variable (e.g., selectedNamespace) 
-                                    // instead of a static value like "coo" for real usage.
-                                    value={selectedUser?.username}
-                                    onChange={handleUserNamespaceChange}
-                                >
-                                    {data.Users && data.Users.map((user) => (
-                                        <option
-                                            key={user.username}
-                                            value={user.username}
-                                        >
-                                            {user.username}
-                                        </option>
-                                    ))}
-                                </select>
+                                // Add this check:
+                                (data.Users && data.Users.length > 0) ? (
+                                    <select
+                                        className="py-1.5 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm transition duration-150"
+                                        id="namespace"
+                                        name="user-namespace"
+                                        value={selectedUser?.username}
+                                        onChange={handleUserNamespaceChange}
+                                    >
+                                        {/* The check in the line above guarantees data.Users is a non-empty array here */}
+                                        {data.Users.map((user) => (
+                                            <option
+                                                key={user.username}
+                                                value={user.username}
+                                            >
+                                                {user.username}
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    // OPTIONAL: Show a message if no users exist
+                                    <div className="py-1.5 px-3 text-sm text-gray-500">
+                                        No users available.
+                                    </div>
+                                )
                             ) : (
                                 <div>
                                     <strong className="me-2">Namespace:</strong>
                                     <span>{data.Namespace}</span>
                                 </div>
                             )}
-
                         </div>
                     </div>
                 </div>

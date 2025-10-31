@@ -6,7 +6,7 @@ source ../env.sh
 
 # Get the directory where the Dockerfile is located
 SCRIPT_DIR="$(realpath "$(dirname "$0")")"
-SOURCES_DIR=$SCRIPT_DIR/ansible-image/
+SOURCES_DIR=$SCRIPT_DIR/job-image/
 
 # Create Ansible main image with dependencies for improving User Synchronization jobs start
 print_header "Create Ansible main image with dependencies for improving User Synchronization jobs start"

@@ -54,7 +54,20 @@ const App = () => {
               path="/simulation"
               element={selectedUser
                 ? <SimulationPage selectedUser={selectedUser} />
-                : <div>Loading user data...</div>
+                : (
+    <div className="container" style={{ marginTop: '20vh' }}>
+      <div className="row">
+        <div className="col-lg-6 col-md-8 mx-auto">
+          <div className="card text-center text-muted border-0 shadow-sm">
+            <div className="card-body p-5">
+              <i className="fas fa-info-circle" style={{ fontSize: '3rem' }}></i>
+              <h3 className="card-title mt-3 mb-0">No User Data Available</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
               }
             />
             <Route path="/" element={<Navigate to="/simulation" />} />
