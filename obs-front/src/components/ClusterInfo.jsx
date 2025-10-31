@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState,useCallback } from 'react';
 import * as ApiHelper from '../ApiHelper';
 import { useKeycloak } from "@react-keycloak/web";
 import { NavLink, Link, useLocation } from 'react-router-dom';
 import { notifyError } from '../services/NotificationService';
-
+import { eventBus, USERS_UPDATED_EVENT } from '../services/EventBus';
 
 const ClusterInfo = ({ selectedUser, setSelectedUser }) => {
 
@@ -17,38 +17,62 @@ const ClusterInfo = ({ selectedUser, setSelectedUser }) => {
     const userRoles = keycloak.realmAccess?.roles
     const isAdmin = userRoles?.includes("obs-admin") || false
 
-    useEffect(() => {
-        const fetchData = async () => {
-            var data = []
-            try {
-                let headers = new Headers();
-                headers.append('Content-Type', 'application/json');
-                headers.append('Accept', 'application/json');
-                headers.append('Authorization', 'Bearer ' + keycloak.token);
+    const fetchData = useCallback(async () => {
+        var data = []
+        try {
+            let headers = new Headers();
+            headers.append('Content-Type', 'application/json');
+            headers.append('Accept', 'application/json');
+            headers.append('Authorization', 'Bearer ' + keycloak.token);
 
-                const response = await fetch(ApiHelper.getInfoUrl(), { headers: headers });
-                data = await response.json();
-                if (response.status == 200) {
-                    setData(data);
+            const response = await fetch(ApiHelper.getInfoUrl(), { headers: headers });
+            data = await response.json();
+            if (response.status == 200) {
+                setData(data);
+                // Check if the currently selected user still exists in the new list.
+                const userExists = data.Users?.find(u => u.username === selectedUser?.username);
+
+                // If they don't (or if no user was selected), default to the first user.
+                if (!userExists) {
                     setSelectedUser(
                         (data.Users?.length > 0 ? data.Users[0] : null) ?? null);
                 }
-                else {
-                    setError(`Error fetching data[${response.status}]`);
-                    notifyError("Error fetching cluster data. " + data);
-                }
-            } catch (err) {
-                setError(err.message);
-                notifyError('Error fetching data:', err);
-            } finally {
-                setLoading(false);
+                // If they *do* exist, the 'selectedUser' state remains unchanged, 
+                // preventing the dropdown from unexpectedly resetting.
             }
-            ApiHelper.setGlobalRootConsole(data.ConsoleURL);
-            ApiHelper.setglobalCurrentNamespace(data.Namespace);
+            else {
+                setError(`Error fetching data[${response.status}]`);
+                notifyError("Error fetching cluster data. " + data);
+            }
+        } catch (err) {
+            setError(err.message);
+            notifyError('Error fetching data:', err);
+        } finally {
+            setLoading(false);
+        }
+        ApiHelper.setGlobalRootConsole(data.ConsoleURL);
+        ApiHelper.setglobalCurrentNamespace(data.Namespace);
+    }, [keycloak.token, keycloak.authenticated, setSelectedUser, selectedUser?.username]);
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    useEffect(() => {
+        // Define the handler function
+        const handleUsersUpdated = () => {
+            console.log('User list updated, refetching cluster info...');
+            fetchData();
         };
 
-        fetchData();
-    }, [keycloak.token, keycloak.authenticated]);
+        // Add the listener
+        eventBus.addEventListener(USERS_UPDATED_EVENT, handleUsersUpdated);
+
+        // Return a cleanup function to remove the listener
+        return () => {
+            eventBus.removeEventListener(USERS_UPDATED_EVENT, handleUsersUpdated);
+        };
+    }, [fetchData]);
 
     //TODO: Improve user experience (conditional appearance of all items). 
     if (loading) {
@@ -65,14 +89,11 @@ const ClusterInfo = ({ selectedUser, setSelectedUser }) => {
 
     const findUserByUsername = (targetUsername, userList) => {
         const selectedUser = userList.find(user => user.username === targetUsername);
-        console.log("** User: ", selectedUser);
         return selectedUser;
     }
 
     const handleUserNamespaceChange = (e) => {
         const { name, value } = e.target;
-
-        console.log(e.target);
         setSelectedUser(findUserByUsername(value, data.Users));
     }
 

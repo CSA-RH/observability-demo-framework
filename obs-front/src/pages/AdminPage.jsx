@@ -3,7 +3,8 @@ import { getNamesPool, getRoleMappings, isValidK8sName, generateRandomPassword, 
 import ConfirmationModal from '../components/ConfirmationModal';
 import PasswordCell from '../components/PasswordCell';
 import { useKeycloak } from "@react-keycloak/web";
-
+import { useLoading } from '../context/LoadingContext';
+import { eventBus, USERS_UPDATED_EVENT } from '../services/EventBus';
 
 const names = getNamesPool();
 
@@ -11,7 +12,6 @@ const AdminPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState(null) // 'create' or 'delete'
   const [userToProcess, setUserToProcess] = useState(null);
-
   const [error, setError] = useState("");
   const [users, setUsers] = useState([]);
   const { keycloak, initialized } = useKeycloak();
@@ -19,19 +19,21 @@ const AdminPage = () => {
     username: "",
     monitoringType: "coo",
   });
+  const { showLoading, hideLoading } = useLoading();
 
   // --- Manage users --- 
 
   useEffect(() => {
     const fetchUsers = async () => {
       setError("");
-      try { 
+      try {
         const userListResponse = await fetch(getUserListUrl(), {
           method: "GET",
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${keycloak.token}` 
-         }});
+            Authorization: `Bearer ${keycloak.token}`
+          }
+        });
         if (userListResponse.status > 299) {
           setUsers([]);
           setError(`Error fetching users[${userListResponse.status}]`)
@@ -40,37 +42,37 @@ const AdminPage = () => {
           const users_json = await userListResponse.json();
           setUsers(users_json);
         }
-      } catch(error) {        
+      } catch (error) {
         const errorMessage = `Error fetching users[${error}]`
         console.error(errorMessage);
         setError(errorMessage);
       }
     };
-  
+
     fetchUsers();
-  
-    }, [keycloak.token, keycloak.authenticated]); // Empty dependency array to run once on component mount
+
+  }, [keycloak.token, keycloak.authenticated]); // Empty dependency array to run once on component mount
 
   // --- Functions to manage users ---
-  const deleteUser = async (user) => {    
+  const deleteUser = async (user) => {
     setError("");
     try {
       const deleteUserResponse = await fetch(`${getUserListUrl()}/${user}`, {
         method: "DELETE",
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${keycloak.token}` 
-        }, 
+          Authorization: `Bearer ${keycloak.token}`
+        },
         body: JSON.stringify({
           'username': user
         })
-      
+
       });
       if (deleteUserResponse.status > 299) {
         setUsers([]);
         setError(`Error deleting user ${user}[${deleteUserResponse.status}]`)
-      }      
-    } catch(error) {        
+      }
+    } catch (error) {
       const errorMessage = `Error fetching users[${error}]`
       console.error(errorMessage);
       setError(errorMessage);
@@ -84,15 +86,15 @@ const AdminPage = () => {
         method: "POST",
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${keycloak.token}` 
-        }, 
-        body: JSON.stringify(user)      
+          Authorization: `Bearer ${keycloak.token}`
+        },
+        body: JSON.stringify(user)
       });
       if (postUserResponse.status > 299) {
         setUsers([]);
         setError(`Error creating user ${user.username}[${deleteUserResponse.status}]`)
-      }      
-    } catch(error) {        
+      }
+    } catch (error) {
       const errorMessage = `Error creating user[${error}]`
       console.error(errorMessage);
       setError(errorMessage);
@@ -120,30 +122,39 @@ const AdminPage = () => {
   };
 
   const handleConfirmAction = async () => {
-    if (modalType === 'create') {
-      console.log(`CONFIRMED: Creating user ${newUserData.username}...`);
-      // API call to create user goes here
-
-      newUserData.password = generateRandomPassword();
-      users.push(newUserData);
-      setUsers(users);
-      setNewUserData({
-        username: "",
-        monitoringType: "coo"
-      });
-      //PUSH USER
-      await postUser(newUserData);
-    } else if (modalType === 'delete') {
-      console.log(`CONFIRMED: Deleting user ID ${userToProcess}...`);
-      // API call to delete user 
-      await deleteUser(userToProcess);
-      const updatedUsers = users.filter(userObj => userObj.username !== userToProcess);
-      setUsers(updatedUsers);
-    }
-    // Close the modal after the action
     handleCloseModal();
+    showLoading();
     setError("");
-    setNewUserData({username: "", monitoringType: "coo"})
+    try {
+      if (modalType === 'create') {
+        console.log(`CONFIRMED: Creating user ${newUserData.username}...`);
+        // API call to create user goes here
+
+        newUserData.password = generateRandomPassword();
+        users.push(newUserData);
+        setUsers(users);
+        setNewUserData({
+          username: "",
+          monitoringType: "coo"
+        });
+        //PUSH USER
+        await postUser(newUserData);
+        eventBus.dispatchEvent(new Event(USERS_UPDATED_EVENT));
+      } else if (modalType === 'delete') {
+        console.log(`CONFIRMED: Deleting user ID ${userToProcess}...`);
+        // API call to delete user 
+        await deleteUser(userToProcess);
+        eventBus.dispatchEvent(new Event(USERS_UPDATED_EVENT));
+        const updatedUsers = users.filter(userObj => userObj.username !== userToProcess);
+        setUsers(updatedUsers);
+      }
+    } catch (error) {
+      console.error("Failed to confirm action: ", error);
+      setError(`Error: ${error.message}`);
+    } finally {      
+      hideLoading();
+      setNewUserData({ username: "", monitoringType: "coo" })
+    }
   };
 
   const getModalProps = () => {
@@ -189,14 +200,14 @@ const AdminPage = () => {
 
   const handleAddNewUser = (e) => {
     // Validation
-    if (!isValidK8sName(newUserData.username)) {      
+    if (!isValidK8sName(newUserData.username)) {
       setError("Name not valid.");
       return;
     }
     if (!isReservedName(newUserData.username)) {
       setError(`Username ${newUserData.username} is reserved.`);
     }
-    if (!isUserUnique(newUserData.username)){
+    if (!isUserUnique(newUserData.username)) {
       setError(`user ${newUserData.username} already exists.`);
       return;
     }
@@ -228,7 +239,7 @@ const AdminPage = () => {
                       </td>
                       <td>
                         <code>{mapping.monitoringType}</code>
-                      </td>                      
+                      </td>
                       <PasswordCell password={mapping.password} />
                       <td>
                         <button className="btn-circle btn-red"
@@ -255,14 +266,14 @@ const AdminPage = () => {
                         id="monitoringType"
                         name="monitoringType"
                         value={newUserData.monitoringType}
-                        onChange={handleInputChange}                        
+                        onChange={handleInputChange}
                       >
                         <option value="user-workload">User Workload</option>
                         <option value="coo">COO</option>
                         <option value="mesh">Mesh</option>
                       </select>
                     </td>
-                    <td>                      
+                    <td>
                     </td>
                     <td>
                       <button className="btn-circle btn-green"

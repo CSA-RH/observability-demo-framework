@@ -84,6 +84,8 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   generateName: sync-users-
+  labels: 
+    observability-demo-framework: users
 spec:
   backoffLimit: 0
   ttlSecondsAfterFinished: 180  

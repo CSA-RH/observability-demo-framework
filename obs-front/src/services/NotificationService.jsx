@@ -1,9 +1,9 @@
 import { toast } from 'react-toastify';
-import { IconError, IconSuccess } from '../components/Icons'; // Asumo la ruta de tus iconos
+import { IconError, IconSuccess } from '../components/Icons'; 
 
 /**
- * Muestra un toast de éxito y lo registra en la consola.
- * @param {string} message - El mensaje a mostrar.
+ * Show a success toast with a message. 
+ * @param {string} message 
  */
 export const notifySuccess = (message) => {
   console.log(message);
@@ -11,15 +11,14 @@ export const notifySuccess = (message) => {
 };
 
 /**
- * Muestra un toast de error y lo registra en la consola.
- * @param {string} message - Un prefijo para el mensaje de error (ej. "Error al crear").
- * @param {Error|string} [error] - El objeto de error o mensaje de error.
+ * Show a toast error
+ * @param {string} message - message
+ * @param {Error|string} [error] - error exception (optional)
  */
 export const notifyError = (message, error) => {
-  // Construye un mensaje de error detallado
   const errorMessage = error instanceof Error ? error.message : String(error || '');
   const fullMessage = `${message}${errorMessage ? `: ${errorMessage}` : ''}`;
   
-  console.error(fullMessage); // Siempre registra el error completo
+  console.error(fullMessage); 
   toast.error(fullMessage, { icon: <IconError /> });
 };

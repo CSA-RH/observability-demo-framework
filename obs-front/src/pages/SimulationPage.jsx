@@ -36,7 +36,7 @@ const SimulationPage = ({ selectedUser }) => {
   // Keep refs updated (cytoscape inside a closure)
   useEffect(() => {
     agentsRef.current = agents;
-    layoutRef.current = layout;    
+    layoutRef.current = layout;
   }, [agents, layout]);
 
   function handleCreateSimulation(updatedAgents) {
@@ -187,6 +187,7 @@ const SimulationPage = ({ selectedUser }) => {
           setLayout(simulation_json.layout);
           setSimulationLoaded(simulation_json.layout.length)
           setCurrentNamespaceLoaded(selectedUser?.username);
+          setSelectedAgent(null);
         }
       } catch (error) {
         notifyError('Error fetching data:', error);
@@ -201,7 +202,11 @@ const SimulationPage = ({ selectedUser }) => {
     <div className="container">      
       <div className="row">
         <div className="col-12">
-          <h2>Communications<code>[{selectedUser?.monitoringType}]</code></h2>
+          <h2>Communications<code>[{selectedUser?.monitoringType}]</code> {selectedUser?.monitoringType == "coo"  && (<a  href={ApiHelper.getPrometheusRoute(selectedUser?.username)}
+                                        target="_blank" rel="noopener noreferrer">
+                                        <img src="/prometheus.svg" className="nav-icon-svg" style={{ height: "40px", width: "auto", verticalAlign: "middle" }}
+                                            alt="Logging" />
+                                    </a>)}</h2>
           {!simulationLoaded && (
             <AgentTypePicker
               nodeTypes={agentTypes}
@@ -235,11 +240,11 @@ const SimulationPage = ({ selectedUser }) => {
                 onAgentSelected={onAgentSelected} />
             </div>
             <div className="col-12 col-xl-6 border rounded mt-3">
-              <AgentInfo agent={selectedAgent} userId={selectedUser?.username} onAgentUpdated={handleAgentUpdated} />
+              <AgentInfo agent={selectedAgent} user={selectedUser} onAgentUpdated={handleAgentUpdated} />
             </div>
           </div>
           <div className="row mt-3">
-            <AlertManagement alerts={alerts} userId={selectedUser?.username} onAlertsUpdated={fetchAlerts}></AlertManagement>
+            <AlertManagement alerts={alerts} userId={selectedUser} onAlertsUpdated={fetchAlerts}></AlertManagement>
           </div>
         </div>
       )}

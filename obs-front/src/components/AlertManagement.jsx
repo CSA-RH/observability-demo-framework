@@ -3,7 +3,7 @@ import * as ApiHelper from '../ApiHelper.js'
 import { useKeycloak } from "@react-keycloak/web";
 import { notifyError, notifySuccess } from '../services/NotificationService.jsx';
 
-const AlertManagement = ({ alerts, userId, onAlertsUpdated }) => {
+const AlertManagement = ({ alerts, user, onAlertsUpdated }) => {
 
     const [addNewAlert, setAddNewAlert] = useState(false)
     const [validationError, setValidationError] = useState("");
@@ -31,12 +31,13 @@ const AlertManagement = ({ alerts, userId, onAlertsUpdated }) => {
         if (formData.expression.trim() === "") {
             return "Expression field cannot be empty.";
         }
-        return ""; // No errors
+        return "";
     };
 
     async function saveAlert(alert) {
         try {
-            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(userId), {
+            console.log("TEST")
+            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(user?.username), {
                 method: "POST",
                 headers: {
                     'Content-Type': 'application/json',
@@ -58,7 +59,7 @@ const AlertManagement = ({ alerts, userId, onAlertsUpdated }) => {
 
     async function deleteAlert(alertName) {
         try {
-            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(userId), {
+            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(user?.username), {
                 method: "DELETE",
                 headers: {
                     'Content-Type': 'application/json',
@@ -81,8 +82,9 @@ const AlertManagement = ({ alerts, userId, onAlertsUpdated }) => {
         }
     }
 
-    const handleNewAlertSubmit = async (e) => {
+    const handleNewAlertSubmit = async (e) => {        
         e.preventDefault();
+        console.log("TESSST3");
         const error = validateForm();
         if (error) {
             setValidationError(error);
@@ -91,6 +93,7 @@ const AlertManagement = ({ alerts, userId, onAlertsUpdated }) => {
 
         const newAlert = {
             name: formData.name,
+            observabilityStack: user?.monitoringType,
             scope: "custom",
             severity: formData.severity,
             definition: {
@@ -131,7 +134,6 @@ const AlertManagement = ({ alerts, userId, onAlertsUpdated }) => {
 
     function handleEnableAddAlertForm() {
         setAddNewAlert(true);
-
     }
 
     const handleDeleteAlert = async (alertId) => {
@@ -259,7 +261,7 @@ const AlertManagement = ({ alerts, userId, onAlertsUpdated }) => {
                     {/* Buttons */}
                     <div className="row">
                         <div className="d-flex justify-content-center">
-                            <button type="submit" className="btn btn-primary me-2">
+                            <button type="submit" className="btn btn-primary me-2" onClick={() => console.log("BUTTON CLICKED")}>
                                 Submit
                             </button>
                             <button type="button" className="btn btn-secondary" onClick={handleCancel}>

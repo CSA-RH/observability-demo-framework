@@ -4,7 +4,7 @@ import MetricAlertCreator from './MetricAlertCreator.jsx';
 import { useKeycloak } from "@react-keycloak/web";
 import { notifySuccess, notifyError } from '../services/NotificationService';
 
-const AgentInfo = ({ agent, userId, onAgentUpdated }) => {
+const AgentInfo = ({ agent, user, onAgentUpdated }) => {
 
     const allAlertOperators = ["<", "≤", "=", "≠", "≥", ">"]
 
@@ -16,13 +16,14 @@ const AgentInfo = ({ agent, userId, onAgentUpdated }) => {
     const [alertOperatorsAvailable, setAlertOperatorsAvailable] = useState(allAlertOperators);
     const { keycloak, initialized } = useKeycloak();
 
-    useEffect(() => {
+    useEffect(() => {        
         if (agent) {
             setMetrics(agent.metrics || []);
         }
         else {
             setMetrics([])
         }
+
         setAlertEditorEnabled(false);
         setMetricAlertSelected("");
 
@@ -42,7 +43,7 @@ const AgentInfo = ({ agent, userId, onAgentUpdated }) => {
             metric: metric
         }
         try {
-            const response = await fetch(ApiHelper.getAgentsMetricsUrl(userId), {
+            const response = await fetch(ApiHelper.getAgentsMetricsUrl(user?.username), {
                 method: method,
                 headers: {
                     'Content-Type': 'application/json',
@@ -155,7 +156,7 @@ const AgentInfo = ({ agent, userId, onAgentUpdated }) => {
 
     async function saveAlert(alert) {
         try {
-            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(userId), {
+            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(user?.username), {
                 method: "POST",
                 headers: {
                     'Content-Type': 'application/json',
@@ -165,6 +166,7 @@ const AgentInfo = ({ agent, userId, onAgentUpdated }) => {
             });
             const responsePayload = await response.json();
             if (response.status == 200){
+                console.log(alert);
                 notifySuccess("Alert saved.");
                 return responsePayload;
             }
@@ -178,7 +180,7 @@ const AgentInfo = ({ agent, userId, onAgentUpdated }) => {
 
     async function deleteAlert(alertName) {
         try {
-            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(userId, alertName), {
+            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(user?.username, alertName), {
                 method: "DELETE",
                 headers: {
                     'Content-Type': 'application/json', 
@@ -204,6 +206,7 @@ const AgentInfo = ({ agent, userId, onAgentUpdated }) => {
 
         const newAlertDefinition = {
             scope: "metricAgent",
+            observabilityStack: user?.monitoringType,
             severity: severity,
             definition: {
                 agent: agent.id,
@@ -230,7 +233,7 @@ const AgentInfo = ({ agent, userId, onAgentUpdated }) => {
                 <div>
                     <h6>
                         <span className="value">
-                            <a href={ApiHelper.getPodAddress(agent.pod, userId)}
+                            <a href={ApiHelper.getPodAddress(agent.pod, user?.username)}
                                 target="_blank" rel="noopener noreferrer">{agent.pod} <i className="fas fa-external-link-alt"></i></a>
                         </span> <span className="value">[{agent.ip}] metrics</span>
                     </h6>
@@ -252,7 +255,7 @@ const AgentInfo = ({ agent, userId, onAgentUpdated }) => {
                                             className={`${metricAlertSelected === metric.name ? 'table-active' : ''}`}>
                                             <td>
                                                 <a key={index} className="label"
-                                                    href={ApiHelper.getObserveLinkForMetric(metric.name, agent.id)}
+                                                    href={ApiHelper.getObserveLinkForMetric(metric.name, agent.id, user)}
                                                     target="_blank" rel="noopener noreferrer">{metric.name} <i className="fas fa-external-link-alt"></i></a>
                                             </td>
                                             <td>

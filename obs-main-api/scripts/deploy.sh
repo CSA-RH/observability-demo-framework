@@ -135,6 +135,12 @@ rules:
   - apiGroups: ["monitoring.rhobs"] 
     resources: ["monitoringstacks", "servicemonitors", "prometheusrules"] 
     verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: ["route.openshift.io"]
+    resources: ["routes"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+  - apiGroups: ["monitoring.rhobs"]
+    resources: ["prometheusrules"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
 EOF
   # - Create role binding (obs-main-api-role and obs-main-api-clusterrole to obs-main-api-sa)
   cat <<EOF | oc apply -f -

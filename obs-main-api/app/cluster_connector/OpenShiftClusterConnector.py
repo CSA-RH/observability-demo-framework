@@ -3,6 +3,7 @@ from typing import Dict, List, Any
 from kubernetes import config, client, watch       # type: ignore
 from kubernetes.client.rest import ApiException    # type: ignore
 from utils import JSONUtils
+import sys
 
 import os, time, json, http.client, socket, base64
 
@@ -347,6 +348,37 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         print(f"Timeout: Not all pods for deployment '{deployment_name}' are ready after {timeout} seconds.")
         return False
     
+    def __create_openshift_route(self, namespace, route_body):
+       
+        # OpenShift Route API details
+        group = "route.openshift.io"
+        version = "v1"
+        plural = "routes"
+        
+        name = route_body.get("metadata", {}).get("name", "unknown")
+
+        try:
+            print(f"Attempting to create Route '{name}' in namespace '{namespace}'...")
+            
+            # Create the namespaced custom object
+            self.__custom_v1_api.create_namespaced_custom_object(
+                group=group,
+                version=version,
+                namespace=namespace,
+                plural=plural,
+                body=route_body
+            )
+            print(f"✅ Successfully created Route '{name}'.")
+
+        except ApiException as e:
+            if e.status == 409:  # 409 Conflict == Already Exists
+                print(f"⚠️  Route '{name}' already exists. Skipping.")
+            else:
+                print(f"❌ Error creating Route '{name}': {e.reason}", file=sys.stderr)
+                print(f"   Details: {e.body}", file=sys.stderr)
+        except Exception as e:
+            print(f"❌ An unexpected error occurred for Route '{name}': {e}", file=sys.stderr)
+        
     def __create_monitoring_stack_coo(self, namespace, user):
         # Define the MonitoringStack 
         monitoring_stack_body = {
@@ -430,6 +462,47 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print("--------")
             raise
         
+        # Create Routes for Prometheus and Alertmanager
+        alertmanager_route = {
+            "apiVersion": "route.openshift.io/v1",
+            "kind": "Route",
+            "metadata": {
+                "name": f"alertmanager-{user}",
+                "namespace": namespace
+            },
+            "spec": {
+                "to": {
+                    "kind": "Service",
+                    "name": f"monitoring-stack-{user}-alertmanager"
+                },
+                "tls": {
+                    "termination": "edge"  # This corresponds to 'edge'
+                }
+            }
+        }
+        
+        prometheus_route = {
+            "apiVersion": "route.openshift.io/v1",
+            "kind": "Route",
+            "metadata": {
+                "name": f"prometheus-{user}",
+                "namespace": namespace
+            },
+            "spec": {
+                "to": {
+                    "kind": "Service",
+                    "name": f"monitoring-stack-{user}-prometheus"
+                },
+                "tls": {
+                    "termination": "edge"  # This corresponds to 'edge'
+                }
+            }
+        }
+        print("Creating Routes")
+        self.__create_openshift_route(namespace, alertmanager_route)
+        self.__create_openshift_route(namespace, prometheus_route)
+        
+        
         
     def __create_service_monitor_coo(self, namespace, item, user):
         # Define the ServiceMonitor specification
@@ -469,9 +542,9 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 plural="servicemonitors",
                 body=service_monitor_body
             )
-            print(f"ServiceMonitor {service_monitor_name} created successfully.")
+            print(f"ServiceMonitor {service_monitor_name}[COO] created successfully.")
         except client.exceptions.ApiException as e:
-            print(f"Exception when creating ServiceMonitor {service_monitor_name}")
+            print(f"Exception when creating ServiceMonitor {service_monitor_name}[COO]")
             print(e)
             print("--------")
             raise
@@ -686,11 +759,17 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         alerts_definition.append(alert)
         self.__save_json_to_configmap(alerts_definition, self.ALERTS_CONFIGMAP, "alerts", namespace)
 
-    def create_alert_resource(self, user, id, name, severity, group, expression, summary):
+    def create_alert_resource(self, user, stack, id, name, severity, group, expression, summary):
         # Define the PrometheusRule resource
         namespace = f"{self.__get_current_namespace()}-{user}"
+        if stack == "coo":
+            api_group = "monitoring.rhobs"
+        else:
+            api_group = "monitoring.coreos.com"
+            
+            
         prometheus_rule_body = {
-            "apiVersion": "monitoring.coreos.com/v1",
+            "apiVersion": f"{api_group}/v1",
             "kind": "PrometheusRule",
             "metadata": {
                 "name": id,
@@ -721,9 +800,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             },
         }    
         
+        # Add the tag to be recognized by the MonitoringStack resource
+        if stack == "coo":
+            prometheus_rule_body["metadata"]["labels"]["monitoring-stack"] = user
+        
         try:
             response = self.__custom_v1_api.create_namespaced_custom_object(
-                group="monitoring.coreos.com",
+                group=api_group,
                 version="v1",
                 namespace=namespace,
                 plural="prometheusrules",
@@ -765,6 +848,36 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             else:
                 print(f"Error retrieving namespace: {e}")
             return None
+        
+    def __delete_openshift_route(self, namespace, route_name):
+        
+        # OpenShift Route API details
+        group = "route.openshift.io"
+        version = "v1"
+        plural = "routes"
+
+        try:
+            print(f"Attempting to delete Route '{route_name}' in namespace '{namespace}'...")
+            
+            # Delete the namespaced custom object
+            self.__custom_v1_api.delete_namespaced_custom_object(
+                group=group,
+                version=version,
+                namespace=namespace,
+                plural=plural,
+                name=route_name,
+                body=client.V1DeleteOptions()
+            )
+            print(f"✅ Successfully deleted Route '{route_name}'.")
+
+        except ApiException as e:
+            if e.status == 404:  # 404 Not Found == Already Deleted
+                print(f"⚠️  Route '{route_name}' does not exist. Skipping.")
+            else:
+                print(f"❌ Error deleting Route '{route_name}': {e.reason}", file=sys.stderr)
+                print(f"   Details: {e.body}", file=sys.stderr)
+        except Exception as e:
+            print(f"❌ An unexpected error occurred for Route '{route_name}': {e}", file=sys.stderr)
     
     async def delete_simulation(self, user):        
         label_selector = "observability-demo-framework=agent"
@@ -806,7 +919,10 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                     version="v1beta1",
                     namespace=self.__get_current_namespace(),
                     plural="grafanadatasources",
-                    name=grafana_datasource_name)                
+                    name=grafana_datasource_name)
+                print ("Deleting routes")
+                self.__delete_openshift_route(namespace, f"prometheus-{user}")
+                self.__delete_openshift_route(namespace, f"alertmanager-{user}")
             case "mesh":
                 #TODO
                 print("Service Mesh handling not implemented.")
@@ -954,7 +1070,10 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             "apiVersion": "batch/v1",
             "kind": "Job",
             "metadata": {
-                "generateName": "sync-users-"
+                "generateName": "sync-users-",
+                "labels": {
+                    "observability-demo-framework": "users"
+                }
             },
             "spec": {
                 "template": {
@@ -1035,17 +1154,14 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             }
         }
         
-        try:
-            api_response = self.__batch_v1_api.create_namespaced_job(namespace=self.__get_current_namespace(), body=job_manifest_body)
-            job_name = api_response.metadata.name
-        except ApiException as e:
-            print(f"Exception when calling BatchV1Api->create_namespaced_job: {e}")
-            return False #TODO: Overall error handling. 
+        api_response = self.__batch_v1_api.create_namespaced_job(namespace=self.__get_current_namespace(), body=job_manifest_body)
+        job_name = api_response.metadata.name
         
-        # Fire and forget. TODO: Check from the front about availability and task progress. 
-        #job_succeeded = self.__wait_for_job_completion(self.__batch_v1_api, job_name)
-        #if not job_succeeded:
-        #    print("JOB FAILED: Review logs above for error details.")
-        #    return False
-        #else:
-        #    print("Execution complete and successful.")
+        # Wait for job completion
+        job_succeeded = self.__wait_for_job_completion(self.__batch_v1_api, job_name)
+        if not job_succeeded:
+            print("JOB FAILED: Review logs above for error details.")
+            return False
+        else:
+            print("Execution complete and successful.")
+            return True

@@ -358,7 +358,9 @@ async def create_alert(user_id: str, payload: dict[str, Any], current_user: dict
     scope = payload['scope']
     severity = payload['severity']
     definition= payload['definition']
+    stack = payload['observabilityStack']
     print("Alert information: ")
+    print(f" - Stack: {stack}")
     print(f" - Alert scope: {scope}.")
     print(f" - Severity: {severity}")
     print(" - Alert Definition:")
@@ -371,7 +373,7 @@ async def create_alert(user_id: str, payload: dict[str, Any], current_user: dict
     summary = __get_alert_summary(payload)  
     expression = __get_alert_expression(payload)
         
-    result = cluster_connector.create_alert_resource(user_id, alert_id, alert_name, severity, group, expression, summary)
+    result = cluster_connector.create_alert_resource(user_id, stack, alert_id, alert_name, severity, group, expression, summary)
     if result is None: 
         raise HTTPException(status_code=400, detail="Error creating resource in the cluster. See logs for more information.")
     print("-----")
@@ -382,7 +384,7 @@ async def create_alert(user_id: str, payload: dict[str, Any], current_user: dict
     #TODO: Error handling (HTTP 400, 409, 422)
     payload['id'] = alert_id
     payload['name'] = alert_name
-    cluster_connector.save_alert_definition(current_user, payload)
+    cluster_connector.save_alert_definition(user_id, payload)
 
     response_data = {
         "id": alert_id,
@@ -467,32 +469,44 @@ def get_users(current_user: dict = Depends(get_current_user)):
 
 @app.post("/api/v1/users")
 def post_user(user_payload: dict[str, Any], current_user: dict = Depends(get_current_user)):    
-    users = cluster_connector.get_users_json()
-    users.append(user_payload)
-    # Update Backend. 
-    cluster_connector.update_users_json(users)
-    # Sync Users. 
-    cluster_connector.sync_users()
+    try:
+        users = cluster_connector.get_users_json()
+        users.append(user_payload)
+        
+        # Update Backend. 
+        cluster_connector.update_users_json(users)
+        
+        # Sync Users. 
+        if not cluster_connector.sync_users(): 
+            return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response(status_code=status.HTTP_200_OK)
+    except Exception as e: 
+        __print_exception(e)
+        return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @app.delete("/api/v1/users/{user_id}")
 def delete_user(user_id: str, current_user: dict = Depends(get_current_user)):
-    if user_id:
-        new_users_list = [
-            user for user in cluster_connector.get_users_json()
-            if user.get("username") != user_id
-        ]
-        
-        # Update backend
-        cluster_connector.update_users_json(new_users_list)
-        # Sync Users. 
-        cluster_connector.sync_users()
+    try:
+        if user_id:
+            new_users_list = [
+                user for user in cluster_connector.get_users_json()
+                if user.get("username") != user_id
+            ]
+            
+            # Update backend
+            cluster_connector.update_users_json(new_users_list)
+            # Sync Users. 
+            if not cluster_connector.sync_users():
+                return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # Print the result
-        print(f"Deleted user: {user_id}")
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
-        
-    else:
-        message=f"Error: user {user_id} not found"
-        print_red(message)
-        return JSONResponse(content=message, status_code=404)
-    
+            # Print the result
+            print(f"Deleted user: {user_id}")
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
+        else:
+            message=f"Error: user {user_id} not found"
+            print_red(message)
+            return JSONResponse(content=message, status_code=404)
+    except Exception as e: 
+        __print_exception(e)
+        return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)

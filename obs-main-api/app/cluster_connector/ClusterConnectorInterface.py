@@ -24,7 +24,7 @@ class ClusterConnectorInterface(ABC):
         pass    
 
     @abstractmethod 
-    def create_alert_resource(self, user, id, name, severity, group, expression, summary):
+    def create_alert_resource(self, user, stack, id, name, severity, group, expression, summary):
         pass       
 
     @abstractmethod

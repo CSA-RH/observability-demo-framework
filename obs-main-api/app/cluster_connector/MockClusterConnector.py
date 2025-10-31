@@ -64,8 +64,10 @@ class MockClusterConnector(ClusterConnectorInterface):
         JSONUtils.delete_json_file(self.PATH_ALERTS_DEF)
         JSONUtils.delete_json_file(self.PATH_SIMULATION_DEF)
     
-    def create_alert_resource(self, id, name, severity, group, expression, summary):
+    def create_alert_resource(self, user, stack, id, name, severity, group, expression, summary):
         print("Mocked alert:")
+        print(f"- user:       {user}")
+        print(f"- stack:      {stack}")
         print(f"- id:         {id}")
         print(f"- name:       {name}")
         print(f"- severity    {severity}")
@@ -100,3 +102,6 @@ class MockClusterConnector(ClusterConnectorInterface):
         
     def get_users_json(self, users):
         pass
+    
+    def sync_users(self): 
+        return True

@@ -1,4 +1,16 @@
-export const MASTER_API_ADDRESS = import.meta.env.VITE_OBSERVABILITY_DEMO_API
+export const MASTER_API_ADDRESS = import.meta.env.VITE_OBSERVABILITY_DEMO_API;
+
+
+function getClusterSuffix() {  
+  const parsedUrl = new URL(MASTER_API_ADDRESS);
+  const hostname = parsedUrl.hostname;
+  const firstDotIndex = hostname.indexOf('.');
+  if (firstDotIndex !== -1) {
+    return hostname.substring(firstDotIndex);
+  }
+  return null; 
+}
+
 
 
 export function getInfoUrl() {
@@ -51,8 +63,14 @@ export function getAlertRulesAddress() {
     return globalRootConsole + "/monitoring/alertrules?rowFilter-alerting-rule-source=user"
 }
 
-export function getObserveLinkForMetric(metric, job) {
-    return `${globalRootConsole}/monitoring/query-browser?query0=${metric}%7Bjob%3D"${job}"%7D`
+export function getObserveLinkForMetric(metric, job, user) {
+    if (user.monitoringType == "user-workload"){
+        return `${globalRootConsole}/monitoring/query-browser?query0=${metric}%7Bjob%3D"${job}"%7D`
+    }
+    if (user.monitoringType == "coo") {
+        return `https://prometheus-${user.username}-obs-demo-${user.username}${getClusterSuffix()}/query?g0.expr=${metric}%7Bjob%3D"${job}"%7D&g0.tab=graph`
+    }
+    return "#"
 }
 
 export function getRoleMappings() {
@@ -73,6 +91,10 @@ export function getRoleMappings() {
             drawing: "logo-cook.svg"
         }
     ];
+}
+
+export function getPrometheusRoute(username) {
+    return `https://prometheus-${username}-obs-demo-${username}${getClusterSuffix()}`
 }
 
 export function getNamesPool() {
