@@ -22,7 +22,7 @@
 
 ## Requirements
 
-- Install `az`
+- Install `az` or `aws` CLI depending on your hyperscaler. 
 
 ## 1. Create a cluster for this to run on
 
