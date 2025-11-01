@@ -197,11 +197,3 @@ oc wait \
     --for=condition=ready \
     --timeout=300s \
     keycloak idp-server
-
-
-# --- Create keycloak server --- 
-echo .................................
-echo ... Import CSA Realm into KC  ...
-echo .................................
-#oc create -f ./data/realm-csa.yaml
-source ./users/bootstrap-keycloak.sh

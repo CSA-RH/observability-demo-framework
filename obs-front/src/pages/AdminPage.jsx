@@ -270,7 +270,7 @@ const AdminPage = () => {
                       >
                         <option value="user-workload">User Workload</option>
                         <option value="coo">COO</option>
-                        <option value="mesh">Mesh</option>
+                        {/*<option value="mesh">Mesh</option>*/}
                       </select>
                     </td>
                     <td>
