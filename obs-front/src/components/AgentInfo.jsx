@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import * as ApiHelper from '../ApiHelper.js'
 import MetricAlertCreator from './MetricAlertCreator.jsx';
 import { useKeycloak } from "@react-keycloak/web";
+import { notifySuccess, notifyError } from '../services/NotificationService';
 
-const AgentInfo = ({ agent, onAgentUpdated }) => {
+const AgentInfo = ({ agent, user, onAgentUpdated }) => {
 
     const allAlertOperators = ["<", "≤", "=", "≠", "≥", ">"]
 
@@ -15,13 +16,14 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
     const [alertOperatorsAvailable, setAlertOperatorsAvailable] = useState(allAlertOperators);
     const { keycloak, initialized } = useKeycloak();
 
-    useEffect(() => {
+    useEffect(() => {        
         if (agent) {
             setMetrics(agent.metrics || []);
         }
         else {
             setMetrics([])
         }
+
         setAlertEditorEnabled(false);
         setMetricAlertSelected("");
 
@@ -41,7 +43,7 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
             metric: metric
         }
         try {
-            const response = await fetch(ApiHelper.getAgentsMetricsUrl(), {
+            const response = await fetch(ApiHelper.getAgentsMetricsUrl(user?.username), {
                 method: method,
                 headers: {
                     'Content-Type': 'application/json',
@@ -49,9 +51,20 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                 },
                 body: JSON.stringify(payload),
             });
-            const result = await response.json();
+            if (response.status == 200){
+                notifySuccess("Metric saved.");
+            } 
+            else
+            {
+                var msg = "Error saving metrics.";
+                const result = await response.json();
+                if (result?.message) {
+                    msg += `. \n${result.message}`;
+                }
+                notifyError(msg);
+            }
         } catch (error) {
-            console.error('Error:', error);
+            notifyError("Error saving metric", error);
         }
     }
 
@@ -143,7 +156,7 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
 
     async function saveAlert(alert) {
         try {
-            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(), {
+            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(user?.username), {
                 method: "POST",
                 headers: {
                     'Content-Type': 'application/json',
@@ -151,27 +164,38 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                 },
                 body: JSON.stringify(alert)
             });
-            return await response.json();
+            const responsePayload = await response.json();
+            if (response.status == 200){
+                console.log(alert);
+                notifySuccess("Alert saved.");
+                return responsePayload;
+            }
+            else {
+                notifyError("Error saving alert. " && (responsePayload?.message || ""));
+            }
         } catch (error) {
-            console.error('Error:', error);
+            notifyError('Error saving alert:', error);
         }
     }
 
     async function deleteAlert(alertName) {
         try {
-            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(), {
+            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(user?.username, alertName), {
                 method: "DELETE",
                 headers: {
                     'Content-Type': 'application/json', 
                     Authorization: `Bearer ${keycloak.token}` 
-                },
-                body: JSON.stringify({
-                    alert: alertName
-                })
-            })
-            return await response.json();
+                }
+            });
+            if (response.status != 204){
+                notifySuccess("Alert deleted.");
+            }
+            else {
+                responseContent = response.json();
+                notifyError("Error saving alert. " + responseContent?.message);
+            }
         } catch (error) {
-            console.error('Error', error);
+            notifyError('Error', error);
         }
     }
 
@@ -182,6 +206,7 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
 
         const newAlertDefinition = {
             scope: "metricAgent",
+            observabilityStack: user?.monitoringType,
             severity: severity,
             definition: {
                 agent: agent.id,
@@ -208,7 +233,7 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                 <div>
                     <h6>
                         <span className="value">
-                            <a href={ApiHelper.globalRootConsole + '/k8s/ns/' + ApiHelper.globalCurrentNamespace + '/pods/' + agent.pod}
+                            <a href={ApiHelper.getPodAddress(agent.pod, user?.username)}
                                 target="_blank" rel="noopener noreferrer">{agent.pod} <i className="fas fa-external-link-alt"></i></a>
                         </span> <span className="value">[{agent.ip}] metrics</span>
                     </h6>
@@ -230,7 +255,7 @@ const AgentInfo = ({ agent, onAgentUpdated }) => {
                                             className={`${metricAlertSelected === metric.name ? 'table-active' : ''}`}>
                                             <td>
                                                 <a key={index} className="label"
-                                                    href={ApiHelper.getObserveLinkForMetric(metric.name, agent.id)}
+                                                    href={ApiHelper.getObserveLinkForMetric(metric.name, agent.id, user)}
                                                     target="_blank" rel="noopener noreferrer">{metric.name} <i className="fas fa-external-link-alt"></i></a>
                                             </td>
                                             <td>

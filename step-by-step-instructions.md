@@ -22,7 +22,7 @@
 
 ## Requirements
 
-- Install `az`
+- Install `az` or `aws` CLI depending on your hyperscaler. 
 
 ## 1. Create a cluster for this to run on
 
@@ -104,6 +104,24 @@ To get the keycloak route
 ![alt text](./img/keycloak-route.png)
 
 ![alt text](./img/keycloak-users.png)
+
+### Create Ansible based image for sync users and execution prerrequisites
+
+```bash
+cd observability-demo-framework/obs-clients/operators/sync-users
+./create-image.sh
+./bootstrap.sh
+```
+
+### Create OpenShift Observability Demo CSA realm. 
+
+```bash
+cd observability-demo-framework/obs-clients/operators
+./deploy-keycloak-realm.sh
+```
+
+This script will create a secret named `obs-demo-admin-creds` in the root namespace, containing the credentials for the Portal Admin.
+
 
 ## 4 Apps
 

@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-
 import * as ApiHelper from '../ApiHelper'
 import '../App.css'
-
 import LayoutCanvas from '../components/LayoutCanvas';
 import SimulationManagement from '../components/SimulationManagement';
 import AgentList from '../components/AgentList';
@@ -10,9 +8,10 @@ import AgentInfo from '../components/AgentInfo';
 import AgentTypePicker from '../components/AgentTypePicker';
 import AlertManagement from '../components/AlertManagement';
 import { useKeycloak } from "@react-keycloak/web";
+import { notifyError } from '../services/NotificationService';
 
 
-const SimulationPage = () => {
+const SimulationPage = ({ selectedUser }) => {
 
   const agentTypes = [
     { type: "customer", image: "logo-customer.svg", enabled: true },
@@ -20,7 +19,7 @@ const SimulationPage = () => {
     //{ type: "java", image: "logo-java.png", enabled: false },
     { type: "cook", image: "logo-cook.svg", enabled: true }
   ]
-
+    
   const [layout, setLayout] = useState([])
   const [agents, setAgents] = useState([])
   const [alerts, setAlerts] = useState([])
@@ -28,6 +27,7 @@ const SimulationPage = () => {
   const [selectedAgenType, setSelectedAgentType] = useState(agentTypes[0]);
   const [simulationLoaded, setSimulationLoaded] = useState(false);
   const { keycloak, initialized } = useKeycloak();
+  const [currentNamespaceLoaded, setCurrentNamespaceLoaded] = useState("");
 
 
   const agentsRef = useRef([]);
@@ -143,29 +143,33 @@ const SimulationPage = () => {
 
   const fetchAlerts = async () => {
     try {
-      const alertListResponse = await fetch(ApiHelper.getClusterAlertDefinitionUrl(), {
+      const alertListResponse = await fetch(ApiHelper.getClusterAlertDefinitionUrl(selectedUser?.username), {
         method: "GET",
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${keycloak.token}` 
        }});
       if (alertListResponse.status > 299) {
+        const alertListPayload = alertListResponse.json();
+        notifyError(`Error fetching alerts[${alertListResponse.status}]. ` + alertListPayload?.message);
         setAlerts([]);
       }
       else {
         const alerts_json = await alertListResponse.json();
         setAlerts(alerts_json);
       }
-    } catch(error) {
-      //TODO: Global error handling
-      console.error("Error fetching alerts", error);
+    }
+    catch(error) {
+      notifyError("Error fetching alerts", error);
     }
   };
 
   useEffect(() => {
     const fetchData = async () => {
+      const apiUrl = ApiHelper.getSimulationUrl(selectedUser?.username);
+
       try {
-        const requestResponse = await fetch(ApiHelper.getSimulationUrl(), {
+        const requestResponse = await fetch(apiUrl, {
           method: "GET", 
           headers: {
             'Content-Type': 'application/json',
@@ -173,31 +177,36 @@ const SimulationPage = () => {
           }
         });
         if (requestResponse.status > 299) {
-          console.log("No simulation available")
           setAgents([]);
           setLayout([]);
           setSimulationLoaded(false)
         }
-        else {
+        else {          
           const simulation_json = await requestResponse.json();
           setAgents(simulation_json.agents);
           setLayout(simulation_json.layout);
-          setSimulationLoaded(simulation_json.layout.length > 0)
+          setSimulationLoaded(simulation_json.layout.length)
+          setCurrentNamespaceLoaded(selectedUser?.username);
+          setSelectedAgent(null);
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
+        notifyError('Error fetching data:', error);
       }
     };
 
     fetchData();
     fetchAlerts();
-  }, [keycloak.token, keycloak.authenticated]); // Empty dependency array to run once on component mount
+  }, [keycloak.token, keycloak.authenticated, selectedUser]);
 
   return (
     <div className="container">      
       <div className="row">
         <div className="col-12">
-          <h2>Communications</h2>
+          <h2>Communications<code>[{selectedUser?.monitoringType}]</code> {selectedUser?.monitoringType == "coo"  && (<a  href={ApiHelper.getPrometheusRoute(selectedUser?.username)}
+                                        target="_blank" rel="noopener noreferrer">
+                                        <img src="/prometheus.svg" className="nav-icon-svg" style={{ height: "40px", width: "auto", verticalAlign: "middle" }}
+                                            alt="Logging" />
+                                    </a>)}</h2>
           {!simulationLoaded && (
             <AgentTypePicker
               nodeTypes={agentTypes}
@@ -214,7 +223,7 @@ const SimulationPage = () => {
           />
           <SimulationManagement
             simulationLoaded={simulationLoaded}
-            simulation={{ layout: layout, agents: agents }}
+            simulation={{ layout: layout, agents: agents, user: selectedUser}}
             onSimulationCreated={handleCreateSimulation}
             onSimulationReset={handleResetSimulation} />
         </div>
@@ -226,15 +235,16 @@ const SimulationPage = () => {
               <h2>Agents</h2>
               <AgentList
                 agents={agents}
+                userId={selectedUser?.username}
                 selectedAgentId={selectedAgent?.id}
                 onAgentSelected={onAgentSelected} />
             </div>
             <div className="col-12 col-xl-6 border rounded mt-3">
-              <AgentInfo agent={selectedAgent} onAgentUpdated={handleAgentUpdated} />
+              <AgentInfo agent={selectedAgent} user={selectedUser} onAgentUpdated={handleAgentUpdated} />
             </div>
           </div>
           <div className="row mt-3">
-            <AlertManagement alerts={alerts} onAlertsUpdated={fetchAlerts}></AlertManagement>
+            <AlertManagement alerts={alerts} userId={selectedUser} onAlertsUpdated={fetchAlerts}></AlertManagement>
           </div>
         </div>
       )}

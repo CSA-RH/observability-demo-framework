@@ -47,7 +47,7 @@ spec:
   name: tempo-product
   source: redhat-operators
   sourceNamespace: openshift-marketplace
-  startingCSV: tempo-operator.v0.14.1-2
+  startingCSV: tempo-operator.v0.18.0-1
 EOF
   # Wait for the operator to be created and available. 
   wait_operator_to_be_installed operators.coreos.com/tempo-product.openshift-tempo-operator openshift-tempo-operator

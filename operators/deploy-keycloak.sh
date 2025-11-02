@@ -29,7 +29,7 @@ spec:
   name: rhbk-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
-  startingCSV: rhbk-operator.v26.0.8-opr.1
+  startingCSV: rhbk-operator.v26.0.10-opr.1
 EOF
 echo ................................................
 echo ... Create a custom certificate for Keycloak ...
@@ -59,26 +59,9 @@ openssl genrsa -out ${CERT_KEY} 2048
 openssl req -new -key ${CERT_KEY} -out ${CERT_CSR} \
   -subj "/C=ES/ST=Caribe/L=Macondo/O=ACME/OU=CSA/CN=Keycloak Demo certificate"
 
-## Get the TLS certificate from HAProxy router
-echo ... Get the TLS certificate from HAProxy router ...
-TMP_TLS_CERT_YAML=./output/cluster-cert.yaml
-TMP_TLS_CERT_CRT=./output/cluster-cert.crt
-if [[ $INFRASTRUCTURE = "AWS"  ]]; then 
-  export SECRET_TLS_FILTER="cert\-bundle\-secret"
-else
-  export SECRET_TLS_FILTER="\-ingress"
-fi
-echo FILTER=$SECRET_TLS_FILTER
-oc get -oyaml \
-  -n openshift-ingress \
-  $(oc get secret -n openshift-ingress -oNAME | grep $SECRET_TLS_FILTER) \
-  | yq - \
-  | yq eval '.data."tls.crt"' \
-  | base64 -d > $TMP_TLS_CERT_CRT
 ## Get the wildcard address form the general cert
-echo "... Get the wildcard address form the general cert ..."
+echo "... Get the wildcard address ..."
 WILDCARD_ADDRESS=."$(oc get ingress.config/cluster -o 'jsonpath={.spec.domain}')"
-rm ${TMP_TLS_CERT_CRT}
 export OAUTH_ENDPOINT=oauth-${PROJECT_NAME}${WILDCARD_ADDRESS//\*}
 echo "...    OAUTH_ENDPOINT=${OAUTH_ENDPOINT}"
 ## Add Keycloak route to the certificate
@@ -214,10 +197,3 @@ oc wait \
     --for=condition=ready \
     --timeout=300s \
     keycloak idp-server
-
-
-# --- Create keycloak server --- 
-echo .................................
-echo ... Import CSA Realm into KC  ...
-echo .................................
-oc create -f ./data/realm-csa.yaml

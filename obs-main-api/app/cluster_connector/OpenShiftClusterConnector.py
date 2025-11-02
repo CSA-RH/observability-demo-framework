@@ -3,12 +3,14 @@ from typing import Dict, List, Any
 from kubernetes import config, client, watch       # type: ignore
 from kubernetes.client.rest import ApiException    # type: ignore
 from utils import JSONUtils
+import sys
 
 import os, time, json, http.client, socket, base64
 
 class OpenShiftClusterConnector(ClusterConnectorInterface):
 
     ALERTS_CONFIGMAP = "obs-demo-fwk-alerts"
+    USERS_CONFIGMAP = "obs-demo-fwk-users"
 
     def __init__(self):        
         # Load Kubernetes configuration depending on the environment        
@@ -23,7 +25,8 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         
         self.__core_v1_api = client.CoreV1Api()
         self.__apps_v1_api = client.AppsV1Api()
-        self.__custom_v1_api = client.CustomObjectsApi()        
+        self.__custom_v1_api = client.CustomObjectsApi()
+        self.__batch_v1_api = client.BatchV1Api()
     
     def __get_current_namespace(self, context: str = None) -> str | None:
         ns_path = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
@@ -72,11 +75,58 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
 
         # If no route matches the selector
         return None, None
+    
+    def __get_users(self):
+        label_selector = "observability-demo-framework=users"
+        print(f"Searching for namespaces with label: {label_selector}")
 
-    def get_cluster_info(self) -> Dict[str, str]: 
-        # Get current namespace
-        current_namespace = self.__get_current_namespace()
+        try:
+            # The list_namespace call accepts the label_selector parameter
+            api_response = self.__core_v1_api.list_namespace(
+                label_selector=label_selector
+            )
+            
+            # The response contains the list of found objects under the 'items' attribute
+            if api_response.items:
+                print(f"Found {len(api_response.items)} matching namespace(s).")
+                return [ns.metadata.name for ns in api_response.items]
+            else:
+                print("No namespaces found matching the label selector.")
+                return []
 
+        except ApiException as e:
+            # Handle potential API errors (like 403 Forbidden, 404 Not Found, etc.)
+            print(f"Error retrieving namespaces (Code {e.status}): {e.reason}")
+            print("Check RBAC permissions for the active user/service account.")
+            return []
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            return []
+
+    def __remove_password_in_place(self, user_list):
+        """Removes the 'password' field from all items in the list (modifies original list)."""
+        for user_item in user_list:
+            # Use .get() to check if the key exists before attempting deletion.
+            # This prevents a KeyError if some items don't have a password field.
+            if 'password' in user_item:
+                del user_item['password']
+        return user_list
+
+    def get_cluster_info(self, user) -> Dict[str, str]: 
+        # Get namespace
+        api_namespace = self.__get_current_namespace()
+        allUsers = self.__remove_password_in_place(self.get_users_json())
+        if user=="admin":
+            user_namespace = api_namespace
+            users = allUsers
+        else:
+            user_namespace = f"{api_namespace}-{user}"
+            users = [next(
+                        (user_item for user_item in allUsers if user_item.get("username") == user),
+                        None
+                    )]
+            
+        
         # Get cluster name and console link
         try:
             # OpenShift API group, version, and resource to retrieve the Console
@@ -96,9 +146,9 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             # Extract cluster URL and parse to use as the cluster name
             console_url = console_resource['status']['consoleURL']
             cluster_name = console_url.split('.')[2]  # Cluster name typically part of the URL
-            jaegerui_route = f"{self.__get_route_url_by_selector(self.__get_current_namespace(), 'app.kubernetes.io/component=gateway')}/obsdemo"
+            jaegerui_route = f"{self.__get_route_url_by_selector(api_namespace, 'app.kubernetes.io/component=gateway')}/obsdemo"
             grafana_url_route = self.__get_route_url_by_selector(
-                self.__get_current_namespace(), 
+                api_namespace, 
                 "observability-demo-framework=grafana"
             )
 
@@ -108,11 +158,12 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         return {
             "Connected": True,
             "Name": cluster_name,
-            "Namespace": current_namespace,
+            "Namespace": user_namespace,
             "ConsoleURL": console_url, 
-            "apiLogsURL": f"{console_url}/k8s/ns/{current_namespace}/pods/{os.getenv('HOSTNAME')}/logs", 
+            "apiLogsURL": f"{console_url}/k8s/ns/{api_namespace}/pods/{os.getenv('HOSTNAME')}/logs", 
             "JaegerUI": jaegerui_route, 
-            "GrafanaURL": grafana_url_route
+            "GrafanaURL": grafana_url_route, 
+            "Users": users
         }
     
     def __get_image(self, tech_stack):
@@ -129,7 +180,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         return 'instrumentation.opentelemetry.io/inject-nodejs'
 
 
-    def __create_deployment(self, namespace, item):
+    def __create_deployment(self, user_namespace, image_namespace, item):
         print("DEPLOYMENT TYPE: " + item['type'])
         deployment_manifest = {
             'apiVersion': 'apps/v1',
@@ -161,7 +212,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                     'spec': {
                         'containers': [{
                             'name': 'core',
-                            'image': self.__get_image(item['type']),
+                            'image': f"image-registry.openshift-image-registry.svc:5000/{image_namespace}/{self.__get_image(item['type'])}",
                             'ports': [{
                                 'containerPort': 8080
                             }],
@@ -179,15 +230,15 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             }
         }
 
-        print(deployment_manifest)
-
         deployment_name = "." 
         try:
             deployment_name = item["id"]
-            self.__apps_v1_api.create_namespaced_deployment(namespace=namespace, body=deployment_manifest)
+            self.__apps_v1_api.create_namespaced_deployment(namespace=user_namespace, body=deployment_manifest)
             print(f"Deployment {deployment_name} successfully created.")
         except Exception as e: 
-            print(f"")
+            print(f"Error creating Deployment {deployment_name}. Exception: ")            
+            print(e)
+            print("-------")
             raise        
     
     def __create_service(self, namespace, item):
@@ -230,10 +281,10 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print("-------")
             raise
         
-    async def __get_agent_pods_dictionary(self):
+    async def __get_agent_pods_dictionary(self, namespace):
         try:        
             pods = self.__core_v1_api.list_namespaced_pod(
-                namespace = self.__get_current_namespace(), 
+                namespace, 
                 label_selector = 'observability-demo-framework=agent')
         except Exception as e: 
             print(f"Exception when retrieving pods: {e}")
@@ -281,14 +332,14 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             # Get the deployment status
             deployment = self.__apps_v1_api.read_namespaced_deployment(
                 name=deployment_name, 
-                namespace=namespace)
+                namespace=namespace)            
             
             # Check if the number of ready replicas matches the desired replicas
             if deployment.status.ready_replicas == deployment.spec.replicas:
                 print(f"All pods for deployment '{deployment_name}' are ready.")
                 return True
             else:
-                print(f"Waiting for pods to become ready. Ready pods: {deployment.status.ready_replicas}/{deployment.spec.replicas}")
+                print(f"Waiting for pods of deployment {deployment_name} to become ready. Ready pods: {deployment.status.ready_replicas}/{deployment.spec.replicas}")
             
             # Sleep for the defined interval before checking again
             time.sleep(interval)
@@ -297,6 +348,207 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         print(f"Timeout: Not all pods for deployment '{deployment_name}' are ready after {timeout} seconds.")
         return False
     
+    def __create_openshift_route(self, namespace, route_body):
+       
+        # OpenShift Route API details
+        group = "route.openshift.io"
+        version = "v1"
+        plural = "routes"
+        
+        name = route_body.get("metadata", {}).get("name", "unknown")
+
+        try:
+            print(f"Attempting to create Route '{name}' in namespace '{namespace}'...")
+            
+            # Create the namespaced custom object
+            self.__custom_v1_api.create_namespaced_custom_object(
+                group=group,
+                version=version,
+                namespace=namespace,
+                plural=plural,
+                body=route_body
+            )
+            print(f"✅ Successfully created Route '{name}'.")
+
+        except ApiException as e:
+            if e.status == 409:  # 409 Conflict == Already Exists
+                print(f"⚠️  Route '{name}' already exists. Skipping.")
+            else:
+                print(f"❌ Error creating Route '{name}': {e.reason}", file=sys.stderr)
+                print(f"   Details: {e.body}", file=sys.stderr)
+        except Exception as e:
+            print(f"❌ An unexpected error occurred for Route '{name}': {e}", file=sys.stderr)
+        
+    def __create_monitoring_stack_coo(self, namespace, user):
+        # Define the MonitoringStack 
+        monitoring_stack_body = {
+            "apiVersion": "monitoring.rhobs/v1alpha1",
+            "kind": "MonitoringStack",
+            "metadata": {
+                "name": f"monitoring-stack-{user}",
+                "labels": {                    
+                    'observability-demo-framework': 'coo',
+                    "monitoring-stack": user
+                }
+            },
+            "spec": {
+                "logLevel": "debug", 
+                "retention": "1d",
+                "resourceSelector": {
+                    "matchLabels": {
+                        "monitoring-stack": user
+                    }
+                }
+            }
+        }
+        
+        monitoring_stack_name = "."
+        try:
+            monitoring_stack_name = f"monitoring-stack-{user}"
+            self.__custom_v1_api.create_namespaced_custom_object(
+                group="monitoring.rhobs",
+                version="v1alpha1",
+                namespace=namespace,
+                plural="monitoringstacks",
+                body=monitoring_stack_body
+            )
+            print(f"MonitoringStack {monitoring_stack_name} created successfully.")
+        except client.exceptions.ApiException as e:
+            print(f"Exception when creating MonitoringStack {monitoring_stack_name}")
+            print(e)
+            print("--------")
+            raise
+
+        # Define Grafana Datasource
+        main_namespace = self.__get_current_namespace()
+        grafana_user_datasource = f"ds-grafana-coo-prometheus-{user}"
+        grafana_datasource_body = {
+            "apiVersion": "grafana.integreatly.org/v1beta1",
+            "kind": "GrafanaDatasource",
+            "metadata": {
+                "name": grafana_user_datasource,
+                "namespace": main_namespace, 
+                "labels": {                    
+                    'observability-demo-framework': 'grafana',
+                    "monitoring-stack": user
+                }
+            },
+            "spec": {
+                "instanceSelector": {
+                    "matchLabels": {
+                        "dashboards": "grafana-escotilla"
+                    }
+                }, 
+                "datasource": {
+                    "name": f"Prometheus[COO]: {user}",
+                    "type": "prometheus", 
+                    "access": "proxy",
+                    "url": f"http://prometheus-operated.{namespace}.svc:9090"
+                }
+            }
+        }
+        try:            
+            self.__custom_v1_api.create_namespaced_custom_object(
+                group="grafana.integreatly.org",
+                version="v1beta1",
+                namespace=main_namespace,
+                plural="grafanadatasources",
+                body=grafana_datasource_body
+            )
+            print(f"Grafana Datasource {grafana_user_datasource} created successfully.")
+        except client.exceptions.ApiException as e:
+            print(f"Exception when creating Grafana Datasource {grafana_user_datasource}")
+            print(e)
+            print("--------")
+            raise
+        
+        # Create Routes for Prometheus and Alertmanager
+        alertmanager_route = {
+            "apiVersion": "route.openshift.io/v1",
+            "kind": "Route",
+            "metadata": {
+                "name": f"alertmanager-{user}",
+                "namespace": namespace
+            },
+            "spec": {
+                "to": {
+                    "kind": "Service",
+                    "name": f"monitoring-stack-{user}-alertmanager"
+                },
+                "tls": {
+                    "termination": "edge"  # This corresponds to 'edge'
+                }
+            }
+        }
+        
+        prometheus_route = {
+            "apiVersion": "route.openshift.io/v1",
+            "kind": "Route",
+            "metadata": {
+                "name": f"prometheus-{user}",
+                "namespace": namespace
+            },
+            "spec": {
+                "to": {
+                    "kind": "Service",
+                    "name": f"monitoring-stack-{user}-prometheus"
+                },
+                "tls": {
+                    "termination": "edge"  # This corresponds to 'edge'
+                }
+            }
+        }
+        print("Creating Routes")
+        self.__create_openshift_route(namespace, alertmanager_route)
+        self.__create_openshift_route(namespace, prometheus_route)
+        
+        
+        
+    def __create_service_monitor_coo(self, namespace, item, user):
+        # Define the ServiceMonitor specification
+        service_monitor_body = {
+            "apiVersion": "monitoring.rhobs/v1",
+            "kind": "ServiceMonitor",
+            "metadata": {
+                "name": item["id"],
+                "labels": {
+                    "app": item["id"],
+                    'observability-demo-framework': 'agent',
+                    "monitoring-stack": user
+                }
+            },
+            "spec": {
+                "selector": {
+                    "matchLabels": {
+                        "app": item["id"]
+                    }
+                },
+                "endpoints": [
+                    {
+                        "port": "metrics",
+                        "interval": "30s"
+                    }
+                ]
+            }
+        }
+        
+        service_monitor_name = "."
+        try:
+            service_monitor_name = item["id"]
+            self.__custom_v1_api.create_namespaced_custom_object(
+                group="monitoring.rhobs",
+                version="v1",
+                namespace=namespace,
+                plural="servicemonitors",
+                body=service_monitor_body
+            )
+            print(f"ServiceMonitor {service_monitor_name}[COO] created successfully.")
+        except client.exceptions.ApiException as e:
+            print(f"Exception when creating ServiceMonitor {service_monitor_name}[COO]")
+            print(e)
+            print("--------")
+            raise
+        
     def __create_service_monitor(self, namespace, item):
         # Define the ServiceMonitor specification
         service_monitor_body = {
@@ -341,7 +593,8 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print("--------")
             raise
        
-    def save_simulation(self, json_data):
+    def save_simulation(self, user, json_data):
+        namespace=f"{self.__get_current_namespace()}-{user}"
         # Encode to base64
         encoded_data = base64.b64encode(json.dumps(json_data).encode('utf-8')).decode('utf-8')
         
@@ -350,22 +603,26 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             data={"simulation": encoded_data},
         )
         try:
-            self.__core_v1_api.create_namespaced_secret(self.__get_current_namespace(), secret)
+            self.__core_v1_api.create_namespaced_secret(namespace, secret)
             print(f"Simulation saved successfully in the cluster as secret obs-demo-fw-state.")
         except client.ApiException as e:
             print(f"Exception when saving simulation as a secret[obs-demo-fw-state]: {e}")
             raise
     
-    async def create_simulation_resources(self, agents: List[Dict[str, Any]]):
-        namespace = self.__get_current_namespace()  # Assuming you have a function to get the current namespace
+    async def create_simulation_resources(self, user, agents: List[Dict[str, Any]], stack):
+        
+        image_namespace=self.__get_current_namespace()
+        namespace = f"{image_namespace}-{user}"
 
+        if stack == "coo":
+            self.__create_monitoring_stack_coo(namespace, user)
         # Create all deployment and services. 
         for item in agents:
             
             print(f'Agent: {item["id"]}')
                 
             # Create Deployment
-            self.__create_deployment(namespace, item)
+            self.__create_deployment(namespace, image_namespace, item)
             print(f"Deployment for {item['id']} created.")
             
             # Create Service
@@ -373,17 +630,23 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(f"Service for {item['id']} created.")
             
             # Create service monitor
-            self.__create_service_monitor(namespace, item)
-            print(f"ServiceMonitor for {item['id']} created.")
+            if stack == "user-workload":
+                self.__create_service_monitor(namespace, item)            
+                print(f"ServiceMonitor[UW] for {item['id']} created.")
+            else:
+                self.__create_service_monitor_coo(namespace, item, user)
+                print(f"ServiceMonitor[COO] for {item['id']} created.")
+            
 
         # Make sure that all pods have started before adding associations
         # Wait for the Service to be ready and get its IP
-        podNames = self.__get_agent_pods_dictionary()
+        podNames = self.__get_agent_pods_dictionary(namespace)
         for item in agents:            
             service_ip = self.__wait_for_service_ready_and_get_ip(namespace, item["id"])
             if service_ip:
                 print(f"The Service IP address of {item['id']} is: {service_ip}")
                 item["ip"] = service_ip
+                item["dns"] = f"{item["id"]}.{namespace}.svc"
             else:
                 print(f"Failed to retrieve the Service IP address for {item['id']}.")
                 continue
@@ -396,10 +659,10 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         print(agents)
         return agents
     
-    def __get_agent_pods_dictionary(self):
+    def __get_agent_pods_dictionary(self, namespace):
         try:
             pods = self.__core_v1_api.list_namespaced_pod(
-                namespace=self.__get_current_namespace(), 
+                namespace, 
                 label_selector='observability-demo-framework=agent')
             pods_dict = {}
         except Exception as e:             
@@ -412,12 +675,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             pods_dict[deployment_name]=item.metadata.name
         return pods_dict
 
-    def retrieve_simulation(self):
+    def retrieve_simulation(self, user):
         # Get the secret
         secret_name="obs-demo-fw-state"
+        user_namespace=f"{self.__get_current_namespace()}-{user}"
         simulation = []
         try:
-            secret = self.__core_v1_api.read_namespaced_secret(secret_name, self.__get_current_namespace())
+            secret = self.__core_v1_api.read_namespaced_secret(secret_name, user_namespace)
             if 'simulation' in secret.data:
                 encoded_json_data = secret.data['simulation']
                 decoded_json_data = base64.b64decode(encoded_json_data).decode('utf-8')
@@ -439,7 +703,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 raise RuntimeError(message)
             return {}
         # Update agent pod name
-        pods = self.__get_agent_pods_dictionary()
+        pods = self.__get_agent_pods_dictionary(user_namespace)
         for agent in simulation["agents"]:
             agent["pod"] = pods[agent["id"]]
 
@@ -461,6 +725,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 raise
  
     def __save_json_to_configmap(self, json_data, configmap_name, key, namespace):
+        print(f"CONFIG MAP: '{configmap_name}'. NAMESPACE: '{namespace}'")
         json_str = json.dumps(json_data)
         configmap_data = {
             "metadata": {
@@ -488,16 +753,23 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             else:
                 raise
 
-    def save_alert_definition(self, alert):
-        alerts_definition=self.__load_json_from_configmap(self.ALERTS_CONFIGMAP, "alerts", self.__get_current_namespace())
+    def save_alert_definition(self, user, alert):
+        namespace = f"{self.__get_current_namespace()}-{user}"
+        alerts_definition=self.__load_json_from_configmap(self.ALERTS_CONFIGMAP, "alerts", namespace)
         alerts_definition.append(alert)
-        self.__save_json_to_configmap(alerts_definition, self.ALERTS_CONFIGMAP, "alerts", self.__get_current_namespace())
+        self.__save_json_to_configmap(alerts_definition, self.ALERTS_CONFIGMAP, "alerts", namespace)
 
-    def create_alert_resource(self, id, name, severity, group, expression, summary):
+    def create_alert_resource(self, user, stack, id, name, severity, group, expression, summary):
         # Define the PrometheusRule resource
-        namespace = self.__get_current_namespace()
+        namespace = f"{self.__get_current_namespace()}-{user}"
+        if stack == "coo":
+            api_group = "monitoring.rhobs"
+        else:
+            api_group = "monitoring.coreos.com"
+            
+            
         prometheus_rule_body = {
-            "apiVersion": "monitoring.coreos.com/v1",
+            "apiVersion": f"{api_group}/v1",
             "kind": "PrometheusRule",
             "metadata": {
                 "name": id,
@@ -528,9 +800,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             },
         }    
         
+        # Add the tag to be recognized by the MonitoringStack resource
+        if stack == "coo":
+            prometheus_rule_body["metadata"]["labels"]["monitoring-stack"] = user
+        
         try:
             response = self.__custom_v1_api.create_namespaced_custom_object(
-                group="monitoring.coreos.com",
+                group=api_group,
                 version="v1",
                 namespace=namespace,
                 plural="prometheusrules",
@@ -542,10 +818,71 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(f"Exception when creating PrometheusRule: {e}")
             return None
 
-    async def delete_simulation(self):        
+    def __get_namespace_label_value(self, namespace_name: str, label_key: str) -> str | None:
+        """
+        Retrieves the value of a specific label from a Kubernetes namespace.
+
+        Args:
+            namespace_name: The name of the namespace (e.g., "my-app-prod").
+            label_key: The key of the label to retrieve (e.g., "environment").
+
+        Returns:
+            The string value of the label, or None if the namespace or label is not found.
+        """
+
+        try:
+            # 3. Read the namespace object
+            namespace = self.__core_v1_api.read_namespace(name=namespace_name)
+            
+            # 4. Access the labels dictionary and retrieve the specific key
+            labels = namespace.metadata.labels
+            
+            if labels and label_key in labels:
+                return labels[label_key]
+            else:
+                return None
+
+        except client.ApiException as e:
+            if e.status == 404:
+                print(f"Error: Namespace '{namespace_name}' not found (Status 404).")
+            else:
+                print(f"Error retrieving namespace: {e}")
+            return None
+        
+    def __delete_openshift_route(self, namespace, route_name):
+        
+        # OpenShift Route API details
+        group = "route.openshift.io"
+        version = "v1"
+        plural = "routes"
+
+        try:
+            print(f"Attempting to delete Route '{route_name}' in namespace '{namespace}'...")
+            
+            # Delete the namespaced custom object
+            self.__custom_v1_api.delete_namespaced_custom_object(
+                group=group,
+                version=version,
+                namespace=namespace,
+                plural=plural,
+                name=route_name,
+                body=client.V1DeleteOptions()
+            )
+            print(f"✅ Successfully deleted Route '{route_name}'.")
+
+        except ApiException as e:
+            if e.status == 404:  # 404 Not Found == Already Deleted
+                print(f"⚠️  Route '{route_name}' does not exist. Skipping.")
+            else:
+                print(f"❌ Error deleting Route '{route_name}': {e.reason}", file=sys.stderr)
+                print(f"   Details: {e.body}", file=sys.stderr)
+        except Exception as e:
+            print(f"❌ An unexpected error occurred for Route '{route_name}': {e}", file=sys.stderr)
+    
+    async def delete_simulation(self, user):        
         label_selector = "observability-demo-framework=agent"
 
-        namespace = self.__get_current_namespace()
+        namespace = f"{self.__get_current_namespace()}-{user}"
         # Delete Deployments matching the selector
         deployments = self.__apps_v1_api.list_namespaced_deployment(namespace=namespace, label_selector=label_selector)
         for deployment in deployments.items:
@@ -558,10 +895,42 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(f"Deleting Service: {service.metadata.name}")
             self.__core_v1_api.delete_namespaced_service(name=service.metadata.name, namespace=service.metadata.namespace)
 
+        # User Workload monitoring
+        observability_stack = self.__get_namespace_label_value(namespace, "observability-stack")
+        print (f"Observability stack: {observability_stack}")
+        api_group_name = "monitoring.coreos.com"
+        match observability_stack:                
+            case "coo":
+                api_group_name = "monitoring.rhobs"
+                # Delete MonitoringStack
+                monitoring_stack_name = f"monitoring-stack-{user}"
+                print (f"Deleting MonitoringStack {monitoring_stack_name}")
+                self.__custom_v1_api.delete_namespaced_custom_object(
+                    group=api_group_name,
+                    version="v1alpha1",
+                    namespace=namespace,
+                    plural="monitoringstacks",
+                    name=monitoring_stack_name)                
+                # Delete Grafana Datasource from current namespace
+                grafana_datasource_name = f"ds-grafana-coo-prometheus-{user}"
+                print (f"Deleting Grafana Datasource {grafana_datasource_name}")
+                self.__custom_v1_api.delete_namespaced_custom_object(
+                    group="grafana.integreatly.org",
+                    version="v1beta1",
+                    namespace=self.__get_current_namespace(),
+                    plural="grafanadatasources",
+                    name=grafana_datasource_name)
+                print ("Deleting routes")
+                self.__delete_openshift_route(namespace, f"prometheus-{user}")
+                self.__delete_openshift_route(namespace, f"alertmanager-{user}")
+            case "mesh":
+                #TODO
+                print("Service Mesh handling not implemented.")
+            
         # Delete ServiceMonitors matching the selector
         # Assuming ServiceMonitors are custom resources from the Prometheus operator
         service_monitors = self.__custom_v1_api.list_namespaced_custom_object(
-            group="monitoring.coreos.com",
+            group=api_group_name,
             version="v1",
             namespace=namespace,
             plural="servicemonitors",
@@ -570,7 +939,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         for sm in service_monitors.get("items", []):
             print(f"Deleting ServiceMonitor: {sm['metadata']['name']}")
             self.__custom_v1_api.delete_namespaced_custom_object(
-                group="monitoring.coreos.com",
+                group=api_group_name,
                 version="v1",
                 namespace=namespace,
                 plural="servicemonitors",
@@ -578,7 +947,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             )
         # Delete prometheus rules. 
         prometheus_rules = self.__custom_v1_api.list_namespaced_custom_object(
-            group="monitoring.coreos.com",
+            group=api_group_name,
             version="v1", 
             namespace=namespace, 
             plural="prometheusrules", 
@@ -587,21 +956,21 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         for pm in prometheus_rules.get("items", []):
             print(f"Deleting PrometheusRule: {pm['metadata']['name']}")
             self.__custom_v1_api.delete_namespaced_custom_object(
-                group="monitoring.coreos.com",
+                group=api_group_name,
                 version="v1",
                 namespace=namespace,
                 plural="prometheusrules",
                 name=pm['metadata']['name']
             )
-
+                
         # Delete secret 
         secret_name="obs-demo-fw-state"
         try:
-            self.__core_v1_api.delete_namespaced_secret(secret_name, self.__get_current_namespace())
+            self.__core_v1_api.delete_namespaced_secret(secret_name, namespace)
             print(f"Secret '{secret_name}' deleted successfully.")
         except client.exceptions.ApiException as e:
             if e.status == 404:
-                print(f"Secret '{secret_name}' not found in namespace '{self.__get_current_namespace()}'.")
+                print(f"Secret '{secret_name}' not found in namespace '{namespace}'.")
             else:
                 print(f"Failed to delete Secret '{secret_name}': {e}")            
             raise 
@@ -609,23 +978,24 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         # Delete config map
         config_map = self.ALERTS_CONFIGMAP
         try:
-            self.__core_v1_api.delete_namespaced_config_map(config_map, self.__get_current_namespace())
+            self.__core_v1_api.delete_namespaced_config_map(config_map, namespace)
             print(f"ConfigMap '{config_map}' deleted successfully.")
         except client.exceptions.ApiException as e:
             if e.status == 404:
-                print(f"ConfigMap '{config_map}' not found in namespace '{self.__get_current_namespace()}'.")
+                print(f"ConfigMap '{config_map}' not found in namespace '{namespace}'.")
             else:
-                print(f"Failed to delete ConfigMap '{config_map}': {e}")            
+                print(f"Failed to delete ConfigMap '{config_map}': {e}")
                 raise 
 
         print("All matching resources deleted successfully.")
 
-    def delete_alert(self, alert_name):        
+    def delete_alert(self, user, alert_name):
+        namespace = f"{self.__get_current_namespace()}-{user}"
         try:
             self.__custom_v1_api.delete_namespaced_custom_object(
                 group="monitoring.coreos.com",
                 version="v1",
-                namespace=self.__get_current_namespace(),
+                namespace=namespace,
                 plural="prometheusrules",
                 name=alert_name)
             return {"success": True}
@@ -636,16 +1006,162 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 print(f"Failed to delete PrometheusRule '{alert_name}': {e}")
             return {"success": False, "error": e}            
 
-    def delete_alert_definition(self, alert_id):
+    def delete_alert_definition(self, user, alert_id):
+        namespace = f"{self.__get_current_namespace()}-{user}"
         try:            
-            alerts = self.__load_json_from_configmap(self.ALERTS_CONFIGMAP, "alerts", self.__get_current_namespace())            
+            alerts = self.__load_json_from_configmap(self.ALERTS_CONFIGMAP, "alerts", namespace)            
             cleaned_alerts = [item for item in alerts if item.get("id") != alert_id]
-            self.__save_json_to_configmap(cleaned_alerts, self.ALERTS_CONFIGMAP, "alerts", self.__get_current_namespace())
+            self.__save_json_to_configmap(cleaned_alerts, self.ALERTS_CONFIGMAP, "alerts", namespace)
             return {"success": True}
         except client.exception.ApiException as e: 
             return {"success": False, "error": e}
 
-    
-    def get_alert_definitions(self):
-        alerts = self.__load_json_from_configmap(self.ALERTS_CONFIGMAP, "alerts", self.__get_current_namespace())        
+    def get_alert_definitions(self, user):
+        namespace = f"{self.__get_current_namespace()}-{user}"
+        alerts = self.__load_json_from_configmap(self.ALERTS_CONFIGMAP, "alerts", namespace)
         return alerts
+    
+    def retrieve_hostname_from_service_id(self, user, id):
+        namespace = f"{self.__get_current_namespace()}-{user}"
+        return f"{id}.{namespace}.svc"
+
+    def get_users_json(self):
+        namespace = self.__get_current_namespace()
+        users = self.__load_json_from_configmap(self.USERS_CONFIGMAP, "users", namespace)
+        return users
+    
+    def update_users_json(self, users):
+        namespace = self.__get_current_namespace()
+        print(users)
+        self.__save_json_to_configmap(users, self.USERS_CONFIGMAP, "users", namespace)
+        
+    def __wait_for_job_completion(self, batch_v1, job_name, timeout=300, interval=5):
+        """Waits for the specified Job to either Complete or Fail."""
+        print(f"Polling for Job '{job_name}' status (Interval: {interval}s, Timeout: {timeout}s)...")
+        start_time = time.time()        
+        
+        while (time.time() - start_time) < timeout:
+            time.sleep(interval)
+            
+            try:
+                job = batch_v1.read_namespaced_job_status(name=job_name, namespace=self.__get_current_namespace())
+            except ApiException as e:
+                print(f"Error reading Job status: {e}")
+                return False
+
+            # Check for completion condition
+            if job.status.conditions:
+                for condition in job.status.conditions:
+                    if condition.type == "Complete" and condition.status == "True":
+                        print(f"✅ Job {job_name} completed successfully.")
+                        return True
+                    
+                    if condition.type == "Failed" and condition.status == "True":
+                        print(f"❌ Job {job_name} failed. Reason: {condition.reason}, Message: {condition.message}")
+                        return False
+
+        print(f"❌ Job {job_name} timed out after {timeout} seconds.")
+        return False
+    
+    def sync_users(self):
+        print("Users")
+        sync_users_service_account = "obs-sync-users"
+        job_manifest_body = {
+            "apiVersion": "batch/v1",
+            "kind": "Job",
+            "metadata": {
+                "generateName": "sync-users-",
+                "labels": {
+                    "observability-demo-framework": "users"
+                }
+            },
+            "spec": {
+                "template": {
+                    "spec": {
+                        "serviceAccountName": sync_users_service_account,
+                        "containers": [
+                        {
+                            "name": "ansible",
+                            "image": f"image-registry.openshift-image-registry.svc:5000/{self.__get_current_namespace()}/obs-sync-users",
+                            "command": ["ansible-playbook",  "/runner/playbook-sync-users.yml"],
+                            "env": [
+                            {
+                                "name": "KC_API_URL",
+                                "valueFrom": 
+                                {
+                                    "configMapKeyRef": 
+                                    {
+                                        "name": "idp-data",
+                                        "key": "endpoint"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "KC_API_CLIENT_ID",
+                                "valueFrom":
+                                {
+                                    "configMapKeyRef":
+                                    {
+                                        "name": "idp-data",
+                                        "key": "client_id"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "KC_API_CLIENT_SECRET",
+                                "valueFrom":
+                                {    
+                                    "configMapKeyRef": 
+                                    {
+                                        "name": "idp-data",
+                                        "key": "client_secret"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "KC_API_REALM",
+                                "valueFrom":
+                                {
+                                    "configMapKeyRef":
+                                    {    
+                                        "name": "idp-data",
+                                        "key": "realm"
+                                    }
+                                }
+                            }
+                            ],
+                            "volumeMounts": [
+                            {
+                                "name": "runner-vol",
+                                "mountPath": "/runner"
+                            }
+                            ]
+                        }
+                        ],
+                        "restartPolicy": "Never",
+                        "volumes": [
+                        {
+                            "name": "runner-vol",
+                            "configMap": {
+                            "name": "sync-users-playbook"
+                            }
+                        }
+                        ]
+                    },
+                },
+                "ttlSecondsAfterFinished": 180,
+                "backoffLimit": 0
+            }
+        }
+        
+        api_response = self.__batch_v1_api.create_namespaced_job(namespace=self.__get_current_namespace(), body=job_manifest_body)
+        job_name = api_response.metadata.name
+        
+        # Wait for job completion
+        job_succeeded = self.__wait_for_job_completion(self.__batch_v1_api, job_name)
+        if not job_succeeded:
+            print("JOB FAILED: Review logs above for error details.")
+            return False
+        else:
+            print("Execution complete and successful.")
+            return True

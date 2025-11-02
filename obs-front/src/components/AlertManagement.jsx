@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import * as ApiHelper from '../ApiHelper.js'
 import { useKeycloak } from "@react-keycloak/web";
+import { notifyError, notifySuccess } from '../services/NotificationService.jsx';
 
-const AlertManagement = ({ alerts, onAlertsUpdated }) => {
+const AlertManagement = ({ alerts, user, onAlertsUpdated }) => {
 
     const [addNewAlert, setAddNewAlert] = useState(false)
     const [validationError, setValidationError] = useState("");
@@ -30,12 +31,13 @@ const AlertManagement = ({ alerts, onAlertsUpdated }) => {
         if (formData.expression.trim() === "") {
             return "Expression field cannot be empty.";
         }
-        return ""; // No errors
+        return "";
     };
 
     async function saveAlert(alert) {
         try {
-            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(), {
+            console.log("TEST")
+            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(user?.username), {
                 method: "POST",
                 headers: {
                     'Content-Type': 'application/json',
@@ -43,16 +45,21 @@ const AlertManagement = ({ alerts, onAlertsUpdated }) => {
                 },
                 body: JSON.stringify(alert)
             });
-            return response;
+            if (response.status == 200){
+                notifySuccess("Alert saved");
+            }
+            else {
+                const responsePayload = response.json();
+                notifyError(`Error saving alert[${response.status}]. ` + responsePayload?.message);
+            }
         } catch (error) {
-            console.error('Error:', error);
-            return;
+            notifyError('Error:', error);
         }
     }
 
     async function deleteAlert(alertName) {
         try {
-            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(), {
+            const response = await fetch(ApiHelper.getClusterAlertDefinitionUrl(user?.username), {
                 method: "DELETE",
                 headers: {
                     'Content-Type': 'application/json',
@@ -62,15 +69,22 @@ const AlertManagement = ({ alerts, onAlertsUpdated }) => {
                     alert: alertName
                 })
             });
+            if (response.status == 200) {
+                notifySuccess("Alert deleted.");
+            }
+            else {
+                const responsePayload = response.json();
+                notifyError(`Error deleting alert[${response.status}].` + responsePayload?.message);
+            }
             return response;
         } catch (error) {
-            console.error('Error:', error);
-            return;
+            notifyError('Error:', error);
         }
     }
 
-    const handleNewAlertSubmit = async (e) => {
+    const handleNewAlertSubmit = async (e) => {        
         e.preventDefault();
+        console.log("TESSST3");
         const error = validateForm();
         if (error) {
             setValidationError(error);
@@ -79,6 +93,7 @@ const AlertManagement = ({ alerts, onAlertsUpdated }) => {
 
         const newAlert = {
             name: formData.name,
+            observabilityStack: user?.monitoringType,
             scope: "custom",
             severity: formData.severity,
             definition: {
@@ -119,7 +134,6 @@ const AlertManagement = ({ alerts, onAlertsUpdated }) => {
 
     function handleEnableAddAlertForm() {
         setAddNewAlert(true);
-
     }
 
     const handleDeleteAlert = async (alertId) => {
@@ -247,7 +261,7 @@ const AlertManagement = ({ alerts, onAlertsUpdated }) => {
                     {/* Buttons */}
                     <div className="row">
                         <div className="d-flex justify-content-center">
-                            <button type="submit" className="btn btn-primary me-2">
+                            <button type="submit" className="btn btn-primary me-2" onClick={() => console.log("BUTTON CLICKED")}>
                                 Submit
                             </button>
                             <button type="button" className="btn btn-secondary" onClick={handleCancel}>
