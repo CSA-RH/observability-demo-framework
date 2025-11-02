@@ -8,8 +8,9 @@ metadata:
 spec:
   project: default
   source:
-    path: ../helm/wave-0
-    targetRevision: main
+    repoURL: https://github.com/CSA-RH/observability-demo-framework.git    
+    path: install/helm/wave-0
+    targetRevision: feature/installation
   destination:
     server: https://kubernetes.default.svc
     namespace: openshift-gitops
