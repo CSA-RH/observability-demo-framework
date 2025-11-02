@@ -1,0 +1,27 @@
+apiVersion: observability.openshift.io/v1alpha1
+kind: UIPlugin
+metadata:
+  name: distributed-tracing
+  labels:
+    observability-demo-framework: 'ui'
+  annotations:
+    # This is in Wave 0 (default)
+    # It will only be applied after Wave -1 is healthy.
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  type: DistributedTracing
+---
+apiVersion: observability.openshift.io/v1alpha1
+kind: UIPlugin
+metadata:
+  name: logging
+  labels:
+    observability-demo-framework: 'ui'
+  annotations:
+    # This is in Wave 0 (default)
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  logging:
+    lokiStack:
+      name: loki
+  type: Logging

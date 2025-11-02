@@ -1,0 +1,4 @@
+apiVersion: v2
+name: wave-0
+description: A Helm chart for Wave 0, installing COO and create namespaces
+version: 0.1.0

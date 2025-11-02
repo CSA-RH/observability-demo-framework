@@ -1,0 +1,10 @@
+{{- range .Values.operatorNamespaces }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ . }}
+  labels:
+    argocd.argoproj.io/managed-by: openshift-gitops
+    observability-demo-framework: "wave-0"
+---
+{{- end }}
