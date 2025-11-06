@@ -140,8 +140,8 @@ spec:
       - effectiveDate: "2024-04-02"
         version: v13
     secret:
-      name: loki-storage-secret
-      type: $HYPERSCALER_STORAGE_SECRET_TYPE
+      name: lokistack-minio
+      type: s3
   hashRing:
     type: memberlist
   size: 1x.demo

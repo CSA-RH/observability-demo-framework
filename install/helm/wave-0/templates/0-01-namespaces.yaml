@@ -5,6 +5,8 @@ metadata:
   name: {{ . }}
   labels:
     argocd.argoproj.io/managed-by: openshift-gitops
-    observability-demo-framework: "wave-0"
+    observability-demo-framework: "operators"
+  annotatios: 
+    argocd.argoproj.io/sync-wave: "0"
 ---
 {{- end }}

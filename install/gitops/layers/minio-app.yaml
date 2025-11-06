@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: wave-0-app
+  name: minio-app
   namespace: openshift-gitops
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -9,15 +9,16 @@ spec:
   project: default
   source:
     repoURL: https://github.com/CSA-RH/observability-demo-framework.git    
-    path: install/helm/wave-0
+    path: install/helm/wave-1/
     targetRevision: feature/installation
+    helm:
+      valuesFile: install/helm/wave-1/obs-values.yaml  
   destination:
     server: https://kubernetes.default.svc
-    namespace: openshift-gitops
+    namespace: obs-demo
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
-      - PruneLast=true
+      - CreateNamespace=true 

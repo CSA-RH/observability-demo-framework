@@ -5,6 +5,9 @@ operatorNamespaces:
   - openshift-tempo-operator
   - openshift-opentelemetry-operator
 
+jobKeycloakCertServiceAccount: job-keycloak-cert-generator-sa
+
+
 # Cluster Observability Operator configuration
 observabilityOperator:
   name: cluster-observability-operator

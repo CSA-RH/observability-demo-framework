@@ -1,0 +1,17 @@
+{{- $allServiceAccounts := .Values.otherServiceAccounts | default list -}}
+
+{{- if .Values.jobKeycloakCertServiceAccount -}}
+  {{- $allServiceAccounts = append $allServiceAccounts .Values.jobKeycloakCertServiceAccount -}}
+{{- end -}}
+
+{{- range $saName := $allServiceAccounts }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $saName }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+---
+{{- end }}
+
