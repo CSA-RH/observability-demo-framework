@@ -12,8 +12,8 @@ spec:
     path: install/helm/wave-1
     targetRevision: feature/installation
     helm:
-      valuesFile: 
-      - obs-values.yaml  
+      valueFiles:
+        - obs-values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: obs-demo
