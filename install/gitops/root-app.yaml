@@ -2,9 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: root-app
-  namespace: openshift-gitops
-  finalizers:
-    - resources-finalizer.argopd.argoproj.io
+  namespace: openshift-gitops  
 spec:
   project: default
   source:  
