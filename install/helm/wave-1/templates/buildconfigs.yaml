@@ -120,3 +120,33 @@ spec:
     dockerStrategy: 
       dockerfilePath: Dockerfile
     type: Docker
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: obs-sync-users
+  labels: 
+    observability-demo-framework: 'users'
+spec:
+  lookupPolicy:
+    local: true
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  labels:
+    build: obs-sync-users
+    observability-demo-framework: 'cicd'
+  name: obs-sync-users
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: obs-sync-users:latest
+  source:
+    binary: {}
+    type: Binary
+  strategy:
+    dockerStrategy: 
+      dockerfilePath: Dockerfile
+    type: Docker
