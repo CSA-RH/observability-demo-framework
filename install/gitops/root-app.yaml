@@ -8,7 +8,7 @@ spec:
   source:  
     repoURL: https://github.com/CSA-RH/observability-demo-framework.git
     targetRevision: feature/installation
-    path: install/gitops/layers
+    path: install/gitops/waves
     directory:
       recurse: true
   destination:
