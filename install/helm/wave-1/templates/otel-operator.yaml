@@ -37,8 +37,7 @@ kind: Role
 metadata:
   name: installplan-approver-role
   namespace: openshift-opentelemetry-operator
-  annotations:
-    argocd.argoproj.io/sync-wave: "-1"
+  annotations:    
 spec: 
   rules:
   - apiGroups: ["operators.coreos.com"]
@@ -78,7 +77,7 @@ spec:
   backoffLimit: 1
   template:
     spec:
-      serviceAccountName: operator-approver-sa
+      serviceAccountName: {{ .Values.jobs.installPlanApproverServiceAccount }}
       restartPolicy: Never
       containers:
       - name: approver
