@@ -1,0 +1,27 @@
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  annotations:
+    olm.providedAPIs: Instrumentation.v1alpha1.opentelemetry.io,OpAMPBridge.v1alpha1.opentelemetry.io,OpenTelemetryCollector.v1alpha1.opentelemetry.io,OpenTelemetryCollector.v1beta1.opentelemetry.io
+  name: openshift-opentelemetry-operator-og
+  namespace: openshift-opentelemetry-operator
+  labels:
+    observability-demo-framework: 'operator'
+spec:
+  upgradeStrategy: Default
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  labels:
+    operators.coreos.com/opentelemetry-product.openshift-opentelemetry-operator: ""
+    observability-demo-framework: 'operator'
+  name: opentelemetry-product
+  namespace: openshift-opentelemetry-operator    
+spec:
+  channel: stable
+  installPlanApproval: Manual
+  name: opentelemetry-product
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  startingCSV: opentelemetry-operator.v0.113.0-2
