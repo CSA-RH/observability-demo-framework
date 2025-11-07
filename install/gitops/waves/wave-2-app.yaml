@@ -1,15 +1,15 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: minio
+  name: obs-demo-wave-2
   namespace: openshift-gitops
   annotatios: 
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   project: default
   source:
     repoURL: https://github.com/CSA-RH/observability-demo-framework.git    
-    path: install/helm/wave-1
+    path: install/helm/wave-2
     targetRevision: feature/installation
     helm:
       valueFiles:

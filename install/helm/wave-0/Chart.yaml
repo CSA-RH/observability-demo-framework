@@ -1,4 +1,4 @@
 apiVersion: v2
-name: wave-0-obs-demo
+name: obs-demo-wave-0
 description: A Helm chart installing the OpenShift Observability Demo wave 0 (Postgres for KC, operator namespaces and COO)
 version: 0.1.0
