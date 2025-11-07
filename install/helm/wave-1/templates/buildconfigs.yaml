@@ -60,3 +60,63 @@ spec:
     dockerStrategy: 
       dockerfilePath: Dockerfile
     type: Docker
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: obs-front
+  labels:
+    observability-demo-framework: 'cicd'
+spec:
+  lookupPolicy:
+    local: true
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  labels:    
+    build: obs-front
+    observability-demo-framework: 'cicd'
+  name: obs-front
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: obs-front:latest
+  source:
+    binary: {}
+    type: Binary
+  strategy:
+    dockerStrategy: 
+      dockerfilePath: Dockerfile
+    type: Docker
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: obs-main-api
+  labels: 
+    observability-demo-framework: 'cicd'
+spec:
+  lookupPolicy:
+    local: true
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  labels:
+    build: obs-main-api    
+    observability-demo-framework: 'cicd'
+  name: obs-main-api
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: obs-main-api:latest
+  source:
+    binary: {}
+    type: Binary
+  strategy:
+    dockerStrategy: 
+      dockerfilePath: Dockerfile
+    type: Docker
