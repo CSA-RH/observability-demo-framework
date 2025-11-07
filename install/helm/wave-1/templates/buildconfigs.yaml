@@ -19,7 +19,9 @@ spec:
       name: obs-client-dotnet:latest
   source:    
     type: Git
-    uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
+    git: 
+      uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
+      ref: feature/installation
     contextDir: obs-clients/obs-client-api-dotnet
   strategy:
     dockerStrategy: 
