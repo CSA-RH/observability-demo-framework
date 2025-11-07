@@ -63,6 +63,14 @@ metadata:
   # Use generateName to avoid conflicts on re-syncs
   generateName: installplan-approver-
   namespace: openshift-opentelemetry-operator
+  annotations:
+    # --- Argo CD Hook Annotations ---
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    # --- Helm Hook Annotations ---
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "1"
+    helm.sh/hook-delete-policy: hook-succeeded
 spec:
   # Wait a few seconds for OLM to create the InstallPlan
   backoffLimit: 1
