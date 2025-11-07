@@ -11,3 +11,7 @@ minio:
 
   persistence:
     size: 10Gi
+
+lokiOperator:
+  lokiCollectorServiceAccount: loki-collector
+  
