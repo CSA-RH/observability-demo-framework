@@ -14,4 +14,6 @@ minio:
 
 lokiOperator:
   lokiCollectorServiceAccount: loki-collector
-  
+
+jobs:
+  installPlanApproverServiceAccount: jobInstallApproverServiceAccount
