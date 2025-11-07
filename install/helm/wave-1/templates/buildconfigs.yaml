@@ -27,3 +27,36 @@ spec:
     dockerStrategy: 
       dockerfilePath: Dockerfile
     type: Docker
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: obs-client-node
+  labels: 
+    observability-demo-framework: cicd
+spec:
+  lookupPolicy:
+    local: true
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  labels:
+    build: obs-client-node
+    observability-demo-framework: cicd
+  name: obs-client-node
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: obs-client-node:latest
+  source:    
+    type: Git
+    git: 
+      uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
+      ref: feature/installation
+    contextDir: obs-clients/obs-client-api-node
+  strategy:
+    dockerStrategy: 
+      dockerfilePath: Dockerfile
+    type: Docker
