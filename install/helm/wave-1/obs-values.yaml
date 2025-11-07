@@ -16,4 +16,4 @@ lokiOperator:
   lokiCollectorServiceAccount: loki-collector
 
 jobs:
-  installPlanApproverServiceAccount: jobInstallApproverServiceAccount
+  installPlanApproverServiceAccount: job-installplan-approver-sa
