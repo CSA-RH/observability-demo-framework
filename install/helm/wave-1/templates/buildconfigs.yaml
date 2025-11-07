@@ -1,0 +1,27 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: obs-client-dotnet
+spec:
+  lookupPolicy:
+    local: true
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  labels:
+    build: obs-client-dotnet
+  name: obs-client-dotnet
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: obs-client-dotnet:latest
+  source:    
+    type: Git
+    uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
+    contextDir: obs-clients/obs-client-api-dotnet
+  strategy:
+    dockerStrategy: 
+      dockerfilePath: Dockerfile
+    type: Docker
