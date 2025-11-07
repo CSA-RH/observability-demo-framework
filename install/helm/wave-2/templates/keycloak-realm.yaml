@@ -386,25 +386,24 @@ data:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  # generateName will create a unique job name each time (e.g., keycloak-bootstrap-abc12)
-  generateName: keycloak-realm-bootstrap
+  name: keycloak-realm-bootstrap
   namespace: {{ .Release.Namespace }}
-spec:
-  # Don't retry if it fails
+  annotations: 
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "1"
+    helm.sh/hook-delete-policy: hook-succeeded
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:  
   backoffLimit: 0 
-  # Delete the pod after 5 minutes (300 seconds)
   ttlSecondsAfterFinished: 300
   template:
     spec:
-      # Use the ServiceAccount with our permissions
       serviceAccountName: keycloak-bootstrap-sa
       restartPolicy: Never
       containers:
       - name: bootstrap
-        # This image has all the tools you need: oc, curl, jq, openssl
         image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
-        
-        # Inject the pod's namespace as the NAMESPACE env var
         env:
         - name: NAMESPACE
           valueFrom:
