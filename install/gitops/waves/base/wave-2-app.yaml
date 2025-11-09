@@ -11,6 +11,9 @@ spec:
     repoURL: https://github.com/CSA-RH/observability-demo-framework.git    
     path: install/helm/wave-2
     targetRevision: feature/installation
+    helm:
+      valueFiles:
+        - values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: obs-demo

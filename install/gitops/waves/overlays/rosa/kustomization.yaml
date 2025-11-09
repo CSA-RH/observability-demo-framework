@@ -1,0 +1,8 @@
+resources:
+- ../../base
+
+patches:
+- path: patch-wave-2-rosa.yaml
+  target:
+    kind: Application
+    name: obs-demo-wave-2
