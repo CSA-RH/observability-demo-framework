@@ -21,4 +21,4 @@ spec:
   hashRing:
     type: memberlist
   size: 1x.demo
-  storageClassName: {{ diskStorageClass }}
+  storageClassName: {{ .Values.diskStorageClass }}
