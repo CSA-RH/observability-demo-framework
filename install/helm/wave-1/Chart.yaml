@@ -1,6 +1,6 @@
 apiVersion: v2
 name: obs-minio
-description: Parametrization of MinIO for the OpenShift Observability Demo
+description: A Helm chart installing the OpenShift Observability Demo wave 1 (Minio, Loki, Otel, Keycloak, Grafana and Tempo Operators)
 version: 0.1.0
 
 dependencies:
