@@ -3,7 +3,7 @@ kind: Application
 metadata:
   name: obs-demo-wave-2
   namespace: openshift-gitops
-  annotatios: 
+  annotations: 
     argocd.argoproj.io/sync-wave: "2"
 spec:
   project: default
