@@ -126,7 +126,7 @@ apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
   labels:
-    build: obs-main-api    
+    build: obs-main-api
     observability-demo-framework: 'cicd'
   {{- if .Values.annotations }}
   annotations: {{- toYaml .Values.annotations | nindent 4 }}
@@ -137,9 +137,12 @@ spec:
     to:
       kind: ImageStreamTag
       name: obs-main-api:latest
-  source:
-    binary: {}
-    type: Binary
+  source:    
+    type: Git
+    git: 
+      uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
+      ref: feature/installation
+    contextDir: obs-main-api/app
   strategy:
     dockerStrategy: 
       dockerfilePath: Dockerfile

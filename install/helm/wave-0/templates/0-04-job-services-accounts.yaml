@@ -4,6 +4,10 @@
   {{- $allServiceAccounts = append $allServiceAccounts .Values.jobKeycloakCertServiceAccount -}}
 {{- end -}}
 
+{{- if .Values.jobBuildImagesServiceAccounts -}}
+  {{- $allServiceAccounts = append $allServiceAccounts .Values.jobBuildImagesServiceAccounts -}}
+{{- end -}}
+
 {{- range $saName := $allServiceAccounts }}
 apiVersion: v1
 kind: ServiceAccount

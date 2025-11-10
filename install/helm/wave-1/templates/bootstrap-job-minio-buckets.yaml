@@ -21,7 +21,7 @@ spec:
       containers:
       - name: minio-bootstrap
         image: minio/mc
-        command: ["/bin/sh", "/runner/create-bucket.sh"]
+        command: ["/bin/sh", "/runner/minio-create-buckets.sh"]
         volumeMounts:
         - name: runner-vol
           mountPath: /runner
@@ -29,5 +29,7 @@ spec:
       volumes: 
       - name: runner-vol
         configMap:
-          name: bootstrap-script-minio
+          name: bootstrap-scripts
           defaultMode: 0555
+          items:
+          - key: minio-create-buckets.sh

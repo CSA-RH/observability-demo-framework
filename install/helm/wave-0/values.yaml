@@ -6,6 +6,7 @@ operatorNamespaces:
   - openshift-opentelemetry-operator
 
 jobKeycloakCertServiceAccount: job-keycloak-cert-generator-sa
+jobBuildImagesServiceAccounts: build-image-sa
 
 # Cluster Observability Operator configuration
 observabilityOperator:

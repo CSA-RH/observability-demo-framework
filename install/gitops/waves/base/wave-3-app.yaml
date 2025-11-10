@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: obs-demo-wave-3
+  namespace: openshift-gitops
+  annotations: 
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/CSA-RH/observability-demo-framework.git    
+    path: install/helm/wave-3
+    targetRevision: feature/installation
+    helm:
+      valueFiles:
+        - values-argocd.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: obs-demo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true 
