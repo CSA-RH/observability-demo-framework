@@ -192,9 +192,6 @@ spec:
             - spanmetrics
           receivers:
             - otlp
-      telemetry:
-        metrics:
-          address: '0.0.0.0:8888'
   mode: deployment
   managementState: managed  
   serviceAccount: otel-collector
