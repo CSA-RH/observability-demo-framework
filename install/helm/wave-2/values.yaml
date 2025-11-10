@@ -1,0 +1,2 @@
+lokiOperator:
+  lokiCollectorServiceAccount: loki-collector

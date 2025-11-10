@@ -6,5 +6,6 @@ spec:
   source:
     helm:
       valueFiles:
+        - values.yaml
         - values-argocd.yaml
         - values-aro.yaml
