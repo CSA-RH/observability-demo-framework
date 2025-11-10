@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: obs-demo-wave-2
+  name: obs-demo-wave-1
   namespace: openshift-gitops
   annotatios: 
     argocd.argoproj.io/sync-wave: "1"
