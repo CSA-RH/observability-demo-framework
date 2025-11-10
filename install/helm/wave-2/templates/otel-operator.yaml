@@ -99,7 +99,7 @@ spec:
       otlp/obsdemo:
         auth:
           authenticator: bearertokenauth
-        endpoint: 'tempo-escotilla-gateway.{{ .Release.Namespace }}.svc.cluster.local:8090'
+        endpoint:  {{ printf "tempo-escotilla-gateway.%s.svc.cluster.local:8090" .Release.Namespace }}
         headers:
           X-Scope-OrgID: obsdemo
         tls:
