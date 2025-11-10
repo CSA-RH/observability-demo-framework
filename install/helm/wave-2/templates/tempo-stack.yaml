@@ -1,65 +1,3 @@
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: tempostack-traces-reader
-  labels: 
-    observability-demo-framework: rbac
-rules:
-- apiGroups:
-  - tempo.grafana.com
-  resourceNames:
-  - traces
-  resources:
-  - '*'
-  verbs:
-  - get
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: tempostack-traces-reader
-  labels:
-    observability-demo-framework: rbac
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: tempostack-traces-reader
-subjects:
-- apiGroup: rbac.authorization.k8s.io
-  kind: Group
-  name: system:authenticated
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: tempostack-traces-write  
-  labels: 
-    observability-demo-framework: rbac
-rules:
-- apiGroups:
-  - tempo.grafana.com
-  resourceNames:
-  - traces
-  resources:
-  - obsdemo
-  verbs:
-  - create
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: tempostack-traces
-  labels: 
-    observability-demo-framework: rbac
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: tempostack-traces-write
-subjects:
-- kind: ServiceAccount
-  name: otel-collector
-  namespace: {{ .Release.Namespace }}
----
 apiVersion: tempo.grafana.com/v1alpha1
 kind: TempoStack
 metadata:
@@ -67,6 +5,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     observability-demo-framework: traces
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
 spec:
   tenants:
     authentication:

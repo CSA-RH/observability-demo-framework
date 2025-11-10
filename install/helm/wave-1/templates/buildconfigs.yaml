@@ -2,6 +2,9 @@ apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
   name: obs-client-dotnet
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
 spec:
   lookupPolicy:
     local: true
@@ -11,6 +14,9 @@ kind: BuildConfig
 metadata:
   labels:
     build: obs-client-dotnet
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
   name: obs-client-dotnet
 spec:
   output:
@@ -34,6 +40,9 @@ metadata:
   name: obs-client-node
   labels: 
     observability-demo-framework: cicd
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
 spec:
   lookupPolicy:
     local: true
@@ -44,6 +53,9 @@ metadata:
   labels:
     build: obs-client-node
     observability-demo-framework: cicd
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
   name: obs-client-node
 spec:
   output:
@@ -67,6 +79,9 @@ metadata:
   name: obs-front
   labels:
     observability-demo-framework: 'cicd'
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
 spec:
   lookupPolicy:
     local: true
@@ -77,6 +92,9 @@ metadata:
   labels:    
     build: obs-front
     observability-demo-framework: 'cicd'
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
   name: obs-front
 spec:
   output:
@@ -97,6 +115,9 @@ metadata:
   name: obs-main-api
   labels: 
     observability-demo-framework: 'cicd'
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
 spec:
   lookupPolicy:
     local: true
@@ -107,6 +128,9 @@ metadata:
   labels:
     build: obs-main-api    
     observability-demo-framework: 'cicd'
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
   name: obs-main-api
 spec:
   output:
@@ -127,6 +151,9 @@ metadata:
   name: obs-sync-users
   labels: 
     observability-demo-framework: 'users'
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
 spec:
   lookupPolicy:
     local: true
@@ -137,6 +164,9 @@ metadata:
   labels:
     build: obs-sync-users
     observability-demo-framework: 'cicd'
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
   name: obs-sync-users
 spec:
   output:

@@ -12,6 +12,9 @@ metadata:
   namespace: {{ $.Release.Namespace }}
   labels:
     app.kubernetes.io/instance: {{ $.Release.Name }}
+  {{- if $.Values.annotations }}
+  annotations: {{- toYaml $.Values.annotations | nindent 4 }}
+  {{- end }}
 ---
 {{- end }}
 

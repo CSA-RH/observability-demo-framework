@@ -1,6 +1,9 @@
 apiVersion: loki.grafana.com/v1
 kind: LokiStack
 metadata:
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
   name: loki
   namespace: openshift-logging
 spec:

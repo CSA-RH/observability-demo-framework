@@ -1,6 +1,9 @@
 apiVersion: route.openshift.io/v1
 kind: Route
-metadata:  
+metadata:
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
   name: minio-console
   namespace: {{ .Release.Namespace }}  
 spec:

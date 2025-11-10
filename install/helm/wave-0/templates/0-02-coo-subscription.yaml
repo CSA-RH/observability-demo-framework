@@ -6,8 +6,9 @@ metadata:
   labels:
     operators.coreos.com/cluster-observability-operator.openshift-operators: ""
     observability-demo-framework: 'operator'
-  annotations:
-    argocd.argoproj.io/sync-wave: "0"
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
 spec:
   channel: {{ .Values.observabilityOperator.channel }}
   installPlanApproval: Automatic

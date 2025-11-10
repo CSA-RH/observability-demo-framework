@@ -1,4 +1,5 @@
 minio:
+  fullnameOverride: minio
   mode: standalone
   replicas: 1
   resources: 

@@ -3,6 +3,9 @@ kind: OperatorGroup
 metadata:
   annotations:
     olm.providedAPIs: Instrumentation.v1alpha1.opentelemetry.io,OpAMPBridge.v1alpha1.opentelemetry.io,OpenTelemetryCollector.v1alpha1.opentelemetry.io,OpenTelemetryCollector.v1beta1.opentelemetry.io,TargetAllocator.v1alpha1.opentelemetry.io
+    {{- if .Values.annotations }}
+    {{- toYaml .Values.annotations | nindent 4 }}
+    {{- end }}
   name: openshift-opentelemetry-operator-og
   namespace: openshift-opentelemetry-operator
   labels:
@@ -16,6 +19,9 @@ metadata:
   labels:
     operators.coreos.com/opentelemetry-product.openshift-opentelemetry-operator: ""
     observability-demo-framework: 'operator'
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
   name: opentelemetry-product
   namespace: openshift-opentelemetry-operator    
 spec:

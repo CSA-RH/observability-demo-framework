@@ -5,8 +5,9 @@ metadata:
   namespace: {{ .Values.rootNamespace }}
   labels: 
     observability-demo-framework: idp
-  annotations: 
-    argocd.argoproj.io/sync-wave: "1"
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
 spec:
   serviceName: postgresql-db-service
   selector:
@@ -44,8 +45,9 @@ metadata:
   namespace: {{ .Values.rootNamespace }}
   labels: 
     observability-demo-framework: idp
-  annotations: 
-    argocd.argoproj.io/sync-wave: "1"
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
 spec:
   selector:
     app: postgresql-db
@@ -62,8 +64,9 @@ metadata:
   namespace: {{ .Values.rootNamespace }}
   labels: 
     observability-demo-framework: idp
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
 type: Opaque
 data:
   password: dGVzdHBhc3N3b3Jk

@@ -5,6 +5,9 @@ metadata:
   name: {{ . }}
   labels:
     argocd.argoproj.io/managed-by: openshift-gitops
-    observability-demo-framework: "operators"  
+    observability-demo-framework: "operators"
+  {{- if $.Values.annotations }}
+  annotations: {{- toYaml $.Values.annotations | nindent 4 }}
+  {{- end }}
 ---
 {{- end }}
