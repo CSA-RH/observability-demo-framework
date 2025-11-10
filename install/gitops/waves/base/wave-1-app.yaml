@@ -13,7 +13,7 @@ spec:
     targetRevision: feature/installation
     helm:
       valueFiles:
-        - obs-values.yaml
+        - values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: obs-demo
