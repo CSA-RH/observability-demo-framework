@@ -72,7 +72,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: otel-collector
-    namespace: {{ .Release.Namespace }}
+    namespace: {{ .Release.Namespace }}
 ---
 apiVersion: opentelemetry.io/v1beta1
 kind: OpenTelemetryCollector
