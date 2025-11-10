@@ -6,7 +6,7 @@ metadata:
     {{- if .Values.annotations }}
     {{- toYaml .Values.annotations | nindent 4 }}
     {{- end }}
-  generateName: openshift-tempo-operator-
+  name: openshift-tempo-operator-og
   namespace: openshift-tempo-operator
 spec:
   upgradeStrategy: Default
