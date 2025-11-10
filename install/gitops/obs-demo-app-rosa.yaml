@@ -8,9 +8,7 @@ spec:
   source:  
     repoURL: https://github.com/CSA-RH/observability-demo-framework.git
     targetRevision: feature/installation
-    path: install/gitops/waves/overlays/aro
-    directory:
-      recurse: true
+    path: install/gitops/waves/overlays/rosa
   destination:
     server: https://kubernetes.default.svc
     namespace: obs-demo
