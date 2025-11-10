@@ -14,7 +14,7 @@ data:
     echo "Starting build for $BC_NAME..."
     
     # Start the build and get the build name (e.g., "my-app-1")
-    BUILD_NAME=$(oc start-build $BC_NAME -n <your-namespace> --follow=false -o=jsonpath='{.metadata.name}')
+    BUILD_NAME=$(oc start-build $BC_NAME -n {{ .Release.Namespace }} --follow=false -o=jsonpath='{.metadata.name}')
     
     if [ -z "$BUILD_NAME" ]; then
       echo "Failed to start build."
@@ -24,7 +24,7 @@ data:
     echo "Build $BUILD_NAME started. Waiting for it to complete..."
     
     # Wait for the build to complete or fail
-    oc wait --for=condition=Complete --timeout=5m build/$BUILD_NAME -n <your-namespace>
+    oc wait --for=condition=Complete --timeout=5m build/$BUILD_NAME -n {{ .Release.Namespace }}
     
     echo "✅ Build $BUILD_NAME completed successfully."  
   minio-create-buckets.sh: |-
