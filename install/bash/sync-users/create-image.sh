@@ -13,7 +13,7 @@ print_header "Create Ansible main image with dependencies for improving User Syn
 # Create ImageStream for Observability Demo API if not exists
 export SYNC_USERS_IMAGE_STREAM=obs-sync-users
 if check_openshift_resource_exists ImageStream $SYNC_USERS_IMAGE_STREAM; then
-  echo "ImageStream obs-main-api exists"
+  echo "ImageStream $SYNC_USERS_IMAGE_STREAM exists"
 else
   cat <<EOF | oc apply -f -
 apiVersion: image.openshift.io/v1

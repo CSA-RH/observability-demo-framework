@@ -82,4 +82,4 @@ metadata:
   namespace: {{ .Release.Namespace }}
 data:
   playbook-sync-users.yml: |-
-    {{- .Files.Get "files/playbook-sync-users.yml.txt" | nindent 4 }}
+    {{- .Files.Get "files/playbook-sync-users.yaml" | nindent 4 }}
