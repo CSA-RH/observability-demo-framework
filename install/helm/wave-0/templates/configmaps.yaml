@@ -14,7 +14,7 @@ data:
     echo "Starting build for $BC_NAME..."
     
     # Start the build and get the build name (e.g., "my-app-1")
-    BUILD_NAME=$(oc start-build $BC_NAME -n {{ .Release.Namespace }} --follow=false -o=jsonpath='{.metadata.name}' | awk -F'/' '{print $2}' | awk '{print $1}')
+    BUILD_NAME=$(oc start-build $BC_NAME -n {{ .Release.Namespace }} --follow=false | awk -F'/' '{print $2}' | awk '{print $1}')
     
     if [ -z "$BUILD_NAME" ]; then
       echo "Failed to start build."
