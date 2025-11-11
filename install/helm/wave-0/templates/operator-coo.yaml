@@ -16,3 +16,30 @@ spec:
   source: {{ .Values.observabilityOperator.source }}
   sourceNamespace: {{ .Values.observabilityOperator.sourceNamespace }}
   startingCSV: {{ .Values.observabilityOperator.startingCSV }}
+---
+apiVersion: observability.openshift.io/v1alpha1
+kind: UIPlugin
+metadata:
+  name: distributed-tracing
+  labels:
+    observability-demo-framework: 'ui'
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  type: DistributedTracing
+---
+apiVersion: observability.openshift.io/v1alpha1
+kind: UIPlugin
+metadata:
+  name: logging
+  labels:
+    observability-demo-framework: 'ui'
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  logging:
+    lokiStack:
+      name: loki
+  type: Logging

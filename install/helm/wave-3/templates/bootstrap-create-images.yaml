@@ -18,7 +18,7 @@ spec:
           env: 
           - name: BC_NAME
             value: obs-main-api
-          command: ["/bin/sh", "/runner/start-build-backend.sh"]
+          command: ["/bin/sh", "/runner/start-build.sh"]
           volumeMounts:
           - name: runner-vol
             mountPath: /runner
@@ -28,8 +28,8 @@ spec:
           name: bootstrap-scripts
           defaultMode: 0555
           items:
-          - key: start-build-backend.sh
-            path: start-build-backend.sh
+          - key: start-build.sh
+            path: start-build.sh
 ---
 apiVersion: batch/v1
 kind: Job
@@ -51,17 +51,17 @@ spec:
           env: 
           - name: BC_NAME
             value: obs-front
-          - name: VITE_OBSERVABILITY_DEMO_API
+          - name: BUILD_VITE_OBSERVABILITY_DEMO_API
             valueFrom:
               secretKeyRef:
                 name: keycloak-route-ca-secret
                 key: backend-url
-          - name: VITE_KEYCLOAK_URL
+          - name: BUILD_VITE_KEYCLOAK_URL
             valueFrom:
               secretKeyRef:
                 name: keycloak-route-ca-secret
                 key: idp-url
-          command: ["/bin/sh", "/runner/start-build-frontend.sh"]
+          command: ["/bin/sh", "/runner/start-build.sh"]
           volumeMounts:
           - name: runner-vol
             mountPath: /runner
@@ -71,8 +71,8 @@ spec:
           name: bootstrap-scripts
           defaultMode: 0555
           items:
-          - key: start-build-frontend.sh
-            path: start-build-frontend.sh
+          - key: start-build.sh
+            path: start-build.sh
 ---
 apiVersion: batch/v1
 kind: Job

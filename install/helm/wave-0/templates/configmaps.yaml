@@ -7,6 +7,8 @@ metadata:
   annotations: {{- toYaml .Values.annotations | nindent 4 }}
   {{- end }}
 data:
+  start-build.sh: |-
+    {{- .Files.Get "files/start-build.sh" | nindent 4 }}
   start-build-backend.sh: |-
     #!/bin/sh
     set -eu
