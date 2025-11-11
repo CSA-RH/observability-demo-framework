@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bootstrap-create-minio-buckets
+  labels: 
+    observability-demo-framework: bootstrap
+  annotations: 
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "1"
+    helm.sh/hook-delete-policy: hook-succeeded
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    {{- if .Values.annotations-wave-1 }}
+    {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+    {{- end }}
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 180  
+  template:
+    spec:      
+      containers:
+      - name: minio-bootstrap
+        image: minio/mc
+        command: ["/bin/sh", "/runner/minio-create-buckets.sh"]
+        volumeMounts:
+        - name: runner-vol
+          mountPath: /runner
+      restartPolicy: Never
+      volumes: 
+      - name: runner-vol
+        configMap:
+          name: bootstrap-scripts
+          defaultMode: 0555
+          items:
+          - key: minio-create-buckets.sh
+            path: minio-create-buckets.sh

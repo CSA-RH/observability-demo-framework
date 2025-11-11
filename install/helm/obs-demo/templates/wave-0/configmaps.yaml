@@ -1,0 +1,25 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bootstrap-scripts
+  {{- if .Values.annotations-wave-0 }}
+  annotations: {{- toYaml .Values.annotations-wave-0 | nindent 4 }}
+  {{- end }}
+data:
+  start-build.sh: |-
+    {{- .Files.Get "files/start-build.sh" | nindent 4 }}
+  minio-create-buckets.sh: |-
+    {{- .Files.Get "files/minio-create-buckets.sh" | nindent 4 }}
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: sync-users-playbook
+  namespace: {{ .Release.Namespace }}
+  {{- if .Values.annotations-wave-0 }}
+  annotations: {{- toYaml .Values.annotations-wave-0 | nindent 4 }}
+  {{- end }}
+data:
+  playbook-sync-users.yml: |-
+    {{- .Files.Get "files/playbook-sync-users.yaml" | nindent 4 }}

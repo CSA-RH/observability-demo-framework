@@ -1,0 +1,42 @@
+apiVersion: tempo.grafana.com/v1alpha1
+kind: TempoStack
+metadata:
+  name: escotilla
+  namespace: {{ .Release.Namespace }}
+  labels:
+    observability-demo-framework: traces
+  {{- if .Values.annotations-wave-2 }}
+  annotations: {{- toYaml .Values.annotations-wave-2 | nindent 4 }}
+  {{- end }}
+spec:
+  tenants:
+    authentication:
+      - tenantId: obsdemo
+        tenantName: obsdemo
+    mode: openshift
+  managementState: Managed
+  serviceAccount: tempo-escotilla
+  template:
+    gateway:
+      enabled: true
+      ingress:
+        route:
+          termination: reencrypt
+        type: route
+    queryFrontend:
+      component:
+        replicas: 1
+      jaegerQuery:        
+        enabled: true        
+        monitorTab:
+          enabled: true
+          prometheusEndpoint: 'https://thanos-querier.openshift-monitoring.svc.cluster.local:9091'
+  observability:
+    tracing:
+      jaeger_agent_endpoint: 'localhost:6831'
+  search:
+    defaultResultLimit: 20  
+  storage:
+    secret:
+      name: tempostack-minio
+      type: s3

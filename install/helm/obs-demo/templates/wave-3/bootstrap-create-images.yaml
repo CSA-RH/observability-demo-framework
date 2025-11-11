@@ -1,0 +1,194 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bootstrap-build-backend
+  {{- if .Values.annotations-wave-3 }}
+  annotations: {{- toYaml .Values.annotations-wave-3 | nindent 4 }}
+  {{- end }}
+spec:  
+  backoffLimit: 0   
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      serviceAccountName: build-image-sa
+      restartPolicy: Never
+      containers:
+        - name: build-image
+          image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
+          env: 
+          - name: BC_NAME
+            value: obs-main-api
+          - name: PROJECT_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          command: ["/bin/sh", "/runner/start-build.sh"]
+          volumeMounts:
+          - name: runner-vol
+            mountPath: /runner
+      volumes: 
+      - name: runner-vol
+        configMap:
+          name: bootstrap-scripts
+          defaultMode: 0555
+          items:
+          - key: start-build.sh
+            path: start-build.sh
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bootstrap-build-frontend
+  {{- if .Values.annotations-wave-3 }}
+  annotations: {{- toYaml .Values.annotations-wave-3 | nindent 4 }}
+  {{- end }}
+spec:  
+  backoffLimit: 0   
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      serviceAccountName: build-image-sa
+      restartPolicy: Never
+      containers:
+        - name: build-image
+          image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
+          env: 
+          - name: BC_NAME
+            value: obs-front
+          - name: PROJECT_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: OBS_BUILD_VITE_OBSERVABILITY_DEMO_API
+            valueFrom:
+              secretKeyRef:
+                name: keycloak-route-ca-secret
+                key: backend-url
+          - name: OBS_BUILD_VITE_KEYCLOAK_URL
+            valueFrom:
+              secretKeyRef:
+                name: keycloak-route-ca-secret
+                key: idp-url
+          command: ["/bin/sh", "/runner/start-build.sh"]
+          volumeMounts:
+          - name: runner-vol
+            mountPath: /runner
+      volumes: 
+      - name: runner-vol
+        configMap:
+          name: bootstrap-scripts
+          defaultMode: 0555
+          items:
+          - key: start-build.sh
+            path: start-build.sh
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bootstrap-build-sync-users
+  {{- if .Values.annotations-wave-3 }}
+  annotations: {{- toYaml .Values.annotations-wave-3 | nindent 4 }}
+  {{- end }}
+spec:  
+  backoffLimit: 0   
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      serviceAccountName: build-image-sa
+      restartPolicy: Never
+      containers:
+        - name: build-image
+          image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
+          env: 
+          - name: BC_NAME
+            value: obs-sync-users
+          - name: PROJECT_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          command: ["/bin/sh", "/runner/start-build.sh"]
+          volumeMounts:
+          - name: runner-vol
+            mountPath: /runner
+      volumes: 
+      - name: runner-vol
+        configMap:
+          name: bootstrap-scripts
+          defaultMode: 0555
+          items:
+          - key: start-build.sh
+            path: start-build.sh
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bootstrap-build-client-node
+  {{- if .Values.annotations-wave-3 }}
+  annotations: {{- toYaml .Values.annotations-wave-3 | nindent 4 }}
+  {{- end }}
+spec:  
+  backoffLimit: 0
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      serviceAccountName: build-image-sa
+      restartPolicy: Never
+      containers:
+        - name: build-image
+          image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
+          env: 
+          - name: BC_NAME
+            value: obs-client-node
+          - name: PROJECT_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          command: ["/bin/sh", "/runner/start-build.sh"]
+          volumeMounts:
+          - name: runner-vol
+            mountPath: /runner
+      volumes: 
+      - name: runner-vol
+        configMap:
+          name: bootstrap-scripts
+          defaultMode: 0555
+          items:
+          - key: start-build.sh
+            path: start-build.sh
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bootstrap-build-client-dotnet
+  {{- if .Values.annotations-wave-3 }}
+  annotations: {{- toYaml .Values.annotations-wave-3 | nindent 4 }}
+  {{- end }}
+spec:  
+  backoffLimit: 0
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      serviceAccountName: build-image-sa
+      restartPolicy: Never
+      containers:
+        - name: build-image
+          image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
+          env: 
+          - name: BC_NAME
+            value: obs-client-dotnet
+          - name: PROJECT_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          command: ["/bin/sh", "/runner/start-build.sh"]
+          volumeMounts:
+          - name: runner-vol
+            mountPath: /runner
+      volumes: 
+      - name: runner-vol
+        configMap:
+          name: bootstrap-scripts
+          defaultMode: 0555
+          items:
+          - key: start-build.sh
+            path: start-build.sh

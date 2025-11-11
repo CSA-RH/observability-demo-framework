@@ -5,7 +5,7 @@ resources:
 - ../../base
 
 patches:
-- path: patch-wave-2-aro.yaml
+- path: patch-aro.yaml
   target:
     kind: Application
-    name: obs-demo-wave-2
+    name: obs-demo-app

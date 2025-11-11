@@ -1,0 +1,27 @@
+apiVersion: loki.grafana.com/v1
+kind: LokiStack
+metadata:
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
+  name: loki
+  namespace: openshift-logging
+spec:
+  tenants:
+    mode: openshift-logging
+  managementState: Managed
+  limits:
+    global:
+      queries:
+        queryTimeout: 3m
+  storage:
+    schemas:
+      - effectiveDate: "2024-04-02"
+        version: v13
+    secret:
+      name: lokistack-minio
+      type: s3
+  hashRing:
+    type: memberlist
+  size: 1x.demo
+  storageClassName: {{ .Values.diskStorageClass }}

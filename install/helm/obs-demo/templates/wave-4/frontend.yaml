@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: obs-front
+    observability-demo-framework: frontend
+  name: obs-front
+  {{- if .Values.annotations-wave-4 }}
+  annotations: {{- toYaml .Values.annotations-wave-4 | nindent 4 }}
+  {{- end }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: obs-front
+  template:
+    metadata:
+      labels:
+        app: obs-front
+    spec:
+      containers:
+      - image: obs-front:latest
+        name: obs-front
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: obs-front
+    app.kubernetes.io/instance: obs-demo-wave-4
+    observability-demo-framework: frontend
+  name: obs-front
+  {{- if .Values.annotations-wave-4 }}
+  annotations: {{- toYaml .Values.annotations-wave-4 | nindent 4 }}
+  {{- end }}
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: obs-front
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  labels:
+    app: obs-front
+    observability-demo-framework: frontend
+  {{- if .Values.annotations-wave-4 }}
+  annotations: {{- toYaml .Values.annotations-wave-4 | nindent 4 }}
+  {{- end }}
+  name: obs-front
+spec:
+  port:
+    targetPort: 8080
+  to:
+    kind: Service
+    name: obs-front
+  tls: 
+    termination: edge

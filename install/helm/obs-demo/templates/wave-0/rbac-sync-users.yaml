@@ -1,7 +1,10 @@
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: idp-configmap-automation-role    
+  name: idp-configmap-automation-role
+  {{- if .Values.annotations-wave-0 }}
+  annotations: {{- toYaml .Values.annotations-wave-0 | nindent 4 }}
+  {{- end }}
 rules:
 - apiGroups: [""] 
   resources: ["configmaps"]
@@ -11,6 +14,9 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: idp-configmap-automation-binding
+  {{- if .Values.annotations-wave-0 }}
+  annotations: {{- toYaml .Values.annotations-wave-0 | nindent 4 }}
+  {{- end }}
 subjects:
 - kind: ServiceAccount
   name: {{ .Values.jobSyncUsersServiceAccount }}
@@ -22,7 +28,10 @@ roleRef:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: idp-configmap-automation-clusterrole    
+  name: idp-configmap-automation-clusterrole
+  {{- if .Values.annotations-wave-0 }}
+  annotations: {{- toYaml .Values.annotations-wave-0 | nindent 4 }}
+  {{- end }}
 rules:
 - apiGroups: [""]
   resources: ["namespaces"]
@@ -41,6 +50,9 @@ kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: idp-configmap-automation-clusterrolebinding
+  {{- if .Values.annotations-wave-0 }}
+  annotations: {{- toYaml .Values.annotations-wave-0 | nindent 4 }}
+  {{- end }}
 subjects:
 - kind: ServiceAccount
   name: {{ .Values.jobSyncUsersServiceAccount }}

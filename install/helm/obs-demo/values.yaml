@@ -17,3 +17,21 @@ observabilityOperator:
   source: redhat-operators
   sourceNamespace: openshift-marketplace
   startingCSV: cluster-observability-operator.v1.2.2
+
+minio:
+  fullnameOverride: minio
+  mode: standalone
+  replicas: 1
+  resources: 
+    requests:
+      memory: 1Gi
+  rootUser: minioadmin
+  rootPassword: minioadmin123
+  securityContext:
+    enabled: false
+
+  persistence:
+    size: 10Gi
+
+lokiOperator:
+  lokiCollectorServiceAccount: loki-collector
