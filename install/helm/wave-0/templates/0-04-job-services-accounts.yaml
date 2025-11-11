@@ -4,8 +4,8 @@
   {{- $allServiceAccounts = append $allServiceAccounts .Values.jobKeycloakCertServiceAccount -}}
 {{- end -}}
 
-{{- if .Values.jobBuildImagesServiceAccounts -}}
-  {{- $allServiceAccounts = append $allServiceAccounts .Values.jobBuildImagesServiceAccounts -}}
+{{- if .Values.jobBuildImagesServiceAccount -}}
+  {{- $allServiceAccounts = append $allServiceAccounts .Values.jobBuildImagesServiceAccount -}}
 {{- end -}}
 
 {{- range $saName := $allServiceAccounts }}
