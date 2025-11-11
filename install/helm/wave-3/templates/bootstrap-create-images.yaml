@@ -59,12 +59,12 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-          - name: BUILD_VITE_OBSERVABILITY_DEMO_API
+          - name: OBS_BUILD_VITE_OBSERVABILITY_DEMO_API
             valueFrom:
               secretKeyRef:
                 name: keycloak-route-ca-secret
                 key: backend-url
-          - name: BUILD_VITE_KEYCLOAK_URL
+          - name: OBS_BUILD_VITE_KEYCLOAK_URL
             valueFrom:
               secretKeyRef:
                 name: keycloak-route-ca-secret
