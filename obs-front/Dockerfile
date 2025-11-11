@@ -26,8 +26,9 @@ VITE_OBSERVABILITY_DEMO_API=${VITE_OBSERVABILITY_DEMO_API}
 VITE_KEYCLOAK_URL=${VITE_KEYCLOAK_URL}
 VITE_KEYCLOAK_REALM=csa
 VITE_KEYCLOAK_CLIENT_ID=webauth
-EOF \
-&& npm run build
+EOF
+
+RUN npm run build
 
 # Set permissions for the /app directory
 RUN chown -R 1001:0 /app
