@@ -13,7 +13,7 @@ metadata:
   name: idp-configmap-automation-binding
 subjects:
 - kind: ServiceAccount
-  name: $SA_SYNC_USERS
+  name: {{ .Values.jobSyncUsersServiceAccount }}
 roleRef:
   kind: Role
   name: idp-configmap-automation-role
@@ -43,7 +43,7 @@ metadata:
   name: idp-configmap-automation-clusterrolebinding
 subjects:
 - kind: ServiceAccount
-  name: {{ .Values.jobSyncUsersServiceAccount }}
+  name: {{ .Values.jobSyncUsersServiceAccount }}
   namespace: {{ .Release.Namespace }}
 roleRef:
   kind: ClusterRole
