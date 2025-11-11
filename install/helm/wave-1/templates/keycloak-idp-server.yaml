@@ -208,7 +208,7 @@ spec:
             --from-file=ca.crt=$PRIVATE_CA_PEM \
             --from-literal=idp-issuer=https://${OAUTH_ENDPOINT}/realms/csa \
             --from-literal=idp-url=https://${OAUTH_ENDPOINT} \
-            --from-literal=backend-url=https://obs-main-api-${PROJECT_NAME}${WILDCARD_ADDRESS//\*}" \
+            --from-literal=backend-url=https://obs-main-api-${PROJECT_NAME}${WILDCARD_ADDRESS//\*} \
             --dry-run=client -o yaml | oc apply -f -
             
           echo "Labeling secrets..."
