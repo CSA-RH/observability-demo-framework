@@ -108,9 +108,7 @@ spec:
     dockerStrategy:
       buildArgs: 
         - name: VITE_OBSERVABILITY_DEMO_API
-          value: "http://default-api-url.com"
         - name: VITE_KEYCLOAK_URL
-          value: "http://default-keycloak-url.com"
       dockerfilePath: Dockerfile
     type: Docker
 ---
