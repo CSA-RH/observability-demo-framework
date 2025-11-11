@@ -19,4 +19,18 @@ spec:
       - image: obs-front:latest
         name: obs-front
 ---
-
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: obs-front
+    app.kubernetes.io/instance: obs-demo-wave-4
+    observability-demo-framework: frontend
+  name: obs-front
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: obs-front
