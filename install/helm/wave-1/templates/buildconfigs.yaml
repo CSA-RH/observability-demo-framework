@@ -102,8 +102,11 @@ spec:
       kind: ImageStreamTag
       name: obs-front:latest
   source:
-    binary: {}
-    type: Binary
+    type: Git
+    git: 
+      uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
+      ref: feature/installation
+    contextDir: obs-front/
   strategy:
     dockerStrategy:
       buildArgs: 
