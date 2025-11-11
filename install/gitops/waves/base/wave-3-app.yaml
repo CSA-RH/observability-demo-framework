@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/CSA-RH/observability-demo-framework.git    
-    path: install/helm/wave-4
+    path: install/helm/wave-3
     targetRevision: feature/installation
     helm:
       valueFiles:

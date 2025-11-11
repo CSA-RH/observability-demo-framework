@@ -1,15 +1,15 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: obs-demo-wave-3
+  name: obs-demo-wave-4
   namespace: openshift-gitops
   annotations: 
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "4"
 spec:
   project: default
   source:
     repoURL: https://github.com/CSA-RH/observability-demo-framework.git    
-    path: install/helm/wave-3
+    path: install/helm/wave-4
     targetRevision: feature/installation
     helm:
       valueFiles:
