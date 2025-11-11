@@ -8,6 +8,11 @@
   {{- $allServiceAccounts = append $allServiceAccounts .Values.jobBuildImagesServiceAccount -}}
 {{- end -}}
 
+{{- if .Values.jobSyncUsersServiceAccount -}}
+  {{- $allServiceAccounts = append $allServiceAccounts .Values.jobSyncUsersServiceAccount -}}
+{{- end -}}
+
+
 {{- range $saName := $allServiceAccounts }}
 apiVersion: v1
 kind: ServiceAccount

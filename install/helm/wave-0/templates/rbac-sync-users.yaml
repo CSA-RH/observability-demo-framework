@@ -1,0 +1,51 @@
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: idp-configmap-automation-role    
+rules:
+- apiGroups: [""] 
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch", "patch", "update", "create"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: idp-configmap-automation-binding
+subjects:
+- kind: ServiceAccount
+  name: $SA_SYNC_USERS
+roleRef:
+  kind: Role
+  name: idp-configmap-automation-role
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: idp-configmap-automation-clusterrole    
+rules:
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "list", "watch", "delete", "update", "patch", "create"]
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["clusterrolebindings"]
+  verbs: ["get", "list", "watch", "delete", "update", "patch", "create"]
+- apiGroups: ["", "image.openshift.io"] # Core API and OpenShift Image API groups
+  resources: ["imagestreams/layers"]
+  verbs: ["get"]
+- apiGroups: ["opentelemetry.io"] # The specific API Group for the CRD
+  resources: ["instrumentations"]   # The plural resource name
+  verbs: ["get", "list", "watch", "delete", "update", "patch", "create"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: idp-configmap-automation-clusterrolebinding
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.jobSyncUsersServiceAccount }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: idp-configmap-automation-clusterrole
+  apiGroup: rbac.authorization.k8s.io
