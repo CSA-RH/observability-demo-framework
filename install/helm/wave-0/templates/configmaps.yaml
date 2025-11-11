@@ -74,3 +74,448 @@ data:
     mc --config-dir $CONFIG_DIR mb --ignore-existing obs-minio/tempo-storage
 
     echo "✅ Minio buckets are ready."
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: sync-users-playbook
+  namespace: {{ .Release.Namespace }}
+data:
+  playbook-sync-users.yml: |-
+    - name: Sync Keycloak users and associated resources based on ConfigMap state
+      hosts: localhost
+      gather_facts: false
+
+      vars:    
+        client_id: "{{ lookup('env', 'KC_API_CLIENT_ID') }}"
+        client_secret: "{{ lookup('env', 'KC_API_CLIENT_SECRET') }}"
+        users_configmap: obs-demo-fwk-users
+        root_namespace: obs-demo
+        keycloak_url: "{{ lookup('env', 'KC_API_URL') }}"
+        keycloak_realm: "{{ lookup('env', 'KC_API_REALM') }}"
+
+      tasks:
+
+        - name: Check if the user data ConfigMap already exists
+          kubernetes.core.k8s_info:
+            kind: ConfigMap
+            name: "{{ users_configmap }}"
+            namespace: "{{ root_namespace }}"
+          register: configmap_check_status
+
+        - name: Display ConfigMap check status (for debugging)
+          debug:
+            msg: "ConfigMap '{{ users_configmap }}' found: {{ 'Yes' if configmap_check_status.resources | length > 0 else 'No' }}"
+          when: true # Set to true to enable this debugging output
+
+        - name: Load users from existing users_configmap
+          block:
+            - name: Extract and parse users from existing ConfigMap
+              set_fact:
+                generated_users: >-
+                  {{
+                    (configmap_check_status.resources[0].data['users'] | from_json)
+                    if configmap_check_status.resources[0].data is defined and
+                        'users' in configmap_check_status.resources[0].data and
+                        configmap_check_status.resources[0].data['users'] | trim != ""
+                    else []
+                  }}
+            - name: Report users loaded from ConfigMap
+              debug:
+                msg: "Loaded {{ generated_users | length }} user(s) from existing ConfigMap '{{ users_configmap }}'."
+          when: configmap_check_status.resources | length > 0
+
+        # --- Sanity checks for generated_users ---
+        - name: Fail if generated_users is not a list (sanity check)
+          ansible.builtin.fail:
+            msg: "The 'generated_users' variable is not a list or is undefined after attempting to generate/load. Expected type 'list' but got '{{ generated_users | type_debug }}'."
+          when: generated_users is not defined or (generated_users | type_debug) != 'list' # <- CORRECTED LINE using type_debug
+
+        - name: Inform if no users are to be processed
+          debug:
+            msg: "No users found in generated_users list (either from new generation or loaded from ConfigMap). Subsequent user-specific tasks will be skipped."
+          when: generated_users | length == 0
+
+        # --- USER-SPECIFIC OPERATIONS (Run only if generated_users is not empty) ---
+        - name: "Perform operations for users (Keycloak, Namespaces, RBAC, OTel)"
+          block:
+            - name: Get access token from Keycloak
+              uri:
+                url: "{{ keycloak_url }}/realms/{{ keycloak_realm }}/protocol/openid-connect/token"
+                method: POST
+                body:
+                  grant_type: client_credentials
+                  client_id: "{{ client_id }}"
+                  client_secret: "{{ client_secret }}"
+                body_format: form-urlencoded
+                return_content: yes
+                validate_certs: false
+              register: token_response
+
+            - name: Ensure Keycloak group 'obs-demo-users' is present
+              uri:
+                url: "{{ keycloak_url }}/admin/realms/{{ keycloak_realm }}/groups"
+                method: POST
+                headers:
+                  Authorization: "Bearer {{ token_response.json.access_token }}"
+                  Content-Type: "application/json"
+                body_format: json
+                body: '{"name": "obs-demo-users"}'
+                status_code: 201
+                validate_certs: false                        
+              register: group_creation_result
+              failed_when: group_creation_result.status not in [201, 409]
+
+            - name: Get ID of the 'obs-demo-users' group
+              ansible.builtin.uri:
+                url: "{{ keycloak_url }}/admin/realms/{{ keycloak_realm }}/groups?search=obs-demo-users"            
+                method: GET
+                headers:
+                  Authorization: "Bearer {{ token_response.json.access_token }}"
+                return_content: true
+                validate_certs: false
+              register: group_id_result
+              
+            - name: Set fact for group ID
+              ansible.builtin.set_fact:
+                obs_demo_group_id: "{{ group_id_result.json | selectattr('name', 'equalto', 'obs-demo-users') | map(attribute='id') | first }}"
+
+            - name: Check if user exists in Keycloak
+              uri:
+                url: "{{ keycloak_url }}/admin/realms/{{ keycloak_realm }}/users?username={{ user_item.username }}"
+                method: GET
+                headers:
+                  Authorization: "Bearer {{ token_response.json.access_token }}"
+                return_content: true
+                validate_certs: false
+              loop: "{{ generated_users }}"
+              loop_control:
+                label: "Checking user {{ user_item.username }}"
+                loop_var: user_item # Using user_item for clarity in this loop
+              register: user_check_results
+
+            - name: Show check result item (DEBUG)
+              ansible.builtin.debug: 
+                msg: '{{ user_check_results }}'
+              when: false
+
+            - name: Create user in Keycloak if not exists
+              uri:
+                url: "{{ keycloak_url }}/admin/realms/{{ keycloak_realm }}/users"
+                method: POST
+                headers:
+                  Authorization: "Bearer {{ token_response.json.access_token }}"
+                  Content-Type: "application/json"
+                body_format: json
+                body: >-
+                  {{
+                    {
+                      "username": user_item.username,
+                      "enabled": true,
+                      "firstName": user_item.username,
+                      "lastName": "User",
+                      "email": user_item.username ~ "@observability.com",
+                      "emailVerified": true,
+                      "credentials": [
+                        {
+                          "type": "password",
+                          "value": user_item.password,
+                          "temporary": false
+                        }
+                      ]
+                    }
+                  }}
+                status_code: 201
+                validate_certs: false
+              loop: "{{ generated_users }}"
+              loop_control:
+                label: "Creating user {{ user_item.username }}"
+                loop_var: user_item
+              vars:
+                matching_check_result: >-
+                  {% set _matched_items = user_check_results.results
+                                          | selectattr('user_item', 'defined')  
+                                          | selectattr('user_item.username', 'equalto', user_item.username) 
+                                          | list %}
+                  {{ _matched_items[0] if _matched_items else none }}
+              when: >-
+                matching_check_result is not none and
+                matching_check_result is mapping and
+                (matching_check_result['json'] | length == 0)
+
+            - name: Look up User ID for all users
+              ansible.builtin.uri:
+                # FIX: Manually construct the URL for cross-version compatibility
+                url: "{{ keycloak_url }}/admin/realms/{{ keycloak_realm }}/users?username={{ user_item.username }}&exact=true"
+                method: GET
+                headers:
+                  Authorization: "Bearer {{ token_response.json.access_token }}"
+                return_content: true
+                validate_certs: false
+                status_code: 200
+              register: user_id_lookup_results
+              loop: "{{ generated_users }}"
+              loop_control:
+                label: "Fetching ID for {{ user_item.username }}"
+                loop_var: user_item
+
+            - name: Aggregate ID and Add user to 'obs-demo-users' group
+              ansible.builtin.uri:
+                # Endpoint to manage a user's group membership: /users/{id}/groups/{groupId}
+                url: "{{ keycloak_url }}/admin/realms/{{ keycloak_realm }}/users/{{ user_id }}/groups/{{ obs_demo_group_id }}"
+                method: PUT
+                headers:
+                  Authorization: "Bearer {{ token_response.json.access_token }}"
+                status_code: 204 # HTTP 204 No Content is returned on success
+                validate_certs: false
+              loop: "{{ user_id_lookup_results.results }}" # Loop over the lookup results
+              loop_control:
+                label: "Adding {{ user_item.username }} to group"
+                loop_var: result_item
+              vars:
+                # Extract the original user dictionary from the result item
+                user_item: "{{ result_item.user_item }}" 
+                
+                # Safely extract the ID from the JSON content of the lookup result
+                user_id: >-
+                  {{ 
+                    result_item.json | default([]) 
+                    | select('defined') 
+                    | map(attribute='id') 
+                    | first 
+                  }}
+              when: user_id is defined
+
+            - name: Ensure OpenShift namespaces are present for each user
+              kubernetes.core.k8s:
+                state: present
+                resource_definition:
+                  apiVersion: v1
+                  kind: Namespace
+                  metadata:
+                    name: "{{ root_namespace }}-{{ user_item.username }}" 
+                    labels:
+                      observability-demo-framework: "users"
+                      observability-stack: "{{ user_item.monitoringType }}"
+              loop: "{{ generated_users }}"
+              loop_control:
+                loop_var: user_item
+                label: "Namespace for {{ user_item.username }}"
+              register: namespace_creation_results
+
+            - name: Display namespace creation status
+              ansible.builtin.debug:
+                msg: "Namespace {{ item.result.metadata.name }} status: {{ 'Created' if item.changed else 'Already Exists' }}"
+              loop: "{{ namespace_creation_results.results }}"
+              when: item.result is defined and item.result.metadata is defined
+
+            - name: Ensure RoleBinding for system:image-puller exists for each user's SA
+              kubernetes.core.k8s:
+                state: present
+                resource_definition:
+                  apiVersion: rbac.authorization.k8s.io/v1
+                  kind: ClusterRoleBinding
+                  metadata:
+                    name: "image-puller-{{ user_item.username }}-sa" # This name is in user's namespace, so can be static
+                    namespace: "{{ root_namespace }}-{{ user_item.username }}"
+                  roleRef:
+                    apiGroup: rbac.authorization.k8s.io
+                    kind: ClusterRole
+                    name: system:image-puller
+                  subjects:
+                  - kind: ServiceAccount
+                    name: default
+                    namespace: "{{ root_namespace }}-{{ user_item.username }}" # SA from user's namespace
+              loop: "{{ generated_users }}"
+              loop_control:
+                loop_var: user_item
+                label: "RoleBinding for {{ user_item.username }}"
+              register: rolebinding_creation_results
+            
+            - name: Display RoleBinding creation status
+              ansible.builtin.debug:
+                msg: "ClusterRoleBinding '{{ item.result.metadata.name }}' status: {{ 'Created' if item.changed else 'Already Exists' }}"
+              loop: "{{ rolebinding_creation_results.results }}"
+              when: item.result is defined and item.result.metadata is defined
+
+            - name: Ensure OpenTelemetry Instrumentation is configured for each user namespace
+              kubernetes.core.k8s:
+                state: present
+                resource_definition:
+                  apiVersion: opentelemetry.io/v1alpha1
+                  kind: Instrumentation
+                  metadata:
+                    name: instrumentation
+                    namespace: "{{ root_namespace }}-{{ user_item.username }}" # Instrumentation in user's namespace
+                    labels:
+                      observability-demo-framework: 'otel'
+                  spec:
+                    exporter:
+                      endpoint: 'http://otel-collector.{{ root_namespace }}.svc.cluster.local:4317'
+                    dotnet:
+                      env:
+                        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+                          value: 'http://otel-collector.{{ root_namespace }}.svc.cluster.local:4318'
+                        - name: ASPNETCORE_HOSTINGSTARTUPASSEMBLIES
+                          value: OpenTelemetry.AutoInstrumentation.AspNetCoreBootstrapper
+                    nodejs:
+                      env:
+                        - name: OTEL_NODEJS_AUTO_INSTRUMENTATION_ENABLED
+                          value: 'true'
+                        - name: OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
+                          value: 'http://otel-collector.{{ root_namespace }}.svc.cluster.local:4318/v1/logs'
+                    propagators:
+                      - tracecontext
+                      - baggage
+                    sampler: {}
+              loop: "{{ generated_users }}"
+              loop_control:
+                loop_var: user_item
+                label: "OTel Instrumentation for {{ user_item.username }}"
+              register: otel_instrumentation_results
+
+            - name: Display OpenTelemetry Instrumentation creation status
+              ansible.builtin.debug:
+                msg: "Instrumentation '{{ item.result.metadata.name }}' in namespace '{{ item.result.metadata.namespace }}' status: {{ 'Created' if item.changed else 'Already Exists' }}"
+              loop: "{{ otel_instrumentation_results.results }}"
+              when: item.result is defined and item.result.metadata is defined
+
+            # --- PHASE 1: Data Gathering (Ensuring current state is known) ---
+
+            - name: 1.1. Get all 'user' namespaces by label (Fetch Current State)
+              kubernetes.core.k8s_info:
+                api_version: v1
+                kind: Namespace
+                label_selectors: 
+                  - observability-demo-framework=users 
+              register: user_namespaces_info
+
+            - name: 1.1 (DEBUG) display user_namespaces_info
+              ansible.builtin.debug:
+                msg: "{{ user_namespaces_info }}"
+
+            - name: 1.2. Set list of current namespace names
+              ansible.builtin.set_fact:
+                # Defines the missing variable: current_namespace_names
+                current_namespace_names: "{{ user_namespaces_info.resources | map(attribute='metadata.name') | list }}"
+
+            - name: 1.2 (DEBUG) display current_namespace_names
+              ansible.builtin.debug:
+                msg: "{{ current_namespace_names }}"
+                
+            - name: 1.3. Define all desired usernames (Prerequisite for cleanup)
+              ansible.builtin.set_fact:
+                # Defines the desired_usernames list
+                desired_usernames: "{{ generated_users | map(attribute='username') | list }}"
+
+            - name: 1.3 (DEBUG) display desired_usernames
+              ansible.builtin.debug:
+                msg: "{{ desired_usernames }}"
+
+            # --- PHASE 2: Calculation (Determining the Delta) ---
+
+            - name: 1.4. Define all desired namespace names
+              ansible.builtin.set_fact:
+                # Defines the desired_namespace_names list
+                desired_namespace_names: "{{ desired_usernames | map('regex_replace', '^(.*)$', root_namespace + '-\\1') | list }}"
+
+            - name: 1.4 (DEBUG) display desired_namespace_names
+              ansible.builtin.debug:
+                msg: "{{ desired_namespace_names }}"
+                
+            - name: 1.5. Determine stale namespaces for deletion (The Final Delta)
+              ansible.builtin.set_fact:
+                # Now all variables are defined before being used in the difference filter
+                stale_namespaces_to_delete: >
+                  {{ current_namespace_names | difference(desired_namespace_names) }}
+
+            - name: 1.5 (DEBUG) display stale_namespaces_to_delete
+              ansible.builtin.debug:
+                msg: "{{ stale_namespaces_to_delete }}"
+
+            # --- PHASE 3: Execution (Deletion) ---
+
+            - name: 1.6. Display stale namespaces pending deletion
+              ansible.builtin.debug:
+                msg: "Namespaces to be deleted: {{ stale_namespaces_to_delete }}"
+              when: stale_namespaces_to_delete | length > 0
+
+            - name: 1.7. Execute deletion of stale namespaces
+              kubernetes.core.k8s:
+                state: absent
+                api_version: v1
+                kind: Namespace
+                name: "{{ stale_ns }}"
+              loop: "{{ stale_namespaces_to_delete }}"
+              loop_control:
+                loop_var: stale_ns
+                label: "Deleting stale namespace {{ stale_ns }}"
+              when: stale_namespaces_to_delete | length > 0
+
+            - name: 2.0.1. PREP Get list of actual users currently in 'obs-demo-users' group
+              ansible.builtin.uri:
+                # Note: This relies on 'obs_demo_group_id' being set earlier in the playbook
+                url: "{{ keycloak_url }}/admin/realms/{{ keycloak_realm }}/groups/{{ obs_demo_group_id }}/members"
+                method: GET
+                headers:
+                  Authorization: "Bearer {{ token_response.json.access_token }}"
+                status_code: 200
+                return_content: true
+                validate_certs: false
+              register: current_group_members_raw
+
+            - name: 2.0.2. PREP Set list of current group usernames
+              ansible.builtin.set_fact:
+                # Defines the missing variable: current_group_usernames
+                current_group_usernames: "{{ current_group_members_raw.json | map(attribute='username') | list }}"
+                
+            - name: 2.1. Determine stale users for removal from group
+              ansible.builtin.set_fact:
+                # Calculate the delta: current group usernames NOT in the desired list
+                # The 'desired_usernames' fact must be available from your previous cleanup tasks (Task 1.1)
+                stale_users_to_remove: >
+                  {{ current_group_usernames | difference(desired_usernames) }}
+            
+            - name: 2.2. Display users to be removed from group
+              ansible.builtin.debug:
+                msg: "Users to be removed from group 'obs-demo-users': {{ stale_users_to_remove }}"
+              when: stale_users_to_remove | length > 0
+
+            - name: 2.3. Fetch User ID for removal
+              ansible.builtin.uri:
+                # Look up the ID for each stale username (manual URL construction for compatibility)
+                url: "{{ keycloak_url }}/admin/realms/{{ keycloak_realm }}/users?username={{ stale_username }}&exact=true"
+                method: GET
+                headers:
+                  Authorization: "Bearer {{ token_response.json.access_token }}"
+                return_content: true
+                validate_certs: false
+                status_code: 200
+              register: stale_users_info
+              loop: "{{ stale_users_to_remove }}"
+              loop_control:
+                loop_var: stale_username
+                label: "Fetching ID for removal of {{ stale_username }}"
+              when: stale_users_to_remove | length > 0
+              
+            - name: 2.4. DELETE stale user account from Keycloak
+              ansible.builtin.uri:            
+                url: "{{ keycloak_url }}/admin/realms/{{ keycloak_realm }}/users/{{ user_id | trim }}"
+                method: DELETE
+                headers:
+                  Authorization: "Bearer {{ token_response.json.access_token }}"
+                status_code: 204
+                validate_certs: false
+              loop: "{{ stale_users_info.results }}"
+              loop_control:
+                loop_var: stale_user_result
+                label: "Removing {{ stale_user_result.stale_username }}"
+              vars:
+                # Extract User ID from lookup result. Apply | trim here as well, just in case.
+                user_id: >
+                  {{
+                    stale_user_result.json[0].id | default(omit) | trim
+                  }}
+              when: stale_user_result.json | length > 0
+
+          when: generated_users | length > 0 # This condition applies to the entire block of user operations
