@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: obs-front
+    observability-demo-framework: frontend
+  name: obs-front
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: obs-front
+  template:
+    metadata:
+      labels:
+        app: obs-front
+    spec:
+      containers:
+      - image: obs-front:latest
+        name: obs-front
+---
+
