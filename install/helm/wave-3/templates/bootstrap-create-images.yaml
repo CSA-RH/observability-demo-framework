@@ -18,6 +18,10 @@ spec:
           env: 
           - name: BC_NAME
             value: obs-main-api
+          - name: PROJECT_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
           command: ["/bin/sh", "/runner/start-build.sh"]
           volumeMounts:
           - name: runner-vol
@@ -51,6 +55,10 @@ spec:
           env: 
           - name: BC_NAME
             value: obs-front
+          - name: PROJECT_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
           - name: BUILD_VITE_OBSERVABILITY_DEMO_API
             valueFrom:
               secretKeyRef:
@@ -93,8 +101,12 @@ spec:
           image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
           env: 
           - name: BC_NAME
-            value: obs-sync-users          
-          command: ["/bin/sh", "/runner/start-build-backend.sh"]
+            value: obs-sync-users
+          - name: PROJECT_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          command: ["/bin/sh", "/runner/start-build.sh"]
           volumeMounts:
           - name: runner-vol
             mountPath: /runner
@@ -104,8 +116,8 @@ spec:
           name: bootstrap-scripts
           defaultMode: 0555
           items:
-          - key: start-build-backend.sh
-            path: start-build-backend.sh
+          - key: start-build.sh
+            path: start-build.sh
 ---
 apiVersion: batch/v1
 kind: Job
@@ -127,7 +139,11 @@ spec:
           env: 
           - name: BC_NAME
             value: obs-client-node
-          command: ["/bin/sh", "/runner/start-build-backend.sh"]
+          - name: PROJECT_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          command: ["/bin/sh", "/runner/start-build.sh"]
           volumeMounts:
           - name: runner-vol
             mountPath: /runner
@@ -137,8 +153,8 @@ spec:
           name: bootstrap-scripts
           defaultMode: 0555
           items:
-          - key: start-build-backend.sh
-            path: start-build-backend.sh
+          - key: start-build.sh
+            path: start-build.sh
 ---
 apiVersion: batch/v1
 kind: Job
@@ -160,7 +176,11 @@ spec:
           env: 
           - name: BC_NAME
             value: obs-client-dotnet
-          command: ["/bin/sh", "/runner/start-build-backend.sh"]
+          - name: PROJECT_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          command: ["/bin/sh", "/runner/start-build.sh"]
           volumeMounts:
           - name: runner-vol
             mountPath: /runner
@@ -170,5 +190,5 @@ spec:
           name: bootstrap-scripts
           defaultMode: 0555
           items:
-          - key: start-build-backend.sh
-            path: start-build-backend.sh
+          - key: start-build.sh
+            path: start-build.sh
