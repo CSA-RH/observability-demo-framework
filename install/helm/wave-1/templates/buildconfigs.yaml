@@ -19,6 +19,8 @@ metadata:
   {{- end }}
   name: obs-client-dotnet
 spec:
+  successfulBuildsHistoryLimit: 1
+  failedBuildsHistoryLimit: 1
   output:
     to:
       kind: ImageStreamTag
@@ -58,6 +60,8 @@ metadata:
   {{- end }}
   name: obs-client-node
 spec:
+  successfulBuildsHistoryLimit: 1
+  failedBuildsHistoryLimit: 1
   output:
     to:
       kind: ImageStreamTag
@@ -97,6 +101,8 @@ metadata:
   {{- end }}
   name: obs-front
 spec:
+  successfulBuildsHistoryLimit: 1
+  failedBuildsHistoryLimit: 1
   output:
     to:
       kind: ImageStreamTag
@@ -139,6 +145,8 @@ metadata:
   {{- end }}
   name: obs-main-api
 spec:
+  successfulBuildsHistoryLimit: 1
+  failedBuildsHistoryLimit: 1
   output:
     to:
       kind: ImageStreamTag
@@ -178,13 +186,18 @@ metadata:
   {{- end }}
   name: obs-sync-users
 spec:
+  successfulBuildsHistoryLimit: 1
+  failedBuildsHistoryLimit: 1
   output:
     to:
       kind: ImageStreamTag
       name: obs-sync-users:latest
   source:
-    binary: {}
-    type: Binary
+    type: Git
+    git: 
+      uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
+      ref: feature/installation
+    contextDir: install/bash/sync-users/job-image
   strategy:
     dockerStrategy: 
       dockerfilePath: Dockerfile
