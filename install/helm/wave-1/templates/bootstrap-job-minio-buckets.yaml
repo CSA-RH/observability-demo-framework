@@ -33,3 +33,4 @@ spec:
           defaultMode: 0555
           items:
           - key: minio-create-buckets.sh
+            path: minio-create-buckets.sh
