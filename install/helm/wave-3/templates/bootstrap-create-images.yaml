@@ -1,0 +1,75 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bootstrap-build-backend
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
+spec:  
+  backoffLimit: 0   
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      serviceAccountName: build-image-sa
+      restartPolicy: Never
+      containers:
+        - name: build-image
+          image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
+          env: 
+          - name: BC_NAME
+            value: obs-main-api
+          command: ["/bin/sh", "/runner/start-build.sh"]
+          volumeMounts:
+          - name: runner-vol
+            mountPath: /runner
+      volumes: 
+      - name: runner-vol
+        configMap:
+          name: bootstrap-scripts
+          defaultMode: 0555
+          items:
+          - key: start-build.sh
+            path: start-build.sh
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bootstrap-build-frontend
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
+spec:  
+  backoffLimit: 0   
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      serviceAccountName: build-image-sa
+      restartPolicy: Never
+      containers:
+        - name: build-image
+          image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
+          env: 
+          - name: BC_NAME
+            value: obs-front
+          - name: VITE_OBSERVABILITY_DEMO_API
+            valueFrom:
+              secretKeyRef:
+                name: keycloak-route-ca-secret
+                key: backend-url
+          - name: VITE_KEYCLOAK_URL
+            valueFrom:
+              secretKeyRef:
+                name: keycloak-route-ca-secret
+                key: idp-url
+          command: ["/bin/sh", "/runner/start-build-frontend.sh"]
+          volumeMounts:
+          - name: runner-vol
+            mountPath: /runner
+      volumes: 
+      - name: runner-vol
+        configMap:
+          name: bootstrap-scripts
+          defaultMode: 0555
+          items:
+          - key: start-build-frontend.sh
+            path: start-build-frontend.sh

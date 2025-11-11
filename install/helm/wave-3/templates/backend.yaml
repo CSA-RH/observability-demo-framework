@@ -123,8 +123,7 @@ spec:
       app: obs-main-api
   strategy: {}
   template:
-    metadata:
-      creationTimestamp: null
+    metadata:      
       labels:
         app: obs-main-api
         observability-demo-framework: 'backend'
@@ -144,9 +143,31 @@ spec:
           mountPath: /etc/ssl/keycloak
         env:
         - name: KEYCLOAK_ISSUER
-          value: $IDP_ISSUER
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-route-ca-secret
+              key: idp-issuer
         - name: REQUESTS_CA_BUNDLE
           value: /etc/ssl/keycloak/ca.crt
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: obs-main-api
+    observability-demo-framework: backend
+  {{- if .Values.annotations }}
+  annotations: {{- toYaml .Values.annotations | nindent 4 }}
+  {{- end }}
+  name: obs-main-api
+  namespace: {{ .Release.Namespace }}
+spec:
+  ports:
+  - port: 8000
+    protocol: TCP
+    targetPort: 8000
+  selector:
+    app: obs-main-api
 ---
 apiVersion: route.openshift.io/v1
 kind: Route

@@ -7,7 +7,7 @@ metadata:
   annotations: {{- toYaml .Values.annotations | nindent 4 }}
   {{- end }}
 data:
-  start-build.sh: |-
+  start-build-backend.sh: |-
     #!/bin/sh
     set -eu
     
@@ -26,7 +26,31 @@ data:
     # Wait for the build to complete or fail
     oc wait --for=condition=Complete --timeout=5m build/$BUILD_NAME -n {{ .Release.Namespace }}
     
+    echo "✅ Build $BUILD_NAME completed successfully."
+  start-build-frontend.sh: |-
+    #!/bin/sh
+    set -eu
+    
+    echo "Starting build for $BC_NAME..."
+    
+    # Start the build and get the build name (e.g., "my-app-1")
+    BUILD_NAME=$(oc start-build $BC_NAME -n {{ .Release.Namespace }} \
+                    --build-arg=VITE_OBSERVABILITY_DEMO_API="${VITE_OBSERVABILITY_DEMO_API}" \
+                    --build-arg=VITE_KEYCLOAK_URL="${VITE_KEYCLOAK_URL}" \
+                    --follow=false | awk -F'/' '{print $2}' | awk '{print $1}')
+    
+    if [ -z "$BUILD_NAME" ]; then
+      echo "Failed to start build."
+      exit 1
+    fi
+    
+    echo "Build $BUILD_NAME started. Waiting for it to complete..."
+    
+    # Wait for the build to complete or fail
+    oc wait --for=condition=Complete --timeout=5m build/$BUILD_NAME -n {{ .Release.Namespace }}
+    
     echo "✅ Build $BUILD_NAME completed successfully."  
+
   minio-create-buckets.sh: |-
     #!/bin/sh
     set -eu
