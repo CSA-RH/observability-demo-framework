@@ -1,12 +1,12 @@
-annotations-wave-0: 
+annotationsWave0: 
   argocd.argoproj.io/sync-wave: "0"
-annotations-wave-1: 
+annotationsWave1: 
   argocd.argoproj.io/sync-wave: "1"
-annotations-wave-2: 
+annotationsWave2: 
   argocd.argoproj.io/sync-wave: "2"
-annotations-wave-3: 
+annotationsWave3: 
   argocd.argoproj.io/sync-wave: "3"
-annotations-wave-4: 
+annotationsWave4: 
   argocd.argoproj.io/sync-wave: "4"
 
 minio: 

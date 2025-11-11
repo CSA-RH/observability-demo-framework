@@ -4,8 +4,8 @@ metadata:
   labels:
     operators.coreos.com/grafana-operator.openshift-operators: ""
     observability-demo-framework: 'operator'
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
   name: grafana-operator
   namespace: openshift-operators

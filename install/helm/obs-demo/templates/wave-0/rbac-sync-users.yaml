@@ -2,8 +2,8 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: idp-configmap-automation-role
-  {{- if .Values.annotations-wave-0 }}
-  annotations: {{- toYaml .Values.annotations-wave-0 | nindent 4 }}
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
   {{- end }}
 rules:
 - apiGroups: [""] 
@@ -14,8 +14,8 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: idp-configmap-automation-binding
-  {{- if .Values.annotations-wave-0 }}
-  annotations: {{- toYaml .Values.annotations-wave-0 | nindent 4 }}
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
   {{- end }}
 subjects:
 - kind: ServiceAccount
@@ -29,8 +29,8 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: idp-configmap-automation-clusterrole
-  {{- if .Values.annotations-wave-0 }}
-  annotations: {{- toYaml .Values.annotations-wave-0 | nindent 4 }}
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
   {{- end }}
 rules:
 - apiGroups: [""]
@@ -50,8 +50,8 @@ kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: idp-configmap-automation-clusterrolebinding
-  {{- if .Values.annotations-wave-0 }}
-  annotations: {{- toYaml .Values.annotations-wave-0 | nindent 4 }}
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
   {{- end }}
 subjects:
 - kind: ServiceAccount

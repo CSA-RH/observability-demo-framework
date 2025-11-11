@@ -3,8 +3,8 @@ kind: OperatorGroup
 metadata:
   annotations:
     olm.providedAPIs: Keycloak.v2alpha1.k8s.keycloak.org,KeycloakRealmImport.v2alpha1.k8s.keycloak.org
-    {{- if .Values.annotations-wave-1 }}
-    {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+    {{- if .Values.annotationsWave1 }}
+    {{- toYaml .Values.annotationsWave1 | nindent 4 }}
     {{- end }}
   name: keycloak-operator-group
 spec:
@@ -16,8 +16,8 @@ kind: Subscription
 metadata:
   labels:
     operators.coreos.com/rhbk-operator.keycloak: ""
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
   name: rhbk-operator  
 spec:

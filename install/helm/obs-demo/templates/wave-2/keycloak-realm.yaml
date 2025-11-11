@@ -3,15 +3,15 @@ kind: ServiceAccount
 metadata:
   name: keycloak-bootstrap-sa
   namespace: {{ .Release.Namespace }}
-  {{- if .Values.annotations-wave-2 }}
-  annotations: {{- toYaml .Values.annotations-wave-2 | nindent 4 }}
+  {{- if .Values.annotationsWave2 }}
+  annotations: {{- toYaml .Values.annotationsWave2 | nindent 4 }}
   {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  {{- if .Values.annotations-wave-2 }}
-  annotations: {{- toYaml .Values.annotations-wave-2 | nindent 4 }}
+  {{- if .Values.annotationsWave2 }}
+  annotations: {{- toYaml .Values.annotationsWave2 | nindent 4 }}
   {{- end }}
   name: keycloak-bootstrap-role
   namespace: {{ .Release.Namespace }}
@@ -42,8 +42,8 @@ subjects:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  {{- if .Values.annotations-wave-2 }}
-  annotations: {{- toYaml .Values.annotations-wave-2 | nindent 4 }}
+  {{- if .Values.annotationsWave2 }}
+  annotations: {{- toYaml .Values.annotationsWave2 | nindent 4 }}
   {{- end }}
   name: keycloak-bootstrap-script
   namespace: {{ .Release.Namespace }}
@@ -402,8 +402,8 @@ metadata:
     helm.sh/hook-delete-policy: hook-succeeded
     argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
-    {{- if .Values.annotations-wave-2 }}
-    {{- toYaml .Values.annotations-wave-2 | nindent 4 }}
+    {{- if .Values.annotationsWave2 }}
+    {{- toYaml .Values.annotationsWave2 | nindent 4 }}
     {{- end }}
 spec:  
   backoffLimit: 0 

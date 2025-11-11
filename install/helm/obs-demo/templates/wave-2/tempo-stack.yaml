@@ -5,8 +5,8 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     observability-demo-framework: traces
-  {{- if .Values.annotations-wave-2 }}
-  annotations: {{- toYaml .Values.annotations-wave-2 | nindent 4 }}
+  {{- if .Values.annotationsWave2 }}
+  annotations: {{- toYaml .Values.annotationsWave2 | nindent 4 }}
   {{- end }}
 spec:
   tenants:

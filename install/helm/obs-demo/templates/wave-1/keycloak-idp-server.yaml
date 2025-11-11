@@ -5,8 +5,8 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: keycloak-cert-job-sa
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
 ---
 # ---------------------------------
@@ -15,8 +15,8 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
   name: keycloak-cert-job-role
 rules:
@@ -31,8 +31,8 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
   name: keycloak-cert-job-binding
 roleRef:
@@ -50,8 +50,8 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
   name: keycloak-cert-job-clusterrole
 rules:
@@ -63,8 +63,8 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
   name: keycloak-manager-role
   namespace: {{ .Release.Namespace }}
@@ -76,8 +76,8 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
   name: keycloak-manager-binding
   namespace: {{ .Release.Namespace }}
@@ -96,8 +96,8 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
   name: keycloak-cert-job-clusterbinding
 roleRef:
@@ -107,8 +107,8 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: keycloak-cert-job-sa
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
   namespace: {{ .Release.Namespace }}
 ---
@@ -122,8 +122,8 @@ metadata:
     helm.sh/hook-delete-policy: hook-succeeded
     argocd.argoproj.io/hook: PostSync
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
-    {{- if .Values.annotations-wave-1 }}
-    {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+    {{- if .Values.annotationsWave1 }}
+    {{- toYaml .Values.annotationsWave1 | nindent 4 }}
     {{- end }}
 spec:
   backoffLimit: 0 

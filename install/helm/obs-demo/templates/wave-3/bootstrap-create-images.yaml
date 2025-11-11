@@ -2,8 +2,8 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: bootstrap-build-backend
-  {{- if .Values.annotations-wave-3 }}
-  annotations: {{- toYaml .Values.annotations-wave-3 | nindent 4 }}
+  {{- if .Values.annotationsWave3 }}
+  annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
   {{- end }}
 spec:  
   backoffLimit: 0   
@@ -39,8 +39,8 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: bootstrap-build-frontend
-  {{- if .Values.annotations-wave-3 }}
-  annotations: {{- toYaml .Values.annotations-wave-3 | nindent 4 }}
+  {{- if .Values.annotationsWave3 }}
+  annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
   {{- end }}
 spec:  
   backoffLimit: 0   
@@ -86,8 +86,8 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: bootstrap-build-sync-users
-  {{- if .Values.annotations-wave-3 }}
-  annotations: {{- toYaml .Values.annotations-wave-3 | nindent 4 }}
+  {{- if .Values.annotationsWave3 }}
+  annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
   {{- end }}
 spec:  
   backoffLimit: 0   
@@ -123,8 +123,8 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: bootstrap-build-client-node
-  {{- if .Values.annotations-wave-3 }}
-  annotations: {{- toYaml .Values.annotations-wave-3 | nindent 4 }}
+  {{- if .Values.annotationsWave3 }}
+  annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
   {{- end }}
 spec:  
   backoffLimit: 0
@@ -160,8 +160,8 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: bootstrap-build-client-dotnet
-  {{- if .Values.annotations-wave-3 }}
-  annotations: {{- toYaml .Values.annotations-wave-3 | nindent 4 }}
+  {{- if .Values.annotationsWave3 }}
+  annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
   {{- end }}
 spec:  
   backoffLimit: 0

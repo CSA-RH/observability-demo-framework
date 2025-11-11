@@ -2,8 +2,8 @@ apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
   name: obs-client-dotnet
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
 spec:
   lookupPolicy:
@@ -14,8 +14,8 @@ kind: BuildConfig
 metadata:
   labels:
     build: obs-client-dotnet
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
   name: obs-client-dotnet
 spec:
@@ -42,8 +42,8 @@ metadata:
   name: obs-client-node
   labels: 
     observability-demo-framework: cicd
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
 spec:
   lookupPolicy:
@@ -55,8 +55,8 @@ metadata:
   labels:
     build: obs-client-node
     observability-demo-framework: cicd
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
   name: obs-client-node
 spec:
@@ -83,8 +83,8 @@ metadata:
   name: obs-front
   labels:
     observability-demo-framework: 'cicd'
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
 spec:
   lookupPolicy:
@@ -96,8 +96,8 @@ metadata:
   labels:    
     build: obs-front
     observability-demo-framework: 'cicd'
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
   name: obs-front
 spec:
@@ -127,8 +127,8 @@ metadata:
   name: obs-main-api
   labels: 
     observability-demo-framework: 'cicd'
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
 spec:
   lookupPolicy:
@@ -140,8 +140,8 @@ metadata:
   labels:
     build: obs-main-api
     observability-demo-framework: 'cicd'
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
   name: obs-main-api
 spec:
@@ -168,8 +168,8 @@ metadata:
   name: obs-sync-users
   labels: 
     observability-demo-framework: 'users'
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
 spec:
   lookupPolicy:
@@ -181,8 +181,8 @@ metadata:
   labels:
     build: obs-sync-users
     observability-demo-framework: 'cicd'
-  {{- if .Values.annotations-wave-1 }}
-  annotations: {{- toYaml .Values.annotations-wave-1 | nindent 4 }}
+  {{- if .Values.annotationsWave1 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
   name: obs-sync-users
 spec:

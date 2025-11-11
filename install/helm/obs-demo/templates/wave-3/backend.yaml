@@ -2,8 +2,8 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:  
   name: obs-main-api-sa
-  {{- if .Values.annotations-wave-3 }}
-  annotations: {{- toYaml .Values.annotations-wave-3 | nindent 4 }}
+  {{- if .Values.annotationsWave3 }}
+  annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
   {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -12,8 +12,8 @@ metadata:
   name: obs-main-api-role
   labels:
     observability-demo-framework: 'rbac'
-  {{- if .Values.annotations-wave-3 }}
-  annotations: {{- toYaml .Values.annotations-wave-3 | nindent 4 }}
+  {{- if .Values.annotationsWave3 }}
+  annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
   {{- end }}
 rules:
   - apiGroups: ["route.openshift.io"]
@@ -35,8 +35,8 @@ metadata:
   name: obs-main-api-clusterrole
   labels:
     observability-demo-framework: 'rbac'
-  {{- if .Values.annotations-wave-3 }}
-  annotations: {{- toYaml .Values.annotations-wave-3 | nindent 4 }}
+  {{- if .Values.annotationsWave3 }}
+  annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
   {{- end }}
 rules:
   - apiGroups: ["config.openshift.io"]
@@ -76,8 +76,8 @@ metadata:
   name: obs-main-api-rolebinding
   labels:
     observability-demo-framework: 'rbac'
-  {{- if .Values.annotations-wave-3 }}
-  annotations: {{- toYaml .Values.annotations-wave-3 | nindent 4 }}
+  {{- if .Values.annotationsWave3 }}
+  annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
   {{- end }}
 subjects:
   - kind: ServiceAccount
@@ -94,8 +94,8 @@ metadata:
   name: obs-main-api-clusterrolebinding
   labels:
     observability-demo-framework: 'rbac'
-  {{- if .Values.annotations-wave-3 }}
-  annotations: {{- toYaml .Values.annotations-wave-3 | nindent 4 }}
+  {{- if .Values.annotationsWave3 }}
+  annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
   {{- end }}
 subjects:
   - kind: ServiceAccount
@@ -112,8 +112,8 @@ metadata:
   labels:
     app: obs-main-api
     observability-demo-framework: 'backend'
-  {{- if .Values.annotations-wave-3 }}
-  annotations: {{- toYaml .Values.annotations-wave-3 | nindent 4 }}
+  {{- if .Values.annotationsWave3 }}
+  annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
   {{- end }}
   name: obs-main-api
 spec:
@@ -156,8 +156,8 @@ metadata:
   labels:
     app: obs-main-api
     observability-demo-framework: backend
-  {{- if .Values.annotations-wave-3 }}
-  annotations: {{- toYaml .Values.annotations-wave-3 | nindent 4 }}
+  {{- if .Values.annotationsWave3 }}
+  annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
   {{- end }}
   name: obs-main-api
   namespace: {{ .Release.Namespace }}
@@ -175,8 +175,8 @@ metadata:
   labels:
     app: obs-main-api
     observability-demo-framework: 'backend'
-  {{- if .Values.annotations-wave-3 }}
-  annotations: {{- toYaml .Values.annotations-wave-3 | nindent 4 }}
+  {{- if .Values.annotationsWave3 }}
+  annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
   {{- end }}
   name: obs-main-api
 spec:

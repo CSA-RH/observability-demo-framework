@@ -5,8 +5,8 @@ metadata:
     app: obs-front
     observability-demo-framework: frontend
   name: obs-front
-  {{- if .Values.annotations-wave-4 }}
-  annotations: {{- toYaml .Values.annotations-wave-4 | nindent 4 }}
+  {{- if .Values.annotationsWave4 }}
+  annotations: {{- toYaml .Values.annotationsWave4 | nindent 4 }}
   {{- end }}
 spec:
   replicas: 1
@@ -30,8 +30,8 @@ metadata:
     app.kubernetes.io/instance: obs-demo-wave-4
     observability-demo-framework: frontend
   name: obs-front
-  {{- if .Values.annotations-wave-4 }}
-  annotations: {{- toYaml .Values.annotations-wave-4 | nindent 4 }}
+  {{- if .Values.annotationsWave4 }}
+  annotations: {{- toYaml .Values.annotationsWave4 | nindent 4 }}
   {{- end }}
 spec:
   ports:
@@ -47,8 +47,8 @@ metadata:
   labels:
     app: obs-front
     observability-demo-framework: frontend
-  {{- if .Values.annotations-wave-4 }}
-  annotations: {{- toYaml .Values.annotations-wave-4 | nindent 4 }}
+  {{- if .Values.annotationsWave4 }}
+  annotations: {{- toYaml .Values.annotationsWave4 | nindent 4 }}
   {{- end }}
   name: obs-front
 spec:

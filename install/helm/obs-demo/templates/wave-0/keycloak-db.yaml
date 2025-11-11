@@ -5,8 +5,8 @@ metadata:
   namespace: {{ .Values.rootNamespace }}
   labels: 
     observability-demo-framework: idp
-  {{- if .Values.annotations-wave-0 }}
-  annotations: {{- toYaml .Values.annotations-wave-0 | nindent 4 }}
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
   {{- end }}
 spec:
   serviceName: postgresql-db-service
@@ -45,8 +45,8 @@ metadata:
   namespace: {{ .Values.rootNamespace }}
   labels: 
     observability-demo-framework: idp
-  {{- if .Values.annotations-wave-0 }}
-  annotations: {{- toYaml .Values.annotations-wave-0 | nindent 4 }}
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
   {{- end }}
 spec:
   selector:
@@ -64,8 +64,8 @@ metadata:
   namespace: {{ .Values.rootNamespace }}
   labels: 
     observability-demo-framework: idp
-  {{- if .Values.annotations-wave-0 }}
-  annotations: {{- toYaml .Values.annotations-wave-0 | nindent 4 }}
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
   {{- end }}
 type: Opaque
 data:
