@@ -105,50 +105,7 @@ roleRef:
   kind: ClusterRole
   name: obs-main-api-clusterrole
   apiGroup: rbac.authorization.k8s.io
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    app: obs-main-api
-    observability-demo-framework: 'backend'
-  {{- if .Values.annotationsWave3 }}
-  annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
-  {{- end }}
-  name: obs-main-api
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: obs-main-api
-  strategy: {}
-  template:
-    metadata:      
-      labels:
-        app: obs-main-api
-        observability-demo-framework: 'backend'
-    spec:
-      serviceAccountName: obs-main-api-sa
-      volumes:
-      - name: keycloak-route-ca-secret
-        secret:
-          secretName: keycloak-route-ca-secret
-          defaultMode: 420
-      containers:
-      - image: obs-main-api:latest
-        name: obs-main-api
-        volumeMounts:
-        - name: keycloak-route-ca-secret
-          readOnly: true
-          mountPath: /etc/ssl/keycloak
-        env:
-        - name: KEYCLOAK_ISSUER
-          valueFrom:
-            secretKeyRef:
-              name: keycloak-route-ca-secret
-              key: idp-issuer
-        - name: REQUESTS_CA_BUNDLE
-          value: /etc/ssl/keycloak/ca.crt
+
 ---
 apiVersion: v1
 kind: Service
@@ -185,5 +142,43 @@ spec:
   to:
     kind: Service
     name: obs-main-api
+  tls: 
+    termination: edge
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: obs-front
+    app.kubernetes.io/instance: obs-demo-wave-4
+    observability-demo-framework: frontend
+  name: obs-front
+  {{- if .Values.annotationsWave3 }}
+  annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
+  {{- end }}
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: obs-front
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  labels:
+    app: obs-front
+    observability-demo-framework: frontend
+  {{- if .Values.annotationsWave3 }}
+  annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
+  {{- end }}
+  name: obs-front
+spec:
+  port:
+    targetPort: 8080
+  to:
+    kind: Service
+    name: obs-front
   tls: 
     termination: edge

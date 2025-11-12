@@ -394,7 +394,7 @@ data:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: keycloak-realm-bootstrap
+  name: bootstrap-keycloak-realm
   namespace: {{ .Release.Namespace }}
   annotations: 
     #helm.sh/hook: post-install,post-upgrade

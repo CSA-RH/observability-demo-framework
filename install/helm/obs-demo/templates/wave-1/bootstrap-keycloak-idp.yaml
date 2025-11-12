@@ -115,7 +115,7 @@ subjects:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: keycloak-cert-job
+  name: bootstrap-keycloak-idp
   annotations:
     #helm.sh/hook: post-install,post-upgrade
     #helm.sh/hook-weight: "1"
