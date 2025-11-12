@@ -92,8 +92,8 @@ metadata:
   name: tempostack-traces
   labels: 
     observability-demo-framework: rbac
-  {{- if .Values.annotationsWave1 }}
-  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
   {{- end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io

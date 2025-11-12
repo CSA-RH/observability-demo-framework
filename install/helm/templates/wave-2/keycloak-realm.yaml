@@ -396,12 +396,7 @@ kind: Job
 metadata:
   name: bootstrap-keycloak-realm
   namespace: {{ .Release.Namespace }}
-  annotations: 
-    #helm.sh/hook: post-install,post-upgrade
-    #helm.sh/hook-weight: "1"
-    #helm.sh/hook-delete-policy: hook-succeeded
-    #argocd.argoproj.io/hook: PostSync
-    #argocd.argoproj.io/hook-delete-policy: HookSucceeded
+  annotations:
     {{- if .Values.annotationsWave2 }}
     {{- toYaml .Values.annotationsWave2 | nindent 4 }}
     {{- end }}
