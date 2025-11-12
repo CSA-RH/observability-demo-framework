@@ -14,7 +14,6 @@ spec:
     namespace: obs-demo
   syncPolicy:
     automated:
-      prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
