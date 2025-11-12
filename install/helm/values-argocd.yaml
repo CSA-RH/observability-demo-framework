@@ -8,24 +8,3 @@ annotationsWave3:
   argocd.argoproj.io/sync-wave: "3"
 annotationsWave4: 
   argocd.argoproj.io/sync-wave: "4"
-
-minio: 
-  additionalAnnotations: 
-    argocd.argoproj.io/sync-wave: "1"
-
-  service: 
-    annotations:
-      argocd.argoproj.io/sync-wave: "1"
-
-  consoleService:
-    annotations:
-      argocd.argoproj.io/sync-wave: "1"
-
-  postJob:
-    annotations:
-      argocd.argoproj.io/sync-wave: "1"
-      argocd.argoproj.io//hook: PostSync
-  
-  persistence: 
-    annotations: 
-      argocd.argoproj.io/sync-wave: "1"
