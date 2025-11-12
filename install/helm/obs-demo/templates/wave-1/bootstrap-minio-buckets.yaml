@@ -5,23 +5,28 @@ metadata:
   labels: 
     observability-demo-framework: bootstrap
   annotations: 
-    helm.sh/hook: post-install,post-upgrade
-    helm.sh/hook-weight: "1"
-    helm.sh/hook-delete-policy: hook-succeeded
-    argocd.argoproj.io/hook: PostSync
+    #helm.sh/hook: post-install,post-upgrade
+    #helm.sh/hook-weight: "1"
+    #helm.sh/hook-delete-policy: hook-succeeded
+    #argocd.argoproj.io/hook: PostSync
     #argocd.argoproj.io/hook-delete-policy: HookSucceeded
     {{- if .Values.annotationsWave1 }}
     {{- toYaml .Values.annotationsWave1 | nindent 4 }}
     {{- end }}
 spec:
   backoffLimit: 0
-  ttlSecondsAfterFinished: 180  
+  #ttlSecondsAfterFinished: 180  
   template:
     spec:      
       containers:
       - name: minio-bootstrap
         image: minio/mc
-        command: ["/bin/sh", "/runner/minio-create-buckets.sh"]
+        env:
+        - name: PROJECT_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        command: ["/bin/sh", "/runner/minio-create-buckets.sh"]        
         volumeMounts:
         - name: runner-vol
           mountPath: /runner
