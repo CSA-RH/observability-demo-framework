@@ -76,8 +76,8 @@ kind: OperatorGroup
 metadata:
   annotations:
     olm.providedAPIs: AlertingRule.v1.loki.grafana.com,LokiStack.v1.loki.grafana.com,RecordingRule.v1.loki.grafana.com,RulerConfig.v1.loki.grafana.com
-    {{- if .Values.annotationsWave2 }}
-    {{- toYaml .Values.annotationsWave2 | nindent 4 }}
+    {{- if .Values.annotationsWave0 }}
+    {{- toYaml .Values.annotationsWave0 | nindent 4 }}
     {{- end }}
   name: openshift-loki-operator-og
   namespace: openshift-loki-operator
@@ -90,8 +90,8 @@ metadata:
   labels:
     operators.coreos.com/loki-operator.openshift-loki-operator: ""
     observability-demo-framework: 'operator'
-  {{- if .Values.annotationsWave2 }}
-  annotations: {{- toYaml .Values.annotationsWave2 | nindent 4 }}
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
   {{- end }}
   name: loki-operator
   namespace: openshift-loki-operator
