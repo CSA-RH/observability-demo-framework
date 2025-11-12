@@ -81,6 +81,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels: 
     observability-demo-framework: 'otel'
+  {{- if .Values.annotationsWave2 }}
+  annotations: {{- toYaml .Values.annotationsWave2 | nindent 4 }}
+  {{- end }}
 spec:
   observability:
     metrics:
