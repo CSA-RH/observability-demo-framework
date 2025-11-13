@@ -2,7 +2,9 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: obs-demo-app
-  namespace: openshift-gitops  
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
 spec:
   project: default
   source:  
@@ -14,6 +16,7 @@ spec:
     namespace: obs-demo
   syncPolicy:
     automated:
+      prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true

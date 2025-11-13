@@ -27,7 +27,7 @@ spec:
       otlp/obsdemo:
         auth:
           authenticator: bearertokenauth
-        endpoint:  '{{ printf "tempo-escotilla-gateway.%s.svc.cluster.local:8090" .Release.Namespace }}'
+        endpoint:  '{{ printf "tempo-traces-gateway.%s.svc.cluster.local:8090" .Release.Namespace }}'
         headers:
           X-Scope-OrgID: obsdemo
         tls:

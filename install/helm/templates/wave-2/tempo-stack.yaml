@@ -1,7 +1,7 @@
 apiVersion: tempo.grafana.com/v1alpha1
 kind: TempoStack
 metadata:
-  name: escotilla
+  name: traces
   namespace: {{ .Release.Namespace }}
   labels:
     observability-demo-framework: traces
@@ -15,7 +15,7 @@ spec:
         tenantName: obsdemo
     mode: openshift
   managementState: Managed
-  serviceAccount: tempo-escotilla
+  serviceAccount: traces
   template:
     gateway:
       enabled: true
