@@ -5,7 +5,7 @@ metadata:
   annotations: {{- toYaml .Values.annotationsWave2 | nindent 4 }}
   {{- end }}
   name: {{ .Values.lokiOperator.lokiCollectorServiceAccount }}
-  namespace: openshift-logging
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -21,7 +21,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: {{ .Values.lokiOperator.lokiCollectorServiceAccount }}
-  namespace: openshift-logging
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -37,7 +37,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: {{ .Values.lokiOperator.lokiCollectorServiceAccount }}
-  namespace: openshift-logging
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -53,7 +53,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: {{ .Values.lokiOperator.lokiCollectorServiceAccount }}
-  namespace: openshift-logging
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -69,7 +69,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: {{ .Values.lokiOperator.lokiCollectorServiceAccount }}
-  namespace: openshift-logging
+  namespace: {{ .Release.Namespace }}
 ---
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
