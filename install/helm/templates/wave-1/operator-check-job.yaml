@@ -4,7 +4,7 @@ metadata:
   name: operator-waiter-job
   namespace: {{ .Release.Namespace }}
   annotations:
-    #argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "1"
     #argocd.argoproj.io/hook-delete-policy: HookSucceeded
     #helm.sh/hook: post-install,post-upgrade
     #helm.sh/hook-delete-policy: hook-succeeded
