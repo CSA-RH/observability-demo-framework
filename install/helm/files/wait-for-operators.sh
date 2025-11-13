@@ -31,11 +31,15 @@ for SUBSCRIPTION_NAME in $OPERATOR_LIST; do
             exit 1
         fi
         
-        # Search all namespaces (-A) for the subscription name.
-        # Get the namespace from the output.
-        # Take the first line (head -n 1) in case of duplicates.
-        # '|| true' prevents the script from exiting if 'oc get' fails.
-        OPERATOR_NAMESPACE=$(oc get subscription $SUBSCRIPTION_NAME -A --no-headers -o custom-columns=NS:.metadata.namespace 2>/dev/null | head -n 1 || true)
+        # --- THIS IS THE FIX ---
+        # 1. Get ALL subscriptions from ALL namespaces (-A)
+        # 2. Grep for the exact subscription name (using \b for word boundary)
+        # 3. Awk to print the second column (the namespace)
+        # 4. Head to take the first one if there are duplicates
+        OPERATOR_NAMESPACE=$(oc get subscription -A --no-headers -o custom-columns=NAME:.metadata.name,NS:.metadata.namespace 2>/dev/null \
+            | grep "^$SUBSCRIPTION_NAME\b" \
+            | awk '{print $2}' \
+            | head -n 1 || true)
         
         if [ -z "$OPERATOR_NAMESPACE" ]; then
             echo "  Subscription '$SUBSCRIPTION_NAME' not found yet... waiting 10s"
