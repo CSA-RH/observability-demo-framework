@@ -4,11 +4,11 @@ metadata:
   {{- if .Values.annotationsWave2 }}
   annotations: {{- toYaml .Values.annotationsWave2 | nindent 4 }}
   {{- end }}
-  name: loki
-  namespace: openshift-logging
+  name: logging
+  namespace: {{ .Release.Namespace }}
 spec:
   tenants:
-    mode: openshift-logging
+    mode: static
   managementState: Managed
   limits:
     global:
