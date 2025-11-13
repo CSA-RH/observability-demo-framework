@@ -41,5 +41,5 @@ metadata:
 spec:
   logging:
     lokiStack:
-      name: loki
+      name: logging
   type: Logging

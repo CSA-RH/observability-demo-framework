@@ -21,7 +21,8 @@ spec:
       otlphttp:
         auth:
           authenticator: bearertokenauth
-        endpoint: '{{ printf "https://logging-gateway-http.%s.svc.cluster.local:8080/api/logs/v1/application/loki/api/v1/push" .Release.Namespace }}'
+        endpoint: '{{ printf "https://logging-gateway-http.%s.svc.cluster.local:8080/loki/api/v1/push" .Release.Namespace }}'
+        tenand_id: "obsdemo"
         tls:
           ca_file: /var/run/secrets/kubernetes.io/serviceaccount/service-ca.crt
       otlp/obsdemo:

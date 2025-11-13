@@ -8,7 +8,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   tenants:
-    mode: static
+    mode: dynamic
   managementState: Managed
   limits:
     global:
