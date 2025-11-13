@@ -9,6 +9,8 @@ jobKeycloakCertServiceAccount: job-keycloak-cert-generator-sa
 jobBuildImagesServiceAccount: build-image-sa
 jobSyncUsersServiceAccount: obs-sync-users
 
+operatorCheckList: "loki-operator tempo-product opentelemetry-product rhbk-operator cluster-observability-operator grafana-operator"
+
 # Cluster Observability Operator configuration
 observabilityOperator:
   name: cluster-observability-operator
