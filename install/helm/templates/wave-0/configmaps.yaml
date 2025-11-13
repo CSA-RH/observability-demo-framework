@@ -12,7 +12,7 @@ data:
   minio-create-buckets.sh: |-
     {{- .Files.Get "files/minio-create-buckets.sh" | nindent 4 }}
   wait-for-operators.sh: |
-    {{- .Files.Get "files/wait-for-operators.sh" | nident 4 }}
+    {{- .Files.Get "files/wait-for-operators.sh" | nindent 4 }}
 ---
 kind: ConfigMap
 apiVersion: v1
