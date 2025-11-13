@@ -117,8 +117,8 @@ kind: Job
 metadata:
   name: bootstrap-keycloak-idp
   annotations:    
-    {{- if .Values.annotationsWave1 }}
-    {{- toYaml .Values.annotationsWave1 | nindent 4 }}
+    {{- if .Values.annotationsWave2 }}
+    {{- toYaml .Values.annotationsWave2 | nindent 4 }}
     {{- end }}
 spec:
   backoffLimit: 0 

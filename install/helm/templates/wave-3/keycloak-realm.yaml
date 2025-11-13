@@ -397,8 +397,8 @@ metadata:
   name: bootstrap-keycloak-realm
   namespace: {{ .Release.Namespace }}
   annotations:
-    {{- if .Values.annotationsWave2 }}
-    {{- toYaml .Values.annotationsWave2 | nindent 4 }}
+    {{- if .Values.annotationsWave3 }}
+    {{- toYaml .Values.annotationsWave3 | nindent 4 }}
     {{- end }}
 spec:  
   backoffLimit: 0 
