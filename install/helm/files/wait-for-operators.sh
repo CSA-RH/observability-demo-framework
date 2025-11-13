@@ -73,7 +73,7 @@ for SUBSCRIPTION_NAME in $OPERATOR_LIST; do
     # 3. Wait for that specific CSV to be in phase 'Succeeded'
     echo "CSV name is: $CSV_NAME"
     echo "Waiting for CSV '$CSV_NAME' to be Succeeded..."
-    oc wait csv $CSV_NAME -n $OPERATOR_NAMESPACE --for=condition=Succeeded --timeout=300s
+    oc wait csv $CSV_NAME -n $OPERATOR_NAMESPACE --for=jsonpath='{.status.phase}'=Succeeded --timeout=300s
     
     echo "✅ $SUBSCRIPTION_NAME is Succeeded."
     echo "--------------------------------------------------------"
