@@ -1,7 +1,7 @@
 #!/bin/bash
 source ./env.sh
 
-oc delete tempostack -n obs-demo escotilla
+oc delete tempostack -n obs-demo traces
 oc delete opentelemetrycollector otel -n obs-demo
 
 NAMESPACES_TO_DELETE=("openshift-logging" "openshift-loki-operator" "openshift-tempo-operator" "openshift-opentelemetry-operator" "obs-demo")

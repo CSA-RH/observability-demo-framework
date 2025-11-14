@@ -1,5 +1,6 @@
 # List of cluster-wide namespaces to create for operators.
 operatorNamespaces:
+  - openshift-logging
   - openshift-loki-operator
   - openshift-tempo-operator
   - openshift-opentelemetry-operator

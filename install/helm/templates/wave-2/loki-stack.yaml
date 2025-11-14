@@ -5,10 +5,10 @@ metadata:
   annotations: {{- toYaml .Values.annotationsWave2 | nindent 4 }}
   {{- end }}
   name: logging
-  namespace: {{ .Release.Namespace }}
+  namespace: openshift-logging
 spec:
   tenants:
-    mode: dynamic
+    mode: openshift-logging
   managementState: Managed
   limits:
     global:
