@@ -18,7 +18,7 @@ spec:
       spanmetrics:
         metrics_flush_interval: 15s
     exporters:      
-      otlp/loki:
+      otlphttp/loki:
         auth:
           authenticator: bearertokenauth
         endpoint: "https://logging-gateway-http.openshift-logging.svc.cluster.local:8080/api/logs/v1/application"
@@ -102,7 +102,7 @@ spec:
       pipelines:
         logs:
           exporters:
-            - otlp/loki
+            - otlphttp/loki
           processors:
             - k8sattributes
             - transform
