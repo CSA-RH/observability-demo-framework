@@ -10,10 +10,27 @@ spec:
   source:  
     repoURL: https://github.com/CSA-RH/observability-demo-framework.git
     targetRevision: feature/installation
-    path: install/gitops/overlays/rosa
+    path: install/helm
+    source:
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-argocd.yaml
+        - values-rosa.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: obs-demo
+  ignoreDifferences: 
+  - group: apps
+    kind: Deployment
+    name: obs-main-api
+    jqPathExpressions: 
+    - .spec.template.spec.containers[].image
+  - group: apps
+    kind: Deployment
+    name: obs-main-api
+    jqPathExpressions: 
+    - .spec.template.spec.containers[].image
   syncPolicy:
     automated:
       prune: true

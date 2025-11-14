@@ -107,9 +107,6 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: keycloak-cert-job-sa
-  {{- if .Values.annotationsWave1 }}
-  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
-  {{- end }}
   namespace: {{ .Release.Namespace }}
 ---
 apiVersion: batch/v1
