@@ -37,11 +37,11 @@ metadata:
   namespace: openshift-opentelemetry-operator    
 spec:
   channel: stable
-  installPlanApproval: Automatic
+  installPlanApproval: Manual
   name: opentelemetry-product
   source: redhat-operators
   sourceNamespace: openshift-marketplace
-  startingCSV: opentelemetry-operator.v0.135.0-1
+  startingCSV: opentelemetry-operator.v0.113.0-2
 EOF
   # Wait for the operator to be created and available. 
   wait_operator_to_be_installed operators.coreos.com/opentelemetry-product.openshift-opentelemetry-operator openshift-opentelemetry-operator
@@ -113,7 +113,7 @@ spec:
       spanmetrics:
         metrics_flush_interval: 15s
     exporters:      
-      otlphttp:
+      loki:
         auth:
           authenticator: bearertokenauth
         endpoint: 'https://loki-gateway-http.openshift-logging.svc.cluster.local:8080/api/logs/v1/application/loki/api/v1/push'
@@ -197,7 +197,7 @@ spec:
       pipelines:
         logs:
           exporters:
-            - otlphttp
+            - loki
           processors:
             - k8sattributes
             - transform
@@ -215,13 +215,44 @@ spec:
             - spanmetrics
           receivers:
             - otlp
+      telemetry:
+        metrics:
+          address: '0.0.0.0:8888'
   mode: deployment
   managementState: managed  
   serviceAccount: otel-collector
 EOF
 
+echo " - Install Auto instrumentation"
+cat <<EOF | oc apply -f -
+apiVersion: opentelemetry.io/v1alpha1
+kind: Instrumentation
+metadata:
+  name: instrumentation
+  namespace: $CURRENT_NAMESPACE
+  labels:
+    observability-demo-framework: 'otel'
+spec:
+  exporter:
+    endpoint: 'http://otel-collector:4317'
+  dotnet:
+    env:
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        value: 'http://otel-collector:4318'
+      - name: ASPNETCORE_HOSTINGSTARTUPASSEMBLIES
+        value: OpenTelemetry.AutoInstrumentation.AspNetCoreBootstrapper
+  nodejs:    
+    env:
+      - name: OTEL_NODEJS_AUTO_INSTRUMENTATION_ENABLED
+        value: 'true'
+      - name: OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
+        value: 'http://otel-collector:4318/v1/logs'
+  propagators:
+    - tracecontext
+    - baggage
+  sampler: {}
+EOF
 echo "   waiting for OTel Collector to initialize..."
-sleep 2
 oc wait \
     --for=condition=available \
     --timeout=300s \

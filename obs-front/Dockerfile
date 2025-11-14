@@ -16,7 +16,13 @@ RUN npm install
 # Copy the rest of the application source code
 COPY . .
 
-# Build the React app
+# Receive the build arguments
+ARG VITE_OBSERVABILITY_DEMO_API
+ARG VITE_KEYCLOAK_URL
+
+# Write all variables to .env in a single RUN instruction and Build the React app
+RUN echo -e "VITE_OBSERVABILITY_DEMO_API=${VITE_OBSERVABILITY_DEMO_API}\nVITE_KEYCLOAK_URL=${VITE_KEYCLOAK_URL}\nVITE_KEYCLOAK_REALM=csa\nVITE_KEYCLOAK_CLIENT_ID=webauth" > .env
+
 RUN npm run build
 
 # Set permissions for the /app directory

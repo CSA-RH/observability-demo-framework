@@ -1,0 +1,43 @@
+# List of cluster-wide namespaces to create for operators.
+operatorNamespaces:
+  - openshift-logging
+  - openshift-loki-operator
+  - openshift-tempo-operator
+  - openshift-opentelemetry-operator
+
+otherServiceAccounts:
+  - traces
+  - logging
+
+jobKeycloakCertServiceAccount: job-keycloak-cert-generator-sa
+jobBuildImagesServiceAccount: build-image-sa
+jobSyncUsersServiceAccount: obs-sync-users
+
+operatorCheckList: "loki-operator tempo-product opentelemetry-product rhbk-operator cluster-observability-operator grafana-operator"
+
+# Cluster Observability Operator configuration
+observabilityOperator:
+  name: cluster-observability-operator
+  namespace: openshift-operators
+  channel: stable
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  startingCSV: cluster-observability-operator.v1.2.2
+
+minio:
+  fullnameOverride: minio
+  mode: standalone
+  replicas: 1
+  resources: 
+    requests:
+      memory: 1Gi
+  rootUser: minioadmin
+  rootPassword: minioadmin123
+  securityContext:
+    enabled: false
+
+  persistence:
+    size: 10Gi
+
+lokiOperator:
+  lokiCollectorServiceAccount: logging-collector

@@ -2,11 +2,6 @@
 set -e 
 # Load environment
 source ./env.sh
-if [[ $INFRASTRUCTURE = "AWS"  ]]; then
-  source ./env-rosa.sh
-else
-  source ./env-aro.sh
-fi
 
 # Deploy Tempo Operator
 echo ...TEMPO OPERATOR AND TempoStack... 
@@ -163,6 +158,6 @@ spec:
     defaultResultLimit: 20  
   storage:
     secret:
-      name: tempo-storage-secret
-      type: $HYPERSCALER_STORAGE_SECRET_TYPE
+      name: tempostack-minio
+      type: s3
 EOF

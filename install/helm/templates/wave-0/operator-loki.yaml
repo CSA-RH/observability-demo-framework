@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  {{- if .Values.annotationsWave2 }}
+  annotations: {{- toYaml .Values.annotationsWave2 | nindent 4 }}
+  {{- end }}
+  name: {{ .Values.lokiOperator.lokiCollectorServiceAccount }}
+  namespace: openshift-logging
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  {{- if .Values.annotationsWave2 }}
+  annotations: {{- toYaml .Values.annotationsWave2 | nindent 4 }}
+  {{- end }}
+  name: logging-collector-logs-writer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: logging-collector-logs-writer
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.lokiOperator.lokiCollectorServiceAccount }}
+  namespace: openshift-logging
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  {{- if .Values.annotationsWave2 }}
+  annotations: {{- toYaml .Values.annotationsWave2 | nindent 4 }}
+  {{- end }}
+  name: collect-application-logs
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: collect-application-logs
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.lokiOperator.lokiCollectorServiceAccount }}
+  namespace: openshift-logging
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  {{- if .Values.annotationsWave2 }}
+  annotations: {{- toYaml .Values.annotationsWave2 | nindent 4 }}
+  {{- end }}
+  name: collect-audit-logs
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: collect-audit-logs
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.lokiOperator.lokiCollectorServiceAccount }}
+  namespace: openshift-logging
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  {{- if .Values.annotationsWave2 }}
+  annotations: {{- toYaml .Values.annotationsWave2 | nindent 4 }}
+  {{- end }}
+  name: collect-infrastructure-logs
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: collect-infrastructure-logs
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.lokiOperator.lokiCollectorServiceAccount }}
+  namespace: openshift-logging
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  annotations:
+    olm.providedAPIs: AlertingRule.v1.loki.grafana.com,LokiStack.v1.loki.grafana.com,RecordingRule.v1.loki.grafana.com,RulerConfig.v1.loki.grafana.com
+    {{- if .Values.annotationsWave0 }}
+    {{- toYaml .Values.annotationsWave0 | nindent 4 }}
+    {{- end }}
+  name: openshift-loki-operator-og
+  namespace: openshift-loki-operator
+spec:
+  upgradeStrategy: Default
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:    
+  labels:
+    operators.coreos.com/loki-operator.openshift-loki-operator: ""
+    observability-demo-framework: 'operator'
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
+  {{- end }}
+  name: loki-operator
+  namespace: openshift-loki-operator
+spec:
+  channel: stable-6.3
+  installPlanApproval: Automatic
+  name: loki-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
