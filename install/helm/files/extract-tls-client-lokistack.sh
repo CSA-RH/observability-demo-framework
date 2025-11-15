@@ -4,7 +4,7 @@ set -eu
 # Export the LokiStack logging service CA into the target namespace
 export SERVICE_CA_FILE=/tmp/service-ca.crt
 oc get configmap logging-ca-bundle \
-   -n openshift-logging \   
+   -n openshift-logging \
    -ojsonpath='{.data.service-ca\.crt}'  \
    > $SERVICE_CA_FILE
 
