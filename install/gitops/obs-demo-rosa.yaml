@@ -28,7 +28,7 @@ spec:
     - .spec.template.spec.containers[].image
   - group: apps
     kind: Deployment
-    name: obs-main-api
+    name: obs-front
     jqPathExpressions: 
     - .spec.template.spec.containers[].image
   syncPolicy:
