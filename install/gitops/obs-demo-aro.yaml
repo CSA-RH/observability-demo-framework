@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: obs-demo-app
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  project: default
+  source:  
+    repoURL: https://github.com/CSA-RH/observability-demo-framework.git
+    targetRevision: main
+    path: install/helm
+    source:
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-argocd.yaml
+        - values-aro.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: obs-demo
+  ignoreDifferences: 
+  - group: apps
+    kind: Deployment
+    name: obs-main-api
+    jqPathExpressions: 
+    - .spec.template.spec.containers[].image
+  - group: apps
+    kind: Deployment
+    name: obs-front
+    jqPathExpressions: 
+    - .spec.template.spec.containers[].image
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

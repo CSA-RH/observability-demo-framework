@@ -1,0 +1,204 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: obs-client-dotnet
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
+  {{- end }}
+spec:
+  lookupPolicy:
+    local: true
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  labels:
+    build: obs-client-dotnet
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
+  {{- end }}
+  name: obs-client-dotnet
+spec:
+  successfulBuildsHistoryLimit: 1
+  failedBuildsHistoryLimit: 1
+  output:
+    to:
+      kind: ImageStreamTag
+      name: obs-client-dotnet:latest
+  source:    
+    type: Git
+    git: 
+      uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
+      ref: feature/installation
+    contextDir: obs-clients/obs-client-api-dotnet
+  strategy:
+    dockerStrategy: 
+      dockerfilePath: Dockerfile
+    type: Docker
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: obs-client-node
+  labels: 
+    observability-demo-framework: cicd
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
+  {{- end }}
+spec:
+  lookupPolicy:
+    local: true
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  labels:
+    build: obs-client-node
+    observability-demo-framework: cicd
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
+  {{- end }}
+  name: obs-client-node
+spec:
+  successfulBuildsHistoryLimit: 1
+  failedBuildsHistoryLimit: 1
+  output:
+    to:
+      kind: ImageStreamTag
+      name: obs-client-node:latest
+  source:    
+    type: Git
+    git: 
+      uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
+      ref: feature/installation
+    contextDir: obs-clients/obs-client-api-node
+  strategy:
+    dockerStrategy: 
+      dockerfilePath: Dockerfile
+    type: Docker
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: obs-front
+  labels:
+    observability-demo-framework: 'cicd'
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
+  {{- end }}
+spec:
+  lookupPolicy:
+    local: true
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  labels:    
+    build: obs-front
+    observability-demo-framework: 'cicd'
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
+  {{- end }}
+  name: obs-front
+spec:
+  successfulBuildsHistoryLimit: 1
+  failedBuildsHistoryLimit: 1
+  output:
+    to:
+      kind: ImageStreamTag
+      name: obs-front:latest
+  source:
+    type: Git
+    git: 
+      uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
+      ref: feature/installation
+    contextDir: obs-front
+  strategy:
+    dockerStrategy:
+      buildArgs: 
+        - name: VITE_OBSERVABILITY_DEMO_API
+        - name: VITE_KEYCLOAK_URL
+      dockerfilePath: Dockerfile
+    type: Docker
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: obs-main-api
+  labels: 
+    observability-demo-framework: 'cicd'
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
+  {{- end }}
+spec:
+  lookupPolicy:
+    local: true
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  labels:
+    build: obs-main-api
+    observability-demo-framework: 'cicd'
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
+  {{- end }}
+  name: obs-main-api
+spec:
+  successfulBuildsHistoryLimit: 1
+  failedBuildsHistoryLimit: 1
+  output:
+    to:
+      kind: ImageStreamTag
+      name: obs-main-api:latest
+  source:    
+    type: Git
+    git: 
+      uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
+      ref: feature/installation
+    contextDir: obs-main-api/app
+  strategy:
+    dockerStrategy: 
+      dockerfilePath: Dockerfile
+    type: Docker
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: obs-sync-users
+  labels: 
+    observability-demo-framework: 'users'
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
+  {{- end }}
+spec:
+  lookupPolicy:
+    local: true
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  labels:
+    build: obs-sync-users
+    observability-demo-framework: 'cicd'
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
+  {{- end }}
+  name: obs-sync-users
+spec:
+  successfulBuildsHistoryLimit: 1
+  failedBuildsHistoryLimit: 1
+  output:
+    to:
+      kind: ImageStreamTag
+      name: obs-sync-users:latest
+  source:
+    type: Git
+    git: 
+      uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
+      ref: feature/installation
+    contextDir: install/bash/sync-users/job-image
+  strategy:
+    dockerStrategy: 
+      dockerfilePath: Dockerfile
+    type: Docker

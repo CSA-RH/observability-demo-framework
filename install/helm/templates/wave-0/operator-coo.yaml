@@ -1,0 +1,45 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: {{ .Values.observabilityOperator.name }}
+  namespace: {{ .Values.observabilityOperator.namespace }}
+  labels:
+    operators.coreos.com/cluster-observability-operator.openshift-operators: ""
+    observability-demo-framework: 'operator'
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
+  {{- end }}
+spec:
+  channel: {{ .Values.observabilityOperator.channel }}
+  installPlanApproval: Automatic
+  name: {{ .Values.observabilityOperator.name }}
+  source: {{ .Values.observabilityOperator.source }}
+  sourceNamespace: {{ .Values.observabilityOperator.sourceNamespace }}
+  startingCSV: {{ .Values.observabilityOperator.startingCSV }}
+---
+apiVersion: observability.openshift.io/v1alpha1
+kind: UIPlugin
+metadata:
+  name: distributed-tracing
+  labels:
+    observability-demo-framework: 'ui'
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
+  {{- end }}
+spec:
+  type: DistributedTracing
+---
+apiVersion: observability.openshift.io/v1alpha1
+kind: UIPlugin
+metadata:
+  name: logging
+  labels:
+    observability-demo-framework: 'ui'
+  {{- if .Values.annotationsWave0 }}
+  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
+  {{- end }}
+spec:
+  logging:
+    lokiStack:
+      name: logging
+  type: Logging

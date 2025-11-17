@@ -12,7 +12,7 @@ kind: OperatorGroup
 metadata:
   annotations:
     olm.providedAPIs: Keycloak.v2alpha1.k8s.keycloak.org,KeycloakRealmImport.v2alpha1.k8s.keycloak.org  
-  name: keycloak-operator-group  
+  name: keycloak-operator-group
 spec:
   targetNamespaces:
   - $CURRENT_NAMESPACE
@@ -156,8 +156,8 @@ oc wait \
     --for=condition=ready \
     --timeout=300s \
     pod postgresql-db-0
- # Wait for the operator to be created and available. 
-  wait_operator_to_be_installed operators.coreos.com/rhbk-operator.$CURRENT_NAMESPACE $CURRENT_NAMESPACE
+# Wait for the operator to be created and available. 
+wait_operator_to_be_installed operators.coreos.com/rhbk-operator.$CURRENT_NAMESPACE $CURRENT_NAMESPACE
 
 # --- Create keycloak server --- 
 echo .................................

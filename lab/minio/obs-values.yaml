@@ -1,0 +1,13 @@
+# 1. Configuration
+mode: standalone
+replicas: 1
+resources: 
+  requests:
+    memory: 1Gi
+rootUser: minioadmin
+rootPassword: minioadmin123
+securityContext:
+  enabled: false
+
+persistence:
+  size: 10Gi

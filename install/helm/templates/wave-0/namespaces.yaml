@@ -1,0 +1,13 @@
+{{- range .Values.operatorNamespaces }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ . }}
+  labels:
+    argocd.argoproj.io/managed-by: openshift-gitops
+    observability-demo-framework: "operators"
+  {{- if $.Values.annotationsWave0 }}
+  annotations: {{- toYaml $.Values.annotationsWave0 | nindent 4 }}
+  {{- end }}
+---
+{{- end }}
