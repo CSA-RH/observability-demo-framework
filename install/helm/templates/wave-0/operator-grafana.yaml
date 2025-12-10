@@ -14,6 +14,5 @@ spec:
   installPlanApproval: Automatic
   name: grafana-operator
   source: community-operators
-  sourceNamespace: openshift-marketplace
-  startingCSV: grafana-operator.v5.20.0
+  sourceNamespace: openshift-marketplace  
 ---

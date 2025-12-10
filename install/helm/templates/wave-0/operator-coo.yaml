@@ -14,8 +14,7 @@ spec:
   installPlanApproval: Automatic
   name: {{ .Values.observabilityOperator.name }}
   source: {{ .Values.observabilityOperator.source }}
-  sourceNamespace: {{ .Values.observabilityOperator.sourceNamespace }}
-  startingCSV: {{ .Values.observabilityOperator.startingCSV }}
+  sourceNamespace: {{ .Values.observabilityOperator.sourceNamespace }}  
 ---
 apiVersion: observability.openshift.io/v1alpha1
 kind: UIPlugin
