@@ -27,8 +27,7 @@ spec:
   installPlanApproval: Automatic
   name: tempo-product
   source: redhat-operators
-  sourceNamespace: openshift-marketplace
-  startingCSV: tempo-operator.v0.18.0-2
+  sourceNamespace: openshift-marketplace  
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
