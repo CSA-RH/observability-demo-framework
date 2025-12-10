@@ -22,7 +22,7 @@ observabilityOperator:
   channel: stable
   source: redhat-operators
   sourceNamespace: openshift-marketplace
-  startingCSV: cluster-observability-operator.v1.2.2
+  startingCSV: cluster-observability-operator.v1.3.0
 
 minio:
   fullnameOverride: minio
