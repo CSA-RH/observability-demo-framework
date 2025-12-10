@@ -1,19 +1,8 @@
-# List of cluster-wide namespaces to create for operators.
-operatorNamespaces:
-  - openshift-logging
-  - openshift-loki-operator
-  - openshift-tempo-operator
-  - openshift-opentelemetry-operator
-
-otherServiceAccounts:
-  - traces
-  - logging
-
 jobKeycloakCertServiceAccount: job-keycloak-cert-generator-sa
 jobBuildImagesServiceAccount: build-image-sa
 jobSyncUsersServiceAccount: obs-sync-users
 
-operatorCheckList: "loki-operator tempo-product opentelemetry-product rhbk-operator cluster-observability-operator grafana-operator"
+operatorCheckList: "rhbk-operator cluster-observability-operator grafana-operator"
 
 # Cluster Observability Operator configuration
 observabilityOperator:
@@ -38,6 +27,3 @@ minio:
 
   persistence:
     size: 10Gi
-
-lokiOperator:
-  lokiCollectorServiceAccount: logging-collector
