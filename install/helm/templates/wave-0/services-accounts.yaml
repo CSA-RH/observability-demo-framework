@@ -1,4 +1,4 @@
-{{- $allServiceAccounts := .Values.otherServiceAccounts | default list -}}
+{{- $allServiceAccounts := list -}}
 
 {{- if .Values.jobKeycloakCertServiceAccount -}}
   {{- $allServiceAccounts = append $allServiceAccounts .Values.jobKeycloakCertServiceAccount -}}

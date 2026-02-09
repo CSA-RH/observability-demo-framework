@@ -29,7 +29,7 @@ spec:
     type: Git
     git: 
       uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
-      ref: feature/installation
+      ref: main
     contextDir: obs-clients/obs-client-api-dotnet
   strategy:
     dockerStrategy: 
@@ -70,7 +70,7 @@ spec:
     type: Git
     git: 
       uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
-      ref: feature/installation
+      ref: main
     contextDir: obs-clients/obs-client-api-node
   strategy:
     dockerStrategy: 
@@ -111,7 +111,7 @@ spec:
     type: Git
     git: 
       uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
-      ref: feature/installation
+      ref: main
     contextDir: obs-front
   strategy:
     dockerStrategy:
@@ -155,7 +155,7 @@ spec:
     type: Git
     git: 
       uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
-      ref: feature/installation
+      ref: main
     contextDir: obs-main-api/app
   strategy:
     dockerStrategy: 
@@ -196,7 +196,7 @@ spec:
     type: Git
     git: 
       uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
-      ref: feature/installation
+      ref: main
     contextDir: install/bash/sync-users/job-image
   strategy:
     dockerStrategy: 
