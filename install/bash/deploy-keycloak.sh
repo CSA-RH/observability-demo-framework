@@ -24,12 +24,12 @@ metadata:
     operators.coreos.com/rhbk-operator.keycloak: ""
   name: rhbk-operator  
 spec:
-  channel: stable-v26.0
+  channel: stable-v26.4
   installPlanApproval: Automatic
   name: rhbk-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
-  startingCSV: rhbk-operator.v26.0.10-opr.1
+  startingCSV: rhbk-operator.v26.4.8-opr.1
 EOF
 echo ................................................
 echo ... Create a custom certificate for Keycloak ...
