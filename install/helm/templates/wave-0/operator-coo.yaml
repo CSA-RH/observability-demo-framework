@@ -23,7 +23,7 @@ metadata:
   labels:
     observability-demo-framework: 'ui'
   {{- if .Values.annotationsWave1 }}
-  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
 spec:
   type: DistributedTracing
@@ -35,7 +35,7 @@ metadata:
   labels:
     observability-demo-framework: 'ui'
   {{- if .Values.annotationsWave1 }}
-  annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
+  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
   {{- end }}
 spec:
   logging:

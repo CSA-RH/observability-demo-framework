@@ -2,7 +2,7 @@ jobKeycloakCertServiceAccount: job-keycloak-cert-generator-sa
 jobBuildImagesServiceAccount: build-image-sa
 jobSyncUsersServiceAccount: obs-sync-users
 
-operatorCheckList: "rhbk-operator cluster-observability-operator grafana-operator"
+operatorCheckList: "rhbk-operator cluster-observability-operator grafana-operator opentelemetry-product"
 
 # Cluster Observability Operator configuration
 observabilityOperator:
