@@ -7,38 +7,10 @@ metadata:
     operators.coreos.com/cluster-observability-operator.openshift-operators: ""
     observability-demo-framework: 'operator'  
   annotations: 
-    argocd.argoproj.io/sync-wave: "-5"
-  
+    argocd.argoproj.io/sync-wave: "-5"  
 spec:
   channel: {{ .Values.observabilityOperator.channel }}
   installPlanApproval: Automatic
   name: {{ .Values.observabilityOperator.name }}
   source: {{ .Values.observabilityOperator.source }}
-  sourceNamespace: {{ .Values.observabilityOperator.sourceNamespace }}  
----
-apiVersion: observability.openshift.io/v1alpha1
-kind: UIPlugin
-metadata:
-  name: distributed-tracing
-  labels:
-    observability-demo-framework: 'ui'
-  {{- if .Values.annotationsWave1 }}
-  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
-  {{- end }}
-spec:
-  type: DistributedTracing
----
-apiVersion: observability.openshift.io/v1alpha1
-kind: UIPlugin
-metadata:
-  name: logging
-  labels:
-    observability-demo-framework: 'ui'
-  {{- if .Values.annotationsWave1 }}
-  annotations: {{- toYaml .Values.annotationsWave1 | nindent 4 }}
-  {{- end }}
-spec:
-  logging:
-    lokiStack:
-      name: logging
-  type: Logging
+  sourceNamespace: {{ .Values.observabilityOperator.sourceNamespace }}
