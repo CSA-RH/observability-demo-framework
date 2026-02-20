@@ -9,7 +9,7 @@ spec:
   project: default
   source:  
     repoURL: https://github.com/CSA-RH/observability-demo-framework.git
-    targetRevision: feature/installation
+    targetRevision: main
     path: install/helm
     source:
     helm:
