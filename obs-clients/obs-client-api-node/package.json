@@ -15,11 +15,11 @@
     "@opentelemetry/exporter-prometheus": "^0.3.3",
     "@opentelemetry/metrics": "^0.3.3",
     "@opentelemetry/sdk-logs": "^0.57.1",
-    "axios": ">=1.12.0",
+    "axios": ">=1.13.5",
     "express": "^4.19.2",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
-    "jest": "^29.7.0"
+    "jest": "^30.2.0"
   }
 }
