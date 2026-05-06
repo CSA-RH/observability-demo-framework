@@ -108,7 +108,7 @@ spec:
             severity: critical
           annotations:
             summary: "The target {{ $labels.target }} is not responding."
-            description: "The check of type {{ $labels.module }} executed from the custom blackbox exporter is not respoding since more than one minute."
+            description: "The check of type {{ $labels.module }} executed from the custom blackbox exporter is not responding since more than one minute."
 ```
 
 # 5. Testing the Alert (Chaos Engineering)
