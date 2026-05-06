@@ -102,7 +102,7 @@ spec:
     - name: blackbox.rules
       rules:
         - alert: EndpointHelloDown
-          expr: probe_success == 0 
+          expr: probe_success{target="http://hello.sample.svc.cluster.local:8080"} == 0
           for: 1m
           labels:
             severity: critical
