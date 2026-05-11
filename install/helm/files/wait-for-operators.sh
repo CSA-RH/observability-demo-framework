@@ -36,7 +36,7 @@ for SUBSCRIPTION_NAME in $OPERATOR_LIST; do
         # 2. Grep for the exact subscription name (using \b for word boundary)
         # 3. Awk to print the second column (the namespace)
         # 4. Head to take the first one if there are duplicates
-        OPERATOR_NAMESPACE=$(oc get subscription -A --no-headers -o custom-columns=NAME:.metadata.name,NS:.metadata.namespace 2>/dev/null \
+        OPERATOR_NAMESPACE=$(oc get subscriptions.operators.coreos.com -A --no-headers -o custom-columns=NAME:.metadata.name,NS:.metadata.namespace 2>/dev/null \
             | grep "^$SUBSCRIPTION_NAME\b" \
             | awk '{print $2}' \
             | head -n 1 || true)
