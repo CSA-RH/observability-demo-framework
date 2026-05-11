@@ -62,7 +62,7 @@ for SUBSCRIPTION_NAME in $OPERATOR_LIST; do
             exit 1
         fi
         
-        CSV_NAME=$(oc get subscription $SUBSCRIPTION_NAME -n $OPERATOR_NAMESPACE -o jsonpath='{.status.currentCSV}' 2>/dev/null || true)
+        CSV_NAME=$(oc get subscriptions.operators.coreos.com $SUBSCRIPTION_NAME -n $OPERATOR_NAMESPACE -o jsonpath='{.status.currentCSV}' 2>/dev/null || true)
         
         if [ -z "$CSV_NAME" ]; then
             echo "  .status.currentCSV not found yet... waiting 10s"
