@@ -61,6 +61,8 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: openshift-logging
+  labels: 
+    openshift.io/cluster-monitoring: "true"
 spec: {}
 EOF
 cat <<EOF | oc apply -f -
