@@ -182,6 +182,10 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
 
     def __create_deployment(self, user_namespace, image_namespace, item):
         print("DEPLOYMENT TYPE: " + item['type'])
+        targets="example"
+        print(f" TARGETS: ")
+        print(item)
+        print(f" TARGETS(END) ")
         deployment_manifest = {
             'apiVersion': 'apps/v1',
             'kind': 'Deployment',
@@ -216,6 +220,10 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                             'ports': [{
                                 'containerPort': 8080
                             }],
+                            'env': [{
+                                'name': 'TARGETS',
+                                'value': f"{targets}",
+                                }],
                             'readinessProbe': {
                                 'httpGet': {
                                     'path': '/',
