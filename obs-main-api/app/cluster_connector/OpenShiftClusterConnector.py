@@ -182,10 +182,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
 
     def __create_deployment(self, user_namespace, image_namespace, item):
         print("DEPLOYMENT TYPE: " + item['type'])
-        targets="example"
-        print(f" TARGETS: ")
-        print(item)
-        print(f" TARGETS(END) ")
+        targets = ",".join(item.get('nextHop', []))
         deployment_manifest = {
             'apiVersion': 'apps/v1',
             'kind': 'Deployment',
