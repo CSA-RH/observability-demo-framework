@@ -283,7 +283,7 @@
                 nodejs:
                   env:
                     - name: OTEL_NODEJS_LOG_INJECTION
-                      value: "true"
+                      value: "false"
                     - name: OTEL_LOGS_EXPORTER
                       value: "none"
                     - name: OTEL_NODEJS_AUTO_INSTRUMENTATION_ENABLED
