@@ -3,6 +3,7 @@
 // imports
 const express = require('express')
 const axios = require('axios');
+const api = require('@opentelemetry/api');
 const { MeterRegistry } = require('@opentelemetry/metrics');
 const { PrometheusExporter } = require('@opentelemetry/exporter-prometheus');
 const { v4: uuidv4 } = require('uuid');
@@ -29,20 +30,42 @@ const originConsoleLog = console.log;
 
 // Custom logging function
 function customLog(severityText, message) {
-    // Log to OpenTelemetry
+    // 1. Manually get the active span context
+    const activeSpan = api.trace.getSpan(api.context.active());
+    const spanContext = activeSpan ? activeSpan.spanContext() : null;
+
+    // 2. Construct a structured log object
+    const logEntry = {
+        time: new Date().toISOString(),
+        severity: severityText,
+        message: message,
+        // Inject IDs if they exist
+        trace_id: spanContext ? spanContext.traceId : undefined,
+        span_id: spanContext ? spanContext.spanId : undefined,
+        service_name: process.env.OTEL_SERVICE_NAME || 'node-app'
+    };
+
+    // Log to OpenTelemetry (Existing OTLP logic)
     logger.emit({
-      body: message,
-      severityNumber: severityText === 'ERROR' ? 16 : 1, // ERROR=16, INFO=1
-      severityText
+        body: message,
+        severityNumber: severityText === 'ERROR' ? 16 : 1,
+        severityText,
+        // Optional: attach attributes to the OTel LogRecord too
+        attributes: {
+            "trace_id": logEntry.trace_id,
+            "span_id": logEntry.span_id
+        }
     });
 
-    // Log to console
+    // 3. Log to console as a JSON STRING (This is what Vector scrapes)
+    const jsonOutput = JSON.stringify(logEntry);
+
     if (severityText === 'ERROR') {
-        originConsoleError(`[${severityText}] ${message}`);
+        originConsoleError(jsonOutput);
     } else {
-        originConsoleLog(`[${severityText}] ${message}`);
+        originConsoleLog(jsonOutput);
     }
-  }
+}
 
 // Override console.log and console.error
 console.log = (message) => customLog('INFO', message);
