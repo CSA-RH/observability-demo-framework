@@ -1,90 +1,46 @@
 "use strict";
 
-// imports
-const express = require('express')
+const express = require('express');
 const axios = require('axios');
 const api = require('@opentelemetry/api');
+const crypto = require('crypto'); 
 const { MeterRegistry } = require('@opentelemetry/metrics');
 const { PrometheusExporter } = require('@opentelemetry/exporter-prometheus');
-const { v4: uuidv4 } = require('uuid');
 
-const { LoggerProvider, SimpleLogRecordProcessor } = require('@opentelemetry/sdk-logs');
-const { OTLPLogExporter } = require('@opentelemetry/exporter-logs-otlp-http');
-
-// Create a logger provider
-const loggerProvider = new LoggerProvider();
-
-// Configure the OTLP log exporter
-const logExporter = new OTLPLogExporter({
-  url: process.env.OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, // OTel Collector endpoint
+// 1. Initialize Pino with the OTel Mixin
+// This ensures TraceId/SpanId are injected into every log in PascalCase (matching .NET)
+const logger = require('pino')({
+    mixin() {
+        const span = api.trace.getSpan(api.context.active());
+        if (span) {
+            const { traceId, spanId } = span.spanContext();
+            return { TraceId: traceId, SpanId: spanId };
+        }
+        return {};
+    },
+    // Optional: map severity to 'level' names if preferred, but default is standard
 });
 
-// Add a processor to export logs
-loggerProvider.addLogRecordProcessor(new SimpleLogRecordProcessor(logExporter));
+// 2. Override console methods to use Pino
+// Now console.log() automatically produces single-line JSON with Trace context
+console.log = (...args) => logger.info(...args);
+console.error = (...args) => logger.error(...args);
 
-// Get a logger
-const logger = loggerProvider.getLogger('node-logger');
+/** * NOTE: Manual LoggerProvider and OTLPLogExporter are removed. 
+ * The OTel Operator handles the SDK, and Vector/Loki handles the collection 
+ * via stdout, making the app code much lighter.
+ */
 
-const originConsoleError = console.error;
-const originConsoleLog = console.log;
-
-// Custom logging function
-function customLog(severityText, message) {
-    // 1. Manually get the active span context
-    const activeSpan = api.trace.getSpan(api.context.active());
-    const spanContext = activeSpan ? activeSpan.spanContext() : null;
-
-    // 2. Construct a structured log object
-    const logEntry = {
-        time: new Date().toISOString(),
-        severity: severityText,
-        message: message,
-        // Inject IDs if they exist
-        trace_id: spanContext ? spanContext.traceId : undefined,
-        span_id: spanContext ? spanContext.spanId : undefined,
-        service_name: process.env.OTEL_SERVICE_NAME || 'node-app'
-    };
-
-    // Log to OpenTelemetry (Existing OTLP logic)
-    logger.emit({
-        body: message,
-        severityNumber: severityText === 'ERROR' ? 16 : 1,
-        severityText,
-        // Optional: attach attributes to the OTel LogRecord too
-        attributes: {
-            "trace_id": logEntry.trace_id,
-            "span_id": logEntry.span_id
-        }
-    });
-
-    // 3. Log to console as a JSON STRING (This is what Vector scrapes)
-    const jsonOutput = JSON.stringify(logEntry);
-
-    if (severityText === 'ERROR') {
-        originConsoleError(jsonOutput);
-    } else {
-        originConsoleLog(jsonOutput);
-    }
-}
-
-// Override console.log and console.error
-console.log = (message) => customLog('INFO', message);
-console.error = (message) => customLog('ERROR', message);
-
-const metricOrigin = "src"
-console.log("Environment: " + metricOrigin);
-
-// set up prometheus 
+const metricOrigin = "src";
 const prometheusPort = 8081;
 const app = express();
 
-var _dict = {}
-var _meter = {}
-var _labels = {}
-const _agents = new Map()
+var _dict = {};
+var _meter = {};
+var _labels = {};
+const _agents = new Map();
 
 function initializePrometheusEndpoint() {
-
     _meter = new MeterRegistry().getMeter('example-prometheus');
     const exporter = new PrometheusExporter(
         {
@@ -92,16 +48,15 @@ function initializePrometheusEndpoint() {
             port: prometheusPort
         },
         () => {
-            console.log("prometheus scrape endpoint: http://0.0.0.0:"
-                + prometheusPort
-                + "/metrics");
+            console.log(`prometheus scrape endpoint: http://0.0.0.0:${prometheusPort}/metrics`);
         }
     );
     _meter.addExporter(exporter);
     _labels = _meter.labels({ metricOrigin: metricOrigin });
-    _dict = {}
+    _dict = {};
 }
 
+// --- Metrics Handlers ---
 function getAllMetrics(req, res) {
     var results = [];
     for (var metricName in _dict) {
@@ -111,226 +66,180 @@ function getAllMetrics(req, res) {
         };
         results.push(result);
     }
-    res.status(200).send(JSON.stringify(results))
+    res.status(200).send(JSON.stringify(results));
 }
 
 function getMetric(req, res) {
     const metricName = req.params.metricName;
     if (metricName in _dict) {
         res.status(200).send(_dict[metricName].bind(_labels)._data.toString());
-    }
-    else {
-        res.status(404).send("Not found")
+    } else {
+        res.status(404).send("Not found");
     }
 }
 
 function postMetric(req, res) {
     const metricName = req.params.metricName;
-    const valueRaw = req.query.value;
-    const value = parseInt(valueRaw);
+    const value = parseInt(req.query.value);
     if (metricName in _dict) {
-        res.status(409).send("Cannot create metric " + metricName + ". Already created");
-    }
-    else {
-        _dict[metricName] = {}
+        res.status(409).send(`Cannot create metric ${metricName}. Already created`);
+    } else {
         const newMetric = _meter.createGauge(metricName, {
             monotonic: false,
             labelKeys: ["metricOrigin"],
-            description: "Metric " + metricName
+            description: `Metric ${metricName}`
         });
-        newMetric.bind(_labels).set(value)
+        newMetric.bind(_labels).set(value);
         _dict[metricName] = newMetric;
-        res.status(200).send("Created metric " + metricName + " with value " + value);
+        res.status(200).send(`Created metric ${metricName} with value ${value}`);
     }
 }
 
 function putMetric(req, res) {
     const metricName = req.params.metricName;
-    const valueRaw = req.query.value;
-    const value = parseInt(valueRaw);
+    const value = parseInt(req.query.value);
     if (metricName in _dict) {
         _dict[metricName].bind(_labels).set(value);
-        res.status(200).send("Modified metric " + metricName + " with value " + value);
-    }
-    else {
-        res.status(404).send("Cannot modify metric " + metricName + ". Not found");
+        res.status(200).send(`Modified metric ${metricName} with value ${value}`);
+    } else {
+        res.status(404).send(`Cannot modify metric ${metricName}. Not found`);
     }
 }
 
 function deleteMetric(req, res) {
-    initializePrometheusEndpoint()
+    initializePrometheusEndpoint();
     res.status(200).send("Delete operation too destructive");
 }
 
+// --- Agent Management ---
 function getRegisteredAgents(req, res) {
     res.status(200).send(JSON.stringify(Object.fromEntries(_agents)));
 }
 
 function postAgent(req, res) {
     const agentId = req.params.agentId;
-    const agentInfo = req.body
-    const ip = agentInfo.ip;
-    const port = agentInfo.port;
-    if (ip == null || port == null) {
+    const { ip, port } = req.body;
+    if (!ip || !port) {
         res.status(400).send("Valid IP and Port required.");
         return;
     }
-    _agents.set(agentId, { ip: ip, port: port });
-
+    _agents.set(agentId, { ip, port });
     res.status(200).send();
 }
 
 function deleteAgent(req, res) {
-    const agentId = req.params.agentId;
-    _agents.delete(agentId);
+    _agents.delete(req.params.agentId);
     res.status(200).send();
 }
 
+// --- Operation Handlers (Business Logic) ---
 function order(req, res) {
-    const customer = process.env.HOSTNAME
+    const customer = process.env.HOSTNAME;
     const requestId = crypto.randomUUID(); 
     const waiter = getAvailableWaiter(_agents);
     
-    console.log(`[${requestId}] Ordering a tasting menu...`)    
+    console.log(`[${requestId}] Ordering a tasting menu...`);    
     if (!waiter) {
-        console.error(`[${requestId}] There is no waiter available. I'm getting hungry and angry!`)
+        console.error(`[${requestId}] There is no waiter available.`);
         res.status(404).send("No waiter available");
         return;
     }
-    console.log(`[${requestId}] Request the waiter ${waiter.name} a tasting menu`)
-    // Requesting service
-    const postData = {
-        customer : customer,
-        requestId: requestId,
-        waiter: waiter.name
-    };
-    console.log("----")
-    console.log(JSON.stringify(postData, null, 4));
-    console.log("----")
-    axios.post("http://" + waiter.ip + ":" + waiter.port + "/operations/request", postData)
-        .then(agentResponse => {                
-            console.log(`[${requestId}] It was soooo good, almost as good as at Camperos Juanma!`);            
-            res.status(200).send(); return;
+
+    const postData = { customer, requestId, waiter: waiter.name };
+    axios.post(`http://${waiter.ip}:${waiter.port}/operations/request`, postData)
+        .then(() => {                
+            console.log(`[${requestId}] It was soooo good!`);            
+            res.status(200).send();
         })
         .catch(error => {
-            console.error(`[${requestId}] Something went wrong: ${error}`);            
+            console.error(`[${requestId}] Error: ${error.message}`);            
             res.status(400).send();
-            return;
         });
 }
 
 function request(req, res){
     const waiter = process.env.HOSTNAME;
     const cook = getAvailableCook(_agents);
-    const customerRequest = req.body;
-    const requestId = customerRequest?.requestId;
+    const { requestId, customer } = req.body;
 
     if (!requestId) {
-        console.error(`[N/A] Error in the request. No request ID`)                
+        console.error("[N/A] Error: No request ID found.");
         res.status(400).send("No request ID found.");
         return;
     }
 
-    console.log(`[${requestId}] Receiving an order for a tasting menu. Looking for a cook...`)    
+    console.log(`[${requestId}] Looking for a cook...`);    
     if (!cook) {
-        console.error(`[${requestId}] There is no cook available. No tip today from ${customerRequest?.customer}!`)
+        console.error(`[${requestId}] No cook available for ${customer}`);
         res.status(404).send("No cook available");
         return;
     }
-    console.log(`[${requestId}] Cook ${cook?.name} is available!`)    
-    const postData = {
-        waiter: waiter,
-        requestId: requestId,
-        cook: cook.name
-    }
-    axios.post("http://" + cook.ip + ":" + cook.port + "/operations/cook", postData)
-        .then(agentResponse => {                
-            console.log(`[${requestId}] Serving delicious tasting menu from ${cook?.name} to ${customerRequest?.customer}`);
-            res.status(200).send(); return;
+
+    const postData = { waiter, requestId, cook: cook.name };
+    axios.post(`http://${cook.ip}:${cook.port}/operations/cook`, postData)
+        .then(() => {                
+            console.log(`[${requestId}] Serving menu from ${cook.name} to ${customer}`);
+            res.status(200).send();
         })
         .catch(error => {
-            console.error(`[${requestId}] Something went wrong: ${error}`);            
+            console.error(`[${requestId}] Error: ${error.message}`);            
             res.status(400).send();
-            return;
         });
 }
 
 function cook(req, res){
-    const cook = process.env.HOSTNAME;    
-    const waiterRequest = req.body;
-    const requestId = waiterRequest?.requestId;
-    console.log("REQUEST:", waiterRequest);
+    const cookName = process.env.HOSTNAME;    
+    const { requestId, waiter } = req.body;
     
     if (!requestId) {
-        console.log(`[N/A] Error in the request. No request ID`)                
+        console.error("[N/A] Error: No request ID");
         res.status(400).send("No request ID found.");
         return;
     }
-    // Cook randomly goes crazy and does not serve anything.(20% of chance)
-    console.log(`[${requestId}] Starting to prepare the requested tasting menu. Hope I won't go crazy...`)    
-    const crazy = Math.random() < 0.2 
+
+    const crazy = Math.random() < 0.2; 
     if (crazy){
-        console.log(`[${requestId}] Cook ${cook} is crazy at the moment. Cannot serve anything`);
-        res.status(400).send("Cook went crazy. No food from him at the moment.");
-        return;
+        console.log(`[${requestId}] Cook ${cookName} went crazy!`);
+        res.status(400).send("Cook went crazy.");
     } else {
-        console.log(`[${requestId}] Serving request to the waiter ${waiterRequest?.waiter}`);
-        res.status(200).send(`Request ${requestId} delivered by cook ${cook}.`);
-        return;
+        console.log(`[${requestId}] Delivering to waiter ${waiter}`);
+        res.status(200).send(`Request ${requestId} delivered.`);
     }
 }
 
-function getAvailableAgent(agentType, agents){
+// --- Helpers ---
+function getAvailableAgent(agentType, agents) {
     const matches = [];
-
     agents.forEach((value, key) => {
         if (key.startsWith(agentType)) {
-            matches.push({
-                ...value, 
-                name: key
-            });
+            matches.push({ ...value, name: key });
         }
-    })
-
-    if (matches.length > 1) {
-        const randomIndex = Math.floor(Math.random() * matches.length);
-        return matches[randomIndex];
-    }
-
-    return matches[0] || null
+    });
+    return matches.length > 0 ? matches[Math.floor(Math.random() * matches.length)] : null;
 }
 
-function getAvailableCook(agents) {
-    return getAvailableAgent("cook", agents);
-}
+const getAvailableCook = (agents) => getAvailableAgent("cook", agents);
+const getAvailableWaiter = (agents) => getAvailableAgent("waiter", agents);
 
-function getAvailableWaiter(agents) {
-    return getAvailableAgent("waiter", agents);
-}
-
+// --- App Startup ---
 initializePrometheusEndpoint();
 app.use(express.json());
 
-// ROUTES
-app.get('/', (req, res) => {
-    res.status(200).send("API Metrics management")
-});
+app.get('/', (req, res) => res.status(200).send("API Metrics management"));
 app.get("/metrics", getAllMetrics);
 app.get("/metrics/:metricName", getMetric);
 app.post("/metrics/:metricName", postMetric);
 app.put("/metrics/:metricName", putMetric);
 app.delete("/metrics/:metricName", deleteMetric);
-
-// Register agents. 
 app.get("/agents", getRegisteredAgents);
 app.post("/agents/:agentId", postAgent);
 app.delete("/agents/:agentId", deleteAgent);
-// operations
 app.post("/operations/order", order);
 app.post("/operations/request", request);
 app.post("/operations/cook", cook);
 
-
-app.listen(8080, () => console.log(`API for Observability Framework Demo at 8080!\nPrometheus endpoint at 8081`))
+app.listen(8080, () => {
+    console.log("API for Observability Framework Demo at 8080!\nPrometheus endpoint at 8081");
+});
 
 module.exports = { getAvailableCook, getAvailableWaiter };

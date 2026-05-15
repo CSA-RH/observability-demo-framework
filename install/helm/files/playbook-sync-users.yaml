@@ -267,15 +267,25 @@
                   observability-demo-framework: 'otel'
               spec:
                 exporter:
-                  endpoint: 'http://otel-collector.{{ root_namespace }}.svc.cluster.local:4317'
+                  endpoint: 'http://otel-collector.{{ root_namespace }}.svc.cluster.local:4318'
                 dotnet:
                   env:
                     - name: OTEL_EXPORTER_OTLP_ENDPOINT
                       value: 'http://otel-collector.{{ root_namespace }}.svc.cluster.local:4318'
+                    - name: Logging__Console__FormatterName
+                      value: "Json"
+                    - name: OTEL_DOTNET_AUTO_INSTRUMENTATION_LOGGING_INJECTION_ENABLED
+                      value: "true"
                     - name: ASPNETCORE_HOSTINGSTARTUPASSEMBLIES
                       value: OpenTelemetry.AutoInstrumentation.AspNetCoreBootstrapper
+                    - name: Logging__Console__FormatterOptions__IncludeScopes
+                      value: "true"
                 nodejs:
                   env:
+                    - name: OTEL_NODEJS_LOG_INJECTION
+                      value: "true"
+                    - name: OTEL_LOGS_EXPORTER
+                      value: "none"
                     - name: OTEL_NODEJS_AUTO_INSTRUMENTATION_ENABLED
                       value: 'true'
                     - name: OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
