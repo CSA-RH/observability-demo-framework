@@ -1,3 +1,5 @@
+#!/bin/bash
+
 export NAMESPACE=$(oc project -q)
 export CURRENT_NAMESPACE=$NAMESPACE
 
@@ -159,13 +161,57 @@ EOF
 wait_operator_to_be_installed operators.coreos.com/loki-operator.openshift-loki-operator openshift-loki-operator
 
 #   RESOURCE LokiStack
+LOKISTACK_RESOURCE="${LOKISTACK_RESOURCE:-logging-loki}"
+NAMESPACE="openshift-logging"
+OBC_NAME="loki-noobaa-claim"
+LOKI_SECRET_NAME="lokistack-noobaa-secret"
+
+echo " - Creating ObjectBucketClaim (OBC) for NooBaa"
+cat <<EOF | oc apply -f -
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: $OBC_NAME
+  namespace: $NAMESPACE
+spec:
+  generateBucketName: loki-data
+  storageClassName: openshift-storage.noobaa.io
+EOF
+
+echo " - Waiting for ObjectBucketClaim to bind (this may take a minute)..."
+oc wait --for=jsonpath='{.status.phase}'=Bound obc/$OBC_NAME -n $NAMESPACE --timeout=120s
+
+echo " - Extracting credentials from OBC"
+AWS_ACCESS_KEY_ID=$(oc get secret $OBC_NAME -n $NAMESPACE -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 -d)
+AWS_SECRET_ACCESS_KEY=$(oc get secret $OBC_NAME -n $NAMESPACE -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 -d)
+BUCKET_NAME=$(oc get configmap $OBC_NAME -n $NAMESPACE -o jsonpath='{.data.BUCKET_NAME}')
+BUCKET_HOST=$(oc get configmap $OBC_NAME -n $NAMESPACE -o jsonpath='{.data.BUCKET_HOST}')
+BUCKET_PORT=$(oc get configmap $OBC_NAME -n $NAMESPACE -o jsonpath='{.data.BUCKET_PORT}')
+
+# Construct the NooBaa endpoint (NooBaa internal routes are typically HTTPS)
+ENDPOINT="https://${BUCKET_HOST}:${BUCKET_PORT}"
+
+echo " - Creating LokiStack compatible secret"
+cat <<EOF | oc apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: $LOKI_SECRET_NAME
+  namespace: $NAMESPACE
+stringData:
+  access_key_id: "${AWS_ACCESS_KEY_ID}"
+  access_key_secret: "${AWS_SECRET_ACCESS_KEY}"
+  bucketnames: "${BUCKET_NAME}"
+  endpoint: "${ENDPOINT}"
+EOF
+
 echo " - Install/Configure LokiStack"
 cat <<EOF | oc apply -f -
 apiVersion: loki.grafana.com/v1
 kind: LokiStack
 metadata:
   name: $LOKISTACK_RESOURCE
-  namespace: openshift-logging
+  namespace: $NAMESPACE
 spec:
   tenants:
     mode: openshift-logging    
@@ -181,10 +227,12 @@ spec:
       - effectiveDate: "2024-04-02"
         version: v13
     secret:
-      name: lokistack-minio
+      name: $LOKI_SECRET_NAME
       type: s3
   hashRing:
     type: memberlist
   size: 1x.demo
   storageClassName: ocs-external-storagecluster-ceph-rbd
 EOF
+
+echo " - LokiStack configuration complete!"
