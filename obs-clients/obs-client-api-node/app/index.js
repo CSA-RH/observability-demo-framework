@@ -10,15 +10,25 @@ const { PrometheusExporter } = require('@opentelemetry/exporter-prometheus');
 // 1. Initialize Pino with the OTel Mixin
 // This ensures TraceId/SpanId are injected into every log in PascalCase (matching .NET)
 const logger = require('pino')({
-    mixin() {
-        const span = api.trace.getSpan(api.context.active());
-        if (span) {
-            const { traceId, spanId } = span.spanContext();
-            return { TraceId: traceId, SpanId: spanId };
+    formatters: {
+        log(object) {
+            // The OTel agent has already injected trace_id/span_id into 'object'
+            // We simply rename them to PascalCase and delete the snake_case versions
+            if (object.trace_id) {
+                object.TraceId = object.trace_id;
+                delete object.trace_id;
+            }
+            if (object.span_id) {
+                object.SpanId = object.span_id;
+                delete object.span_id;
+            }
+            
+            // Optional: Clean up other OTel-injected fields if they clutter your logs
+            delete object.trace_flags; 
+            
+            return object; // Return the sanitized object
         }
-        return {};
-    },
-    // Optional: map severity to 'level' names if preferred, but default is standard
+    }
 });
 
 // 2. Override console methods to use Pino
