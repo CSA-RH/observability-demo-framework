@@ -1,26 +1,5 @@
 #!/bin/bash
-
-export NAMESPACE=$(oc project -q)
-export CURRENT_NAMESPACE=$NAMESPACE
-
-# Function to check if a resource exists
-check_openshift_resource_exists() {
-    local resource_type="$1"
-    local resource_name="$2"
-    local resource_namespace="$3"
-
-    if [ -z "$3" ]; then
-      NAMESPACE="$CURRENT_NAMESPACE"
-    else
-      NAMESPACE="$3"
-    fi
-
-    if oc get $resource_type $resource_name -n $NAMESPACE >/dev/null 2>&1; then
-        return 0  # True: resource exists
-    else
-        return 1  # False: resource does not exist
-    fi
-}
+source ./env.sh
 
 install_loki_subscription() {  
   cat <<EOF | oc apply -f -
@@ -33,26 +12,12 @@ metadata:
   name: loki-operator
   namespace: openshift-loki-operator
 spec:
-  channel: stable-6.3
+  channel: stable-6.5
   installPlanApproval: Automatic
   name: loki-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace  
 EOF
-}
-
-wait_operator_to_be_installed() {
-    local operator_label="$1"
-    local operator_namespace="$2"
-
-    # Wait for CSV to be created
-    echo "Waiting for Operator CSV labelled as $operator_label to be created..."
-    while [[ $(oc get csv -n "$operator_namespace" -l "$operator_label" 2>/dev/null | wc -l) -le 1 ]]; do
-        sleep 5
-    done
-
-    # Wait for CSV to be in 'Succeeded' state
-    oc wait --for=jsonpath='{.status.phase}'=Succeeded csv -n "$operator_namespace" -l "$operator_label" --timeout=300s
 }
 
 # Create namespaces
@@ -163,8 +128,6 @@ EOF
 wait_operator_to_be_installed operators.coreos.com/loki-operator.openshift-loki-operator openshift-loki-operator
 
 #   RESOURCE LokiStack
-LOKISTACK_RESOURCE="${LOKISTACK_RESOURCE:-logging-loki}"
-NAMESPACE="openshift-logging"
 OBC_NAME="loki-noobaa-claim"
 LOKI_SECRET_NAME="lokistack-noobaa-secret"
 
@@ -174,21 +137,21 @@ apiVersion: objectbucket.io/v1alpha1
 kind: ObjectBucketClaim
 metadata:
   name: $OBC_NAME
-  namespace: $NAMESPACE
+  namespace: $GLOBAL_LOGGING_NAMESPACE
 spec:
   generateBucketName: loki-data
   storageClassName: openshift-storage.noobaa.io
 EOF
 
 echo " - Waiting for ObjectBucketClaim to bind (this may take a minute)..."
-oc wait --for=jsonpath='{.status.phase}'=Bound obc/$OBC_NAME -n $NAMESPACE --timeout=120s
+oc wait --for=jsonpath='{.status.phase}'=Bound obc/$OBC_NAME -n $GLOBAL_LOGGING_NAMESPACE --timeout=120s
 
 echo " - Extracting credentials from OBC"
-AWS_ACCESS_KEY_ID=$(oc get secret $OBC_NAME -n $NAMESPACE -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 -d)
-AWS_SECRET_ACCESS_KEY=$(oc get secret $OBC_NAME -n $NAMESPACE -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 -d)
-BUCKET_NAME=$(oc get configmap $OBC_NAME -n $NAMESPACE -o jsonpath='{.data.BUCKET_NAME}')
-BUCKET_HOST=$(oc get configmap $OBC_NAME -n $NAMESPACE -o jsonpath='{.data.BUCKET_HOST}')
-BUCKET_PORT=$(oc get configmap $OBC_NAME -n $NAMESPACE -o jsonpath='{.data.BUCKET_PORT}')
+AWS_ACCESS_KEY_ID=$(oc get secret $OBC_NAME -n $GLOBAL_LOGGING_NAMESPACE -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 -d)
+AWS_SECRET_ACCESS_KEY=$(oc get secret $OBC_NAME -n $GLOBAL_LOGGING_NAMESPACE -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 -d)
+BUCKET_NAME=$(oc get configmap $OBC_NAME -n $GLOBAL_LOGGING_NAMESPACE -o jsonpath='{.data.BUCKET_NAME}')
+BUCKET_HOST=$(oc get configmap $OBC_NAME -n $GLOBAL_LOGGING_NAMESPACE -o jsonpath='{.data.BUCKET_HOST}')
+BUCKET_PORT=$(oc get configmap $OBC_NAME -n $GLOBAL_LOGGING_NAMESPACE -o jsonpath='{.data.BUCKET_PORT}')
 
 # Construct the NooBaa endpoint (NooBaa internal routes are typically HTTPS)
 ENDPOINT="https://${BUCKET_HOST}:${BUCKET_PORT}"
@@ -199,7 +162,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: $LOKI_SECRET_NAME
-  namespace: $NAMESPACE
+  namespace: $GLOBAL_LOGGING_NAMESPACE
 stringData:
   access_key_id: "${AWS_ACCESS_KEY_ID}"
   access_key_secret: "${AWS_SECRET_ACCESS_KEY}"
@@ -212,8 +175,8 @@ cat <<EOF | oc apply -f -
 apiVersion: loki.grafana.com/v1
 kind: LokiStack
 metadata:
-  name: $LOKISTACK_RESOURCE
-  namespace: $NAMESPACE
+  name: $GLOBAL_LOKISTACK_RESOURCE
+  namespace: $GLOBAL_LOGGING_NAMESPACE
 spec:
   tenants:
     mode: openshift-logging    

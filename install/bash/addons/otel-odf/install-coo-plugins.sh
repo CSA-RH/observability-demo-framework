@@ -1,3 +1,6 @@
+#!/bin/bash
+source ./env.sh
+
 #  - Operator plugins 
 echo " - Install UI plugins"
 cat <<EOF | oc apply -f -
@@ -19,6 +22,6 @@ metadata:
 spec:
   logging:
     lokiStack:
-      name: loki
+      name: $GLOBAL_LOKISTACK_RESOURCE
   type: Logging
 EOF
