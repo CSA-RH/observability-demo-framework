@@ -75,7 +75,7 @@ spec:
       type: lokiStack
       lokiStack:        
         target:
-          name: logging-loki        
+          name: $GLOBAL_LOKISTACK_RESOURCE
           namespace: openshift-logging
         authentication:
           token:
