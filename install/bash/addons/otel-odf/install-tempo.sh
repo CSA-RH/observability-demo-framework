@@ -1,39 +1,5 @@
 #!/bin/bash
-set -e 
-CURRENT_NAMESPACE=obs-demo
-
-# Function to check if a resource exists
-check_openshift_resource_exists() {
-    local resource_type="$1"
-    local resource_name="$2"
-    local resource_namespace="$3"
-
-    if [ -z "$3" ]; then
-      NAMESPACE="$CURRENT_NAMESPACE"
-    else
-      NAMESPACE="$3"
-    fi
-
-    if oc get $resource_type $resource_name -n $NAMESPACE >/dev/null 2>&1; then
-        return 0  # True: resource exists
-    else
-        return 1  # False: resource does not exist
-    fi
-}
-
-wait_operator_to_be_installed() {
-    local operator_label="$1"
-    local operator_namespace="$2"
-
-    # Wait for CSV to be created
-    echo "Waiting for Operator CSV labelled as $operator_label to be created..."
-    while [[ $(oc get csv -n "$operator_namespace" -l "$operator_label" 2>/dev/null | wc -l) -le 1 ]]; do
-        sleep 5
-    done
-
-    # Wait for CSV to be in 'Succeeded' state
-    oc wait --for=jsonpath='{.status.phase}'=Succeeded csv -n "$operator_namespace" -l "$operator_label" --timeout=300s
-}
+source ./env.sh
 
 # Deploy Tempo Operator
 echo ...TEMPO OPERATOR AND TempoStack... 
@@ -144,7 +110,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: otel-collector
-  namespace: $CURRENT_NAMESPACE
+  namespace: $GLOBAL_ROOT_NAMESPACE
 EOF
 
 TEMPO_OBC_NAME="tempo-noobaa-claim"
@@ -156,20 +122,20 @@ apiVersion: objectbucket.io/v1alpha1
 kind: ObjectBucketClaim
 metadata:
   name: $TEMPO_OBC_NAME
-  namespace: $CURRENT_NAMESPACE
+  namespace: $GLOBAL_ROOT_NAMESPACE
 spec:
   generateBucketName: tempo-data
   storageClassName: openshift-storage.noobaa.io
 EOF
 
 echo " - Waiting for Tempo ObjectBucketClaim to bind..."
-oc wait --for=jsonpath='{.status.phase}'=Bound obc/$TEMPO_OBC_NAME -n $CURRENT_NAMESPACE --timeout=120s
+oc wait --for=jsonpath='{.status.phase}'=Bound obc/$TEMPO_OBC_NAME -n $GLOBAL_ROOT_NAMESPACE --timeout=120s
 
 echo " - Extracting credentials from Tempo OBC"
-BUCKET_HOST=$(oc get configmap $TEMPO_OBC_NAME -n $CURRENT_NAMESPACE -o jsonpath='{.data.BUCKET_HOST}')
-BUCKET_NAME=$(oc get configmap $TEMPO_OBC_NAME -n $CURRENT_NAMESPACE -o jsonpath='{.data.BUCKET_NAME}')
-AWS_ACCESS_KEY_ID=$(oc get secret $TEMPO_OBC_NAME -n $CURRENT_NAMESPACE -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 -d)
-AWS_SECRET_ACCESS_KEY=$(oc get secret $TEMPO_OBC_NAME -n $CURRENT_NAMESPACE -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 -d)
+BUCKET_HOST=$(oc get configmap $TEMPO_OBC_NAME -n $GLOBAL_ROOT_NAMESPACE -o jsonpath='{.data.BUCKET_HOST}')
+BUCKET_NAME=$(oc get configmap $TEMPO_OBC_NAME -n $GLOBAL_ROOT_NAMESPACE -o jsonpath='{.data.BUCKET_NAME}')
+AWS_ACCESS_KEY_ID=$(oc get secret $TEMPO_OBC_NAME -n $GLOBAL_ROOT_NAMESPACE -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 -d)
+AWS_SECRET_ACCESS_KEY=$(oc get secret $TEMPO_OBC_NAME -n $GLOBAL_ROOT_NAMESPACE -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 -d)
 
 # Hardcode port 80 for the internal HTTP endpoint
 ENDPOINT="${BUCKET_HOST}:80"
@@ -180,7 +146,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: $TEMPO_SECRET_NAME
-  namespace: $CURRENT_NAMESPACE
+  namespace: $GLOBAL_ROOT_NAMESPACE
 stringData:
   access_key_id: "${AWS_ACCESS_KEY_ID}"
   access_key_secret: "${AWS_SECRET_ACCESS_KEY}"
@@ -198,7 +164,7 @@ apiVersion: tempo.grafana.com/v1alpha1
 kind: TempoStack
 metadata:
   name: escotilla
-  namespace: $CURRENT_NAMESPACE
+  namespace: $GLOBAL_ROOT_NAMESPACE
   labels:
     observability-demo-framework: traces
 spec:
