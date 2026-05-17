@@ -19,8 +19,8 @@ apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
   labels:
-    build: obs-client-dotnet
-  name: obs-client-dotnet
+    build: obs-client-dotnet-local
+  name: obs-client-dotnet-local
 spec:
   output:
     to:
@@ -37,8 +37,8 @@ EOF
 # Resources cleanup
 rm -rf bin out obj
 # Remove previous build objects
-oc delete build --selector build=obs-client-dotnet > /dev/null 
+oc delete build --selector build=obs-client-dotnet-local > /dev/null 
 # Start build for obs-client-dotnet
-oc start-build obs-client-dotnet --from-file $SCRIPT_DIR
+oc start-build obs-client-dotnet-local --from-file $SCRIPT_DIR
 # Follow the logs until completion 
-oc logs $(oc get build --selector build=obs-client-dotnet -oNAME) -f 
+oc logs $(oc get build --selector build=obs-client-dotnet-local -oNAME) -f 

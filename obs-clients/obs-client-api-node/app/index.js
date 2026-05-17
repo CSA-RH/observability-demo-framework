@@ -66,6 +66,27 @@ function initializePrometheusEndpoint() {
     _dict = {};
 }
 
+function initializeAgentTargets() {    
+    // 1. Fetch the environment variable
+    const targetEnv = process.env.TARGETS;
+
+    // 2. Safely check if the variable is missing or just empty spaces
+    if (!targetEnv || !targetEnv.trim()) {
+        return;
+    }
+
+    // 3. Split by comma, clean up spaces, and populate the Map
+    targetEnv.split(',').forEach(id => {
+        const trimmedId = id.trim();
+        
+        // Ensure we don't add empty keys if there were trailing or double commas (e.g. "agent1,,agent2")
+        if (trimmedId) {
+            _agents.set(trimmedId, { port: 8080 });
+        }
+    });
+}
+
+
 // --- Metrics Handlers ---
 function getAllMetrics(req, res) {
     var results = [];
@@ -128,12 +149,12 @@ function getRegisteredAgents(req, res) {
 
 function postAgent(req, res) {
     const agentId = req.params.agentId;
-    const { ip, port } = req.body;
-    if (!ip || !port) {
-        res.status(400).send("Valid IP and Port required.");
+    const { dns, port } = req.body;
+    if (!dns || !port) {
+        res.status(400).send("Valid DNS and Port required.");
         return;
     }
-    _agents.set(agentId, { ip, port });
+    _agents.set(agentId, { dns, port });
     res.status(200).send();
 }
 
@@ -146,8 +167,7 @@ function deleteAgent(req, res) {
 function order(req, res) {
     const customer = process.env.HOSTNAME;
     const requestId = crypto.randomUUID(); 
-    const waiter = getAvailableWaiter(_agents);
-    
+    const waiter = getAvailableWaiter(_agents);    
     console.log(`[${requestId}] Ordering a tasting menu...`);    
     if (!waiter) {
         console.error(`[${requestId}] There is no waiter available.`);
@@ -155,8 +175,8 @@ function order(req, res) {
         return;
     }
 
-    const postData = { customer, requestId, waiter: waiter.name };
-    axios.post(`http://${waiter.ip}:${waiter.port}/operations/request`, postData)
+    const postData = { customer, requestId, waiter: waiter.name };    
+    axios.post(`http://${waiter.name}:${waiter.port}/operations/request`, postData)
         .then(() => {                
             console.log(`[${requestId}] It was soooo good!`);            
             res.status(200).send();
@@ -186,7 +206,7 @@ function request(req, res){
     }
 
     const postData = { waiter, requestId, cook: cook.name };
-    axios.post(`http://${cook.ip}:${cook.port}/operations/cook`, postData)
+    axios.post(`http://${cook.name}:${cook.port}/operations/cook`, postData)
         .then(() => {                
             console.log(`[${requestId}] Serving menu from ${cook.name} to ${customer}`);
             res.status(200).send();
@@ -233,6 +253,7 @@ const getAvailableWaiter = (agents) => getAvailableAgent("waiter", agents);
 
 // --- App Startup ---
 initializePrometheusEndpoint();
+initializeAgentTargets();
 app.use(express.json());
 
 app.get('/', (req, res) => res.status(200).send("API Metrics management"));

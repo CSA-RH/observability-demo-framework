@@ -67,18 +67,18 @@ const AgentList = ({ agents, userId, selectedAgentId, onAgentSelected }) => {
                                 <tr key={item.id}
                                     className={`${selectedRow === item.id ? 'table-active' : ''} `}
                                     onClick={() => handleRowClick(item.id)}>
-                                    <td><a href={ApiHelper.getPodLogsAddress(item.pod, userId)}
+                                    <td><a href={ApiHelper.getPodsFromDeployment(item.id, userId)}
                                            target="_blank" 
                                            rel="noopener noreferrer"> {item.id} <i className="fas fa-external-link-alt"></i></a></td>
                                     <td><span className={'label label-' + item.type}>{item.type}</span></td>
                                     {/* Next hops mapped to labels */}
-                                    <td>{item.ip ? (
+                                    <td>{item.dns ? (
                                         item.nextHop && item.nextHop.map((hop, index) => (
                                             <span key={index} className="label">{hop}</span>
                                         ))
                                     ) : "n/a"}</td>
-                                    <td>{item.ip ? (item.metrics ? item.metrics.length + "/" + item.metrics.reduce((sum, metric) => sum + (metric.alerts?.length || 0), 0) : "0") : "n/a"}</td>
-                                    <td>{item.ip && item.type == "customer" && <button className="agent-button" onClick={
+                                    <td>{item.dns ? (item.metrics ? item.metrics.length + "/" + item.metrics.reduce((sum, metric) => sum + (metric.alerts?.length || 0), 0) : "0") : "n/a"}</td>
+                                    <td>{item.dns && item.type == "customer" && <button className="agent-button" onClick={
                                         () => handleKick(item.id, item.dns)}>Order!
                                     </button>}
                                     </td>

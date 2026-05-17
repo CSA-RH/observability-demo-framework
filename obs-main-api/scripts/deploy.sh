@@ -41,9 +41,9 @@ apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
   labels:
-    build: obs-main-api    
+    build: obs-main-api-local
     observability-demo-framework: 'cicd'
-  name: obs-main-api
+  name: obs-main-api-local
 spec:
   output:
     to:
@@ -60,11 +60,11 @@ EOF
 fi
   
 # Remove previous build objects
-oc delete build --selector build=obs-main-api > /dev/null 
+oc delete build --selector build=obs-main-api-local > /dev/null 
 # Start build for obs-main-api
-oc start-build obs-main-api --from-file $SOURCES_DIR
+oc start-build obs-main-api-local --from-file $SOURCES_DIR
 # Follow the logs until completion 
-oc logs $(oc get build --selector build=obs-main-api -oNAME) -f 
+oc logs $(oc get build --selector build=obs-main-api-local -oNAME) -f 
 # Check if a deployment already exists
 if check_openshift_resource_exists Deployment obs-main-api; then
   # update deployment
