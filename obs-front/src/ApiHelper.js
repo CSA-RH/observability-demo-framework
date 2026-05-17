@@ -11,8 +11,6 @@ function getClusterSuffix() {
   return null; 
 }
 
-
-
 export function getInfoUrl() {
     return `${MASTER_API_ADDRESS}/api/v1/escotilla`
 }
@@ -51,8 +49,15 @@ export const setglobalCurrentNamespace = (newValue) => {
     globalCurrentNamespace = newValue;
 };
 
-export function getPodAddress(podName,userId) {    
+export function getPodAddress(podName, userId) {
     return `${globalRootConsole}/k8s/ns/${globalCurrentNamespace}-${userId}/pods/${podName}`;
+}
+
+export function getPodsFromDeployment(deploymentName, userId){
+    const namespace = globalCurrentNamespace == "obs-demo" ?
+                        `${globalCurrentNamespace}-${userId}` :
+                        globalCurrentNamespace;
+    return `${globalRootConsole}/k8s/ns/${namespace}/deployments/${deploymentName}/pods`;
 }
 
 export function getPodLogsAddress(podName, userId) {

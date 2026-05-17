@@ -40,9 +40,9 @@ apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
   labels:    
-    build: obs-front
+    build: obs-front-local
     observability-demo-framework: 'cicd'
-  name: obs-front
+  name: obs-front-local
 spec:
   output:
     to:
@@ -53,13 +53,16 @@ spec:
     type: Binary
   strategy:
     dockerStrategy: 
-      dockerfilePath: Dockerfile      
+      dockerfilePath: Dockerfile
+      buildArgs:
+        - name: VITE_OBSERVABILITY_DEMO_API
+        - name: VITE_KEYCLOAK_URL
     type: Docker
 EOF
 fi
 
 # Remove previous build objects
-oc delete build --selector build=obs-front > /dev/null 
+oc delete build --selector build=obs-front-local > /dev/null 
 # Get keycloak route
 export route IDP_URL=https://$(oc get route --selector app=keycloak -ojsonpath='{.items[0].spec.host}')
 # Retrieve and set .env variables for API address
@@ -71,9 +74,11 @@ VITE_KEYCLOAK_REALM=csa
 VITE_KEYCLOAK_CLIENT_ID=webauth
 EOF
 # Start build for obs-front
-oc start-build obs-front --from-file $SOURCES_DIR 
+oc start-build obs-front-local --from-file $SOURCES_DIR \
+  --build-arg=VITE_KEYCLOAK_URL="$IDP_URL" \
+  --build-arg=VITE_OBSERVABILITY_DEMO_API="${VITE_API_URL}"
 # Follow the logs until completion 
-oc logs $(oc get build --selector build=obs-front -oNAME) -f 
+oc logs $(oc get build --selector build=obs-front-local -oNAME) -f 
 # Check if a deployment already exists
 if check_openshift_resource_exists Deployment obs-front; then
   # update deployment

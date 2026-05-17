@@ -12,7 +12,7 @@ public class KickRequest
 
 public class AgentData
 {
-    public string? Ip { get; set; }
+    public string? Dns { get; set; }
     public int Port { get; set; }
     public string? Name {get; set;}
 }
@@ -28,17 +28,44 @@ public class CustomerRequest
 public class ApiController : ControllerBase
 {
     private static readonly ConcurrentDictionary<string, Gauge> _metrics = new();
-    private static readonly Dictionary<string, AgentData> _agents = new();
+    private static readonly Dictionary<string, AgentData> _agents = InitializeAgentTargets();
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<ApiController> _logger;
-
-
-
     
     public ApiController(IHttpClientFactory httpClientFactory, ILogger<ApiController> logger)
     {
         _httpClientFactory = httpClientFactory;
         _logger = logger;
+    }
+
+    private static Dictionary<string, AgentData> InitializeAgentTargets()
+    {
+        var agentsMap = new Dictionary<string, AgentData>();
+        
+        // 1. Fetch the environment variable
+        string? targetsEnv = Environment.GetEnvironmentVariable("TARGETS");
+
+        // 2. Safely return empty dictionary if null, empty, or just whitespace
+        if (string.IsNullOrWhiteSpace(targetsEnv))
+        {
+            return agentsMap;
+        }
+
+        // 3. Split by comma, automatically trimming spaces and skipping empty segments
+        var targetIds = targetsEnv.Split(',', 
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        // 4. Populate the dictionary
+        foreach (var id in targetIds)
+        {
+            agentsMap[id] = new AgentData 
+            { 
+                Port = 8080,
+                Name = id // Setting Name to the ID matching the JS behavior
+            };
+        }
+
+        return agentsMap;
     }
 
     [HttpGet]
@@ -101,7 +128,7 @@ public class ApiController : ControllerBase
     [HttpPost("agents/{agentName}")]
     public IActionResult CreateAgent(string agentName, [FromBody] AgentData agentData)
     {
-        if (string.IsNullOrEmpty(agentData.Ip) || agentData.Port == 0)
+        if (string.IsNullOrEmpty(agentName) || agentData.Port == 0)
         {
             return BadRequest("Invalid agent data.");
         }
@@ -128,7 +155,6 @@ public class ApiController : ControllerBase
             .Select(kv => new AgentData
             {
                 Name = kv.Key,
-                Ip = kv.Value.Ip,
                 Port = kv.Value.Port
             })
             .ToList();
@@ -195,7 +221,7 @@ public class ApiController : ControllerBase
         };
 
         
-        var cookUrl = $"http://{cook.Ip}:{cook.Port}/operations/cook";
+        var cookUrl = $"http://{cook.Name}:{cook.Port}/operations/cook";
 
         try
         {
@@ -254,7 +280,7 @@ public class ApiController : ControllerBase
                 var client = _httpClientFactory.CreateClient();
                 var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
 
-                var response = await client.PostAsJsonAsync($"http://{agentInfo.Ip}:{agentInfo.Port}/kick", post_data, cts.Token);
+                var response = await client.PostAsJsonAsync($"http://{agentInfo.Name}:{agentInfo.Port}/kick", post_data, cts.Token);
 
                 _logger.LogInformation($"[{agentRequestId}][RESPONSE from {agentId}]: Status = {response.StatusCode}");
             }

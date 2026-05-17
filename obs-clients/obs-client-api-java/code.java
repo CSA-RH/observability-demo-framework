@@ -76,7 +76,7 @@ class Agent {
     private String ip;
     private int port;
 
-    public Agent(String ip, int port) {
+    public Agent(String dns, int port) {
         this.ip = ip;
         this.port = port;
     }

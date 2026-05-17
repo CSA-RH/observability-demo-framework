@@ -35,9 +35,9 @@ apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
   labels:
-    build: obs-client-node
+    build: obs-client-node-local
     observability-demo-framework: cicd
-  name: obs-client-node
+  name: obs-client-node-local
 spec:
   output:
     to:
@@ -54,8 +54,8 @@ EOF
 # Resources cleanup
 rm -rf build node_modules package-lock.json .env
 # Remove previous build objects
-oc delete build --selector build=obs-client-node > /dev/null 
+oc delete build --selector build=obs-client-node-local > /dev/null 
 # Start build for obs-client-node
-oc start-build obs-client-node --from-file $SOURCES_DIR
+oc start-build obs-client-node-local --from-file $SOURCES_DIR
 # Follow the logs until completion 
-oc logs $(oc get build --selector build=obs-client-node -oNAME) -f 
+oc logs $(oc get build --selector build=obs-client-node-local -oNAME) -f 

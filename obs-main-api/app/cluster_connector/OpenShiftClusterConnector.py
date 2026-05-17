@@ -219,7 +219,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                             }],
                             'env': [{
                                 'name': 'TARGETS',
-                                'value': f"{targets}",
+                                'value': targets if targets else "",
                                 }],
                             'readinessProbe': {
                                 'httpGet': {
@@ -397,7 +397,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 }
             },
             "spec": {
-                "logLevel": "debug", 
+                "logLevel": "debug",
+                "alertmanagerConfig": {
+                    "replicas": 1
+                },
+                "prometheusConfig": {
+                    "replicas": 1
+                },
                 "retention": "1d",
                 "resourceSelector": {
                     "matchLabels": {
@@ -649,16 +655,14 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         for item in agents:            
             service_ip = self.__wait_for_service_ready_and_get_ip(namespace, item["id"])
             if service_ip:
-                print(f"The Service IP address of {item['id']} is: {service_ip}")
-                item["ip"] = service_ip
+                print(f"The Service IP address of {item['id']} is: {service_ip}")                
                 item["dns"] = f"{item["id"]}.{namespace}.svc"
+                item["port"] = 8080
             else:
                 print(f"Failed to retrieve the Service IP address for {item['id']}.")
                 continue
             
-            # Wait for the Service to be ready and get its IP
             self.__wait_for_deployment_ready(item['id'], namespace)
-            item["pod"] = podNames[item['id']]            
         
         # Show result
         print(agents)

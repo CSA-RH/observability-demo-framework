@@ -222,12 +222,12 @@ async def create_simulation(user_id: str, payload: Dict[str, Any], current_user:
         __print_exception(e)
         raise HTTPException(status_code=500, detail=e.args)
     
-    for source_agent_data in payload["agents"]: 
-        for target_agent_id in source_agent_data["nextHop"]:
-            agent_manager.set_agent_communication_path(
-                user_id, 
-                source_agent_data["dns"],
-                target_agent_id)
+    #for source_agent_data in payload["agents"]: 
+    #    for target_agent_id in source_agent_data["nextHop"]:
+    #        agent_manager.set_agent_communication_path(
+    #            user_id, 
+    #            source_agent_data["dns"],
+    #            target_agent_id)
 
     # Save simulation
     try:

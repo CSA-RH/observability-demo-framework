@@ -39,7 +39,7 @@ const AgentInfo = ({ agent, user, onAgentUpdated }) => {
     async function saveMetric(method, agent, metric) {
         const payload = {
             id: agent.id,
-            ip: agent.ip,
+            dns: agent.dns,
             metric: metric
         }
         try {
@@ -231,12 +231,9 @@ const AgentInfo = ({ agent, user, onAgentUpdated }) => {
         <div className='container'>
             {agent?.id ? (
                 <div>
-                    <h6>
-                        <span className="value">
-                            <a href={ApiHelper.getPodAddress(agent.pod, user?.username)}
-                                target="_blank" rel="noopener noreferrer">{agent.pod} <i className="fas fa-external-link-alt"></i></a>
-                        </span> <span className="value">[{agent.ip}] metrics</span>
-                    </h6>
+                    <h2>
+                        {agent.id} metrics
+                    </h2>
                     <div>
                         <div className='table-responsive'>
                             <table className='table w-100'>
