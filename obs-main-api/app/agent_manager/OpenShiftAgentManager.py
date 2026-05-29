@@ -54,7 +54,7 @@ class OpenShiftAgentManager(AgentManagerInterface):
         
         full_path = ""
         try:
-            agent_ip = payload['ip']
+            agent_dns = payload['dns']
             agent_id = payload['id']
             metricInfo = payload['metric']
 
@@ -75,7 +75,7 @@ class OpenShiftAgentManager(AgentManagerInterface):
         print(f"Agent {agent_id}. Setting metric {metricInfo['name']}[{method}]")
         
         try:
-            conn = http.client.HTTPConnection(host=agent_ip, port=8080, timeout=1)
+            conn = http.client.HTTPConnection(host=agent_dns, port=8080, timeout=1)
             conn.request(method, full_path)
             print(f"Requested: {method} {full_path}")
             
@@ -107,7 +107,7 @@ class OpenShiftAgentManager(AgentManagerInterface):
             conn.close()
     
     def kick(self, user_id, agent_id, agent_dns, kick_initial_count):
-        #agent_ip = payload['ip']
+        #agent_dns = payload['ip']
         #agent_id = payload['id']
         #kick_initial_count = payload['count']
         
