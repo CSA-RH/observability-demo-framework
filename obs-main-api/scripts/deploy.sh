@@ -35,8 +35,11 @@ spec:
   lookupPolicy:
     local: true
 EOF
-  # Create BuildConfig for Observability Demo API if not exists
-  cat <<EOF | oc apply -f - 
+fi
+if check_openshift_resource_exists BuildConfig obs-main-api-local; then
+  echo "BuildConfig obs-main-api-local exists"
+else
+  cat <<EOF | oc apply -f -
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
