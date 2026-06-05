@@ -99,6 +99,10 @@ export function getRoleMappings() {
 }
 
 export function getPrometheusRoute(username) {
+    const clusterSuffixOpenShift = getClusterSuffix();
+    if (!clusterSuffixOpenShift) {
+        return `https://prometheus-${username}-obs-demo-${username}.apps-crc.testing`
+    }
     return `https://prometheus-${username}-obs-demo-${username}${getClusterSuffix()}`
 }
 

@@ -31,7 +31,7 @@ const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreate
 
             const agentsUpdated = await response.json();
             if (response.status <= 299) {
-                notifySuccess("Simulation created");
+                notifySuccess("Simulation sent to creation");
             }
             else
             {
@@ -57,7 +57,7 @@ const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreate
                     },
                     body: JSON.stringify(simulation),
                 });
-                if (response.status != 204) {
+                if (response.status != 202) {
                     const errorMessageJson = await response.json();
                     const errorMessage = errorMessageJson?.message;
                     notifyError(`Error deleting simulation[${response.status}].\n${(errorMessage || "")}`);

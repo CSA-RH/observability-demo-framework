@@ -161,21 +161,7 @@ const ClusterInfo = ({ selectedUser, setSelectedUser }) => {
                                         <img src="/logging.svg" className="nav-icon-svg" style={{ height: "40px", width: "auto", verticalAlign: "middle" }}
                                             alt="Logging" />
                                     </a>
-                                </li>
-                                <li className="nav-item">
-                                    <a className="nav-link" href={data.JaegerUI}
-                                        target="_blank" rel="noopener noreferrer" title="JaegerUI">
-                                        <img src="/jaeger.svg" className="nav-icon-svg" style={{ backgroundColor: "white", height: "40px", width: "auto", verticalAlign: "middle" }}
-                                            alt="Jaeger UI" />
-                                    </a>
-                                </li>
-                                <li className="nav-item">
-                                    <a className="nav-link" href={data.GrafanaURL}
-                                        target="_blank" rel="noopener noreferrer" title="Grafana">
-                                        <img src="/grafana.svg" className="nav-icon-svg" style={{ height: "40px", width: "auto", verticalAlign: "middle" }}
-                                            alt="Grafana" />
-                                    </a>
-                                </li>
+                                </li>                                
                                 {isAdmin && (<li className="nav-item"><NavLink to="/simulation"
                                     className={({ isActive }) =>
                                         isActive ? "nav-link active border border-primary bg-primary text-light rounded" : "nav-link"

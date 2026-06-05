@@ -35,7 +35,7 @@ class MockClusterConnector(ClusterConnectorInterface):
         pod_suffix = f"{first_part}-{second_part}"
         return pod_suffix
     
-    async def create_simulation_resources(self, user, payload: List[Dict[str, Any]]):
+    def create_simulation_resources(self, user, payload: List[Dict[str, Any]]):
         print("create simulation resources")
         for item in payload:            
                 item["ip"] = "1.2.3.4"
@@ -59,7 +59,7 @@ class MockClusterConnector(ClusterConnectorInterface):
 
         return json_data
     
-    async def delete_simulation(self, user):
+    def delete_simulation(self, user):
         print("Delete simulation")
         JSONUtils.delete_json_file(self.PATH_ALERTS_DEF)
         JSONUtils.delete_json_file(self.PATH_SIMULATION_DEF)

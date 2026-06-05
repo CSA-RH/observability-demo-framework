@@ -8,7 +8,7 @@ class AgentManagerInterface(ABC):
         pass
 
     @abstractmethod 
-    async def set_agent_metrics(self, method: str, user: str, payload: dict[str, Any]):
+    def set_agent_metrics(self, method: str, user: str, payload: dict[str, Any]):
         pass
 
     @abstractmethod

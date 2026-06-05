@@ -620,7 +620,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(f"Exception when saving simulation as a secret[obs-demo-fw-state]: {e}")
             raise
     
-    async def create_simulation_resources(self, user, agents: List[Dict[str, Any]], stack):
+    def create_simulation_resources(self, user, agents: List[Dict[str, Any]], stack):
         
         image_namespace=self.__get_current_namespace()
         namespace = f"{image_namespace}-{user}"
@@ -888,7 +888,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         except Exception as e:
             print(f"❌ An unexpected error occurred for Route '{route_name}': {e}", file=sys.stderr)
     
-    async def delete_simulation(self, user):        
+    def delete_simulation(self, user):        
         label_selector = "observability-demo-framework=agent"
 
         namespace = f"{self.__get_current_namespace()}-{user}"
