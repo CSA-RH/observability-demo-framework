@@ -35,6 +35,15 @@ class MockClusterConnector(ClusterConnectorInterface):
         pod_suffix = f"{first_part}-{second_part}"
         return pod_suffix
     
+    async def insert_initial_simulation(self, user_id, simulation_id, status):
+        return 
+    
+    def retrieve_hostname_from_service_id(self, user, id):
+        return
+    
+    def update_users_json(self, users):
+         return
+    
     async def create_simulation_resources(self, user, payload: List[Dict[str, Any]]):
         print("create simulation resources")
         for item in payload:            

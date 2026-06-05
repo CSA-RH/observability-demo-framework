@@ -1,6 +1,11 @@
 #!/bin/bash
 
-# -- Prerequisites check
+
+if [ ! -z "${CLUSTER_CONNECTOR}" ] && [ "${CLUSTER_CONNECTOR}" = "mock" ]; then
+    echo "Mock Cluster connector active."
+    return
+fi
+# -- Prerequisites OpenShift check
 oc whoami > /dev/null 2>&1
 # Check the exit status of the previous command ($?)
 if [ $? -ne 0 ]; then

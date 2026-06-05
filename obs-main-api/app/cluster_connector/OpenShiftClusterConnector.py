@@ -244,7 +244,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(f"Error creating Deployment {deployment_name}. Exception: ")            
             print(e)
             print("-------")
-            raise        
+            raise
     
     def __create_service(self, namespace, item):
         service_manifest = {
@@ -620,6 +620,9 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(f"Exception when saving simulation as a secret[obs-demo-fw-state]: {e}")
             raise
     
+    async def insert_initial_simulation(user_id, simulation_id, status):
+        pass
+        
     async def create_simulation_resources(self, user, agents: List[Dict[str, Any]], stack):
         
         image_namespace=self.__get_current_namespace()

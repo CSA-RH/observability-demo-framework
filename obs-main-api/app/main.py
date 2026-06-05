@@ -4,7 +4,7 @@ from agent_manager.MockAgentManager              import MockAgentManager
 from cluster_connector.OpenShiftClusterConnector import OpenShiftClusterConnector
 from cluster_connector.MockClusterConnector      import MockClusterConnector
 
-from fastapi                 import FastAPI, HTTPException, Request, Depends, status, Response  # type: ignore
+from fastapi                 import FastAPI, BackgroundTasks, HTTPException, Request, Depends, status, Response  # type: ignore
                                     
 from fastapi.responses       import JSONResponse                                                # type: ignore
 from fastapi.middleware.cors import CORSMiddleware                                              # type: ignore
@@ -19,6 +19,7 @@ from pprint import pprint
 
 import os
 import requests                                                                                 # type: ignore
+import uuid
 
 #RESPONSE CODES HERE: https://github.com/Kludex/starlette/blob/main/starlette/status.py
 
@@ -208,6 +209,55 @@ async def get_simulation(user_id: str, current_user: dict = Depends(get_current_
     
     return simulation
 
+# Worker function running in the background.
+async def run_simulation_background(user_id: str, simulation_id: str, payload: Dict[str, Any]):
+    try:
+        # 1. Create resources in cluster
+        json_agents = await cluster_connector.create_simulation_resources(
+            user_id, 
+            payload["agents"], 
+            payload["user"]["monitoringType"]
+        )
+        
+        # 2. Save simulation / Update status to COMPLETED
+        # Modify your save_simulation to include the simulation_id and a 'COMPLETED' status
+        cluster_connector.save_simulation(user_id, payload, simulation_id, status="COMPLETED", result=json_agents)
+        
+    except Exception as e:
+        __print_exception(e)
+        # Update status to FAILED in your DB so the client knows it crashed
+        cluster_connector.update_simulation_status(simulation_id, status="FAILED", error=str(e))
+
+@app.post("/api/v1/users/{user_id}/simulationV2")
+async def create_simulation_async(
+    user_id: str, 
+    payload: Dict[str,  Any],
+    background_tasks: BackgroundTasks, 
+    current_user: dict = Depends(get_current_user)    
+):
+    print(f"Initiating simulation for user {user_id}")
+    
+    # Generate a unique tracking ID for this simulation run
+    simulation_id = str(uuid.uuid4())
+    
+    try:
+        # Pre-save the simulation to your DB with a "PENDING" status
+        cluster_connector.insert_initial_simulation(user_id, simulation_id, status="PENDING")
+    except Exception as e:
+        __print_exception(e)
+        raise HTTPException(status_code=500, detail="Failed to initialize simulation tracking.")
+
+    # Kick off the long-running task in the background
+    background_tasks.add_task(run_simulation_background, user_id, simulation_id, payload)
+    
+    # Immediately return 202 Accepted with the ID to poll
+    return {
+        "simulation_id": simulation_id,
+        "status": "PENDING",
+        "message": "Simulation started in the background."
+    }
+    
+    
 @app.post("/api/v1/users/{user_id}/simulation")
 async def create_simulation(user_id: str, payload: Dict[str, Any], current_user: dict = Depends(get_current_user)):    
     print (f"Starting creating simulation for user {user_id}")
@@ -221,13 +271,6 @@ async def create_simulation(user_id: str, payload: Dict[str, Any], current_user:
     except Exception as e:
         __print_exception(e)
         raise HTTPException(status_code=500, detail=e.args)
-    
-    #for source_agent_data in payload["agents"]: 
-    #    for target_agent_id in source_agent_data["nextHop"]:
-    #        agent_manager.set_agent_communication_path(
-    #            user_id, 
-    #            source_agent_data["dns"],
-    #            target_agent_id)
 
     # Save simulation
     try:

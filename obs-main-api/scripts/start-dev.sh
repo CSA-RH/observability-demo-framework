@@ -18,7 +18,7 @@ oc get secret keycloak-route-ca-secret -o json \
   | base64 -d > "${CA_DIR}/ca.crt"
 # Run the FastAPI app using Uvicorn, specifying the app directory
 
-export KEYCLOAK_ISSUER=https://$(oc get route --selector app=keycloak -ojsonpath='{.items[0].spec.host}')/realms/csa
+export KEYCLOAK_ISSUER=https://$(oc get route -n obs-demo --selector app=keycloak -ojsonpath='{.items[0].spec.host}')/realms/csa
 export REQUESTS_CA_BUNDLE="${CA_DIR}/ca.crt"
 export AGENT_MANAGER=mock
 uvicorn main:app --reload --app-dir "$SCRIPT_DIR/../app" --reload-dir "$SCRIPT_DIR/../app"
