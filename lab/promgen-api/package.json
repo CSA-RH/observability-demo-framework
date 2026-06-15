@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@opentelemetry/exporter-prometheus": "^0.3.3",
+    "@opentelemetry/exporter-prometheus": "^0.217.0",
     "@opentelemetry/metrics": "^0.3.3",
     "express": "^4.18.3"
   }
