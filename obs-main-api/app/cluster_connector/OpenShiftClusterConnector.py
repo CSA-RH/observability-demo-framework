@@ -3,6 +3,7 @@ from typing import Dict, List, Any
 from kubernetes import config, client, watch       # type: ignore
 from kubernetes.client.rest import ApiException    # type: ignore
 from utils import JSONUtils
+from operations.operation_store import new_operation, utc_now_iso
 import sys
 
 import os, time, json, http.client, socket, base64
@@ -11,6 +12,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
 
     ALERTS_CONFIGMAP = "obs-demo-fwk-alerts"
     USERS_CONFIGMAP = "obs-demo-fwk-users"
+    OPERATIONS_CONFIGMAP = "obs-demo-fwk-operations"
 
     def __init__(self):        
         # Load Kubernetes configuration depending on the environment        
@@ -656,7 +658,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             service_ip = self.__wait_for_service_ready_and_get_ip(namespace, item["id"])
             if service_ip:
                 print(f"The Service IP address of {item['id']} is: {service_ip}")                
-                item["dns"] = f"{item["id"]}.{namespace}.svc"
+                item["dns"] = f"{item['id']}.{namespace}.svc"
                 item["port"] = 8080
             else:
                 print(f"Failed to retrieve the Service IP address for {item['id']}.")
@@ -1043,6 +1045,48 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         namespace = self.__get_current_namespace()
         print(users)
         self.__save_json_to_configmap(users, self.USERS_CONFIGMAP, "users", namespace)
+
+    def __load_operations(self) -> Dict[str, Any]:
+        namespace = self.__get_current_namespace()
+        operations = self.__load_json_from_configmap(self.OPERATIONS_CONFIGMAP, "operations", namespace)
+        if isinstance(operations, dict):
+            return operations
+        return {}
+
+    def __save_operations(self, operations: Dict[str, Any]):
+        namespace = self.__get_current_namespace()
+        self.__save_json_to_configmap(operations, self.OPERATIONS_CONFIGMAP, "operations", namespace)
+
+    def create_operation(self, operation_type: str, metadata: Dict[str, Any] | None = None) -> str:
+        operations = self.__load_operations()
+        operation = new_operation(operation_type, metadata)
+        operations[operation["id"]] = operation
+        self.__save_operations(operations)
+        return operation["id"]
+
+    def get_operation(self, operation_id: str) -> Dict[str, Any] | None:
+        return self.__load_operations().get(operation_id)
+
+    def update_operation(
+        self,
+        operation_id: str,
+        status: str | None = None,
+        error: str | None = None,
+        result: Any = None,
+    ):
+        operations = self.__load_operations()
+        operation = operations.get(operation_id)
+        if operation is None:
+            raise KeyError(f"Operation '{operation_id}' not found")
+        if status is not None:
+            operation["status"] = status
+        if error is not None:
+            operation["error"] = error
+        if result is not None:
+            operation["result"] = result
+        operation["updatedAt"] = utc_now_iso()
+        operations[operation_id] = operation
+        self.__save_operations(operations)
         
     def __wait_for_job_completion(self, batch_v1, job_name, timeout=300, interval=5):
         """Waits for the specified Job to either Complete or Fail."""

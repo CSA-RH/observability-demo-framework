@@ -29,17 +29,18 @@ const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreate
                 body: JSON.stringify(simulation),
             });
 
-            const agentsUpdated = await response.json();
-            if (response.status <= 299) {
+            if (response.status === 202) {
+                const { operationId } = await response.json();
+                const operation = await ApiHelper.pollOperation(operationId, keycloak.token);
                 notifySuccess("Simulation created");
+                onSimulationCreated(operation.result);
+                return;
             }
-            else
-            {
-                notifyError(`Error creating simulation: ${(agentsUpdated?.message || "No info available")}[${response.status}]`);
-            }
-            onSimulationCreated(agentsUpdated);
+
+            const errorBody = await response.json();
+            notifyError(`Error creating simulation: ${(errorBody?.message || errorBody?.detail || "No info available")}[${response.status}]`);
         } catch (error) {
-            notifyError(`Error:${error}`);
+            notifyError(`Error: ${error.message || error}`);
         } finally {
             hideLoading(); // Stop loading and hide the spinner
         }

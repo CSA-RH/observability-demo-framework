@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getNamesPool, getRoleMappings, isValidK8sName, generateRandomPassword, getUserListUrl } from '../ApiHelper';
+import { getNamesPool, getRoleMappings, isValidK8sName, generateRandomPassword, getUserListUrl, pollOperation } from '../ApiHelper';
 import ConfirmationModal from '../components/ConfirmationModal';
 import PasswordCell from '../components/PasswordCell';
 import { useKeycloak } from "@react-keycloak/web";
@@ -21,34 +21,34 @@ const AdminPage = () => {
   });
   const { showLoading, hideLoading } = useLoading();
 
+  const fetchUsers = async () => {
+    setError("");
+    try {
+      const userListResponse = await fetch(getUserListUrl(), {
+        method: "GET",
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${keycloak.token}`
+        }
+      });
+      if (userListResponse.status > 299) {
+        setUsers([]);
+        setError(`Error fetching users[${userListResponse.status}]`)
+      }
+      else {
+        const users_json = await userListResponse.json();
+        setUsers(users_json);
+      }
+    } catch (error) {
+      const errorMessage = `Error fetching users[${error}]`
+      console.error(errorMessage);
+      setError(errorMessage);
+    }
+  };
+
   // --- Manage users --- 
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      setError("");
-      try {
-        const userListResponse = await fetch(getUserListUrl(), {
-          method: "GET",
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${keycloak.token}`
-          }
-        });
-        if (userListResponse.status > 299) {
-          setUsers([]);
-          setError(`Error fetching users[${userListResponse.status}]`)
-        }
-        else {
-          const users_json = await userListResponse.json();
-          setUsers(users_json);
-        }
-      } catch (error) {
-        const errorMessage = `Error fetching users[${error}]`
-        console.error(errorMessage);
-        setError(errorMessage);
-      }
-    };
-
     fetchUsers();
 
   }, [keycloak.token, keycloak.authenticated]); // Empty dependency array to run once on component mount
@@ -68,14 +68,20 @@ const AdminPage = () => {
         })
 
       });
+      if (deleteUserResponse.status === 202) {
+        const { operationId } = await deleteUserResponse.json();
+        await pollOperation(operationId, keycloak.token);
+        return;
+      }
       if (deleteUserResponse.status > 299) {
         setUsers([]);
         setError(`Error deleting user ${user}[${deleteUserResponse.status}]`)
       }
     } catch (error) {
-      const errorMessage = `Error fetching users[${error}]`
+      const errorMessage = `Error deleting user[${error.message || error}]`
       console.error(errorMessage);
       setError(errorMessage);
+      throw error;
     }
   };
 
@@ -90,14 +96,21 @@ const AdminPage = () => {
         },
         body: JSON.stringify(user)
       });
+      if (postUserResponse.status === 202) {
+        const { operationId } = await postUserResponse.json();
+        await pollOperation(operationId, keycloak.token);
+        return;
+      }
       if (postUserResponse.status > 299) {
         setUsers([]);
-        setError(`Error creating user ${user.username}[${deleteUserResponse.status}]`)
+        setError(`Error creating user ${user.username}[${postUserResponse.status}]`)
+        throw new Error(`Error creating user ${user.username}`);
       }
     } catch (error) {
-      const errorMessage = `Error creating user[${error}]`
+      const errorMessage = `Error creating user[${error.message || error}]`
       console.error(errorMessage);
       setError(errorMessage);
+      throw error;
     }
   };
 
@@ -128,25 +141,22 @@ const AdminPage = () => {
     try {
       if (modalType === 'create') {
         console.log(`CONFIRMED: Creating user ${newUserData.username}...`);
-        // API call to create user goes here
-
-        newUserData.password = generateRandomPassword();
-        users.push(newUserData);
-        setUsers(users);
+        const userToCreate = {
+          ...newUserData,
+          password: generateRandomPassword(),
+        };
+        await postUser(userToCreate);
         setNewUserData({
           username: "",
           monitoringType: "coo"
         });
-        //PUSH USER
-        await postUser(newUserData);
+        await fetchUsers();
         eventBus.dispatchEvent(new Event(USERS_UPDATED_EVENT));
       } else if (modalType === 'delete') {
         console.log(`CONFIRMED: Deleting user ID ${userToProcess}...`);
-        // API call to delete user 
         await deleteUser(userToProcess);
+        await fetchUsers();
         eventBus.dispatchEvent(new Event(USERS_UPDATED_EVENT));
-        const updatedUsers = users.filter(userObj => userObj.username !== userToProcess);
-        setUsers(updatedUsers);
       }
     } catch (error) {
       console.error("Failed to confirm action: ", error);

@@ -52,9 +52,27 @@ class ClusterConnectorInterface(ABC):
         pass
     
     @abstractmethod
-    def get_users_json(self, users):
+    def get_users_json(self):
         pass
     
     @abstractmethod
     def sync_users(self):
+        pass
+
+    @abstractmethod
+    def create_operation(self, operation_type: str, metadata: Dict[str, Any] | None = None) -> str:
+        pass
+
+    @abstractmethod
+    def get_operation(self, operation_id: str) -> Dict[str, Any] | None:
+        pass
+
+    @abstractmethod
+    def update_operation(
+        self,
+        operation_id: str,
+        status: str | None = None,
+        error: str | None = None,
+        result: Any = None,
+    ):
         pass

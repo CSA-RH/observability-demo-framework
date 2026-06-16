@@ -18,7 +18,10 @@ from utils  import JSONUtils
 from pprint import pprint
 
 import os
+import asyncio
 import requests                                                                                 # type: ignore
+
+from operations.operation_tasks import run_user_create, run_user_delete, run_simulation_create
 
 #RESPONSE CODES HERE: https://github.com/Kludex/starlette/blob/main/starlette/status.py
 
@@ -208,35 +211,15 @@ async def get_simulation(user_id: str, current_user: dict = Depends(get_current_
     
     return simulation
 
-@app.post("/api/v1/users/{user_id}/simulation")
+@app.post("/api/v1/users/{user_id}/simulation", status_code=status.HTTP_202_ACCEPTED)
 async def create_simulation(user_id: str, payload: Dict[str, Any], current_user: dict = Depends(get_current_user)):    
     print (f"Starting creating simulation for user {user_id}")
-    # Create resources in cluster
-    try:        
-        json_agents = await cluster_connector.create_simulation_resources(
-            user_id, 
-            payload["agents"], 
-            payload["user"]["monitoringType"])
-
-    except Exception as e:
-        __print_exception(e)
-        raise HTTPException(status_code=500, detail=e.args)
-    
-    #for source_agent_data in payload["agents"]: 
-    #    for target_agent_id in source_agent_data["nextHop"]:
-    #        agent_manager.set_agent_communication_path(
-    #            user_id, 
-    #            source_agent_data["dns"],
-    #            target_agent_id)
-
-    # Save simulation
-    try:
-        cluster_connector.save_simulation(user_id, payload)
-    except Exception as e:
-        __print_exception(e)
-        raise HTTPException(status_code=500, detail=e.args)
-
-    return json_agents
+    operation_id = cluster_connector.create_operation(
+        "simulation-create",
+        {"userId": user_id},
+    )
+    asyncio.create_task(run_simulation_create(cluster_connector, operation_id, user_id, payload))
+    return {"operationId": operation_id, "status": "pending"}
 
 @app.delete("/api/v1/users/{user_id}/simulation")
 async def delete_simulation(user_id: str, current_user: dict = Depends(get_current_user)):
@@ -467,46 +450,40 @@ def get_alerts(user_id: str, current_user: dict = Depends(get_current_user)):
 def get_users(current_user: dict = Depends(get_current_user)):
     return cluster_connector.get_users_json()
 
-@app.post("/api/v1/users")
-def post_user(user_payload: dict[str, Any], current_user: dict = Depends(get_current_user)):    
+@app.get("/api/v1/operations/{operation_id}")
+def get_operation_status(operation_id: str, current_user: dict = Depends(get_current_user)):
+    operation = cluster_connector.get_operation(operation_id)
+    if operation is None:
+        raise HTTPException(status_code=404, detail="Operation not found")
+    return operation
+
+@app.post("/api/v1/users", status_code=status.HTTP_202_ACCEPTED)
+async def post_user(user_payload: dict[str, Any], current_user: dict = Depends(get_current_user)):    
     try:
-        users = cluster_connector.get_users_json()
-        users.append(user_payload)
-        
-        # Update Backend. 
-        cluster_connector.update_users_json(users)
-        
-        # Sync Users. 
-        if not cluster_connector.sync_users(): 
-            return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        return Response(status_code=status.HTTP_200_OK)
+        operation_id = cluster_connector.create_operation(
+            "user-create",
+            {"username": user_payload.get("username")},
+        )
+        asyncio.create_task(run_user_create(cluster_connector, operation_id, user_payload))
+        return {"operationId": operation_id, "status": "pending"}
     except Exception as e: 
         __print_exception(e)
-        return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-@app.delete("/api/v1/users/{user_id}")
-def delete_user(user_id: str, current_user: dict = Depends(get_current_user)):
+@app.delete("/api/v1/users/{user_id}", status_code=status.HTTP_202_ACCEPTED)
+async def delete_user(user_id: str, current_user: dict = Depends(get_current_user)):
     try:
-        if user_id:
-            new_users_list = [
-                user for user in cluster_connector.get_users_json()
-                if user.get("username") != user_id
-            ]
-            
-            # Update backend
-            cluster_connector.update_users_json(new_users_list)
-            # Sync Users. 
-            if not cluster_connector.sync_users():
-                return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        if not user_id:
+            raise HTTPException(status_code=404, detail=f"User {user_id} not found")
 
-            # Print the result
-            print(f"Deleted user: {user_id}")
-            return Response(status_code=status.HTTP_204_NO_CONTENT)
-        else:
-            message=f"Error: user {user_id} not found"
-            print_red(message)
-            return JSONResponse(content=message, status_code=404)
+        operation_id = cluster_connector.create_operation(
+            "user-delete",
+            {"username": user_id},
+        )
+        asyncio.create_task(run_user_delete(cluster_connector, operation_id, user_id))
+        return {"operationId": operation_id, "status": "pending"}
+    except HTTPException:
+        raise
     except Exception as e: 
         __print_exception(e)
-        return Response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

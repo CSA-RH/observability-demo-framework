@@ -1,6 +1,7 @@
 from cluster_connector.ClusterConnectorInterface import ClusterConnectorInterface
 from typing import Dict, List, Any
 from utils import JSONUtils
+from operations.operation_store import new_operation, utc_now_iso
 
 import secrets, os, json 
 
@@ -8,9 +9,15 @@ class MockClusterConnector(ClusterConnectorInterface):
     
     PATH_SIMULATION_DEF="/tmp/obs-demo-fw-sim.json"    
     PATH_ALERTS_DEF="/tmp/obs-demo-fw-alerts.json"
+    PATH_USERS_DEF="/tmp/obs-demo-fw-users.json"
+    PATH_OPERATIONS_DEF="/tmp/obs-demo-fw-operations.json"
 
     def __init__(self): 
         print("... Starting Mock Cluster connector.")
+        if not os.path.exists(self.PATH_USERS_DEF):
+            JSONUtils.save_json_to_file([], self.PATH_USERS_DEF)
+        if not os.path.exists(self.PATH_OPERATIONS_DEF):
+            JSONUtils.save_json_to_file({}, self.PATH_OPERATIONS_DEF)
 
     def get_cluster_info(self, user) -> Dict[str, str]:
         return {
@@ -97,11 +104,49 @@ class MockClusterConnector(ClusterConnectorInterface):
         return JSONUtils.load_json_from_file(self.PATH_ALERTS_DEF)
 
     
-    def put_users_json(self, users):
-        pass
-        
-    def get_users_json(self, users):
-        pass
+    def update_users_json(self, users):
+        JSONUtils.save_json_to_file(users, self.PATH_USERS_DEF)
+
+    def get_users_json(self):
+        return JSONUtils.load_json_from_file(self.PATH_USERS_DEF) or []
     
     def sync_users(self): 
         return True
+
+    def __load_operations(self) -> Dict[str, Any]:
+        operations = JSONUtils.load_json_from_file(self.PATH_OPERATIONS_DEF)
+        return operations if isinstance(operations, dict) else {}
+
+    def __save_operations(self, operations: Dict[str, Any]):
+        JSONUtils.save_json_to_file(operations, self.PATH_OPERATIONS_DEF)
+
+    def create_operation(self, operation_type: str, metadata: Dict[str, Any] | None = None) -> str:
+        operations = self.__load_operations()
+        operation = new_operation(operation_type, metadata)
+        operations[operation["id"]] = operation
+        self.__save_operations(operations)
+        return operation["id"]
+
+    def get_operation(self, operation_id: str) -> Dict[str, Any] | None:
+        return self.__load_operations().get(operation_id)
+
+    def update_operation(
+        self,
+        operation_id: str,
+        status: str | None = None,
+        error: str | None = None,
+        result: Any = None,
+    ):
+        operations = self.__load_operations()
+        operation = operations.get(operation_id)
+        if operation is None:
+            raise KeyError(f"Operation '{operation_id}' not found")
+        if status is not None:
+            operation["status"] = status
+        if error is not None:
+            operation["error"] = error
+        if result is not None:
+            operation["result"] = result
+        operation["updatedAt"] = utc_now_iso()
+        operations[operation_id] = operation
+        self.__save_operations(operations)

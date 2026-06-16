@@ -35,6 +35,46 @@ export function getUserListUrl() {
     return `${MASTER_API_ADDRESS}/api/v1/users`
 }
 
+export function getOperationUrl(operationId) {
+    return `${MASTER_API_ADDRESS}/api/v1/operations/${operationId}`
+}
+
+/**
+ * Polls an async API operation until it succeeds or fails.
+ * @returns {Promise<object>} The completed operation payload (includes `result` when applicable).
+ */
+export async function pollOperation(operationId, token, { intervalMs = 2000, timeoutMs = 600000 } = {}) {
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt < timeoutMs) {
+        const response = await fetch(getOperationUrl(operationId), {
+            headers: {
+                Accept: 'application/json',
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        if (response.status === 404) {
+            throw new Error('Operation not found');
+        }
+        if (!response.ok) {
+            throw new Error(`Failed to fetch operation status (${response.status})`);
+        }
+
+        const operation = await response.json();
+        if (operation.status === 'succeeded') {
+            return operation;
+        }
+        if (operation.status === 'failed') {
+            throw new Error(operation.error || 'Operation failed');
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+
+    throw new Error('Operation timed out');
+}
+
 //Root console address
 export let globalRootConsole = 'N/A';
 
