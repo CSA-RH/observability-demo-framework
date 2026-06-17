@@ -7,7 +7,7 @@ source ../env.sh
 # Create or update the playbook to sync users
 print_header "Create/Update playbook for syncing users..."
 oc create configmap sync-users-playbook \
-    --from-file=../../helm/files/playbook-sync-users.yaml \
+    --from-file=playbook-sync-users.yml=../../helm/files/playbook-sync-users.yaml \
     -n $NAMESPACE \
     --dry-run=client \
     -oyaml \

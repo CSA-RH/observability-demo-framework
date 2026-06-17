@@ -20,7 +20,8 @@
   },
   "scripts": {
     "start": "vite",
-    "start:dev": "env-cmd -f .env.dev vite",
+    "start:local": "env-cmd -f .env.local vite",
+    "start:crc": "env-cmd -f .env.crc vite",
     "build": "vite build",
     "test": "vite test",
     "eject": "vite eject"

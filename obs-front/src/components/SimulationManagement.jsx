@@ -8,17 +8,21 @@ const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreate
     const [isCreateDisabled, setIsCreateDisabled] = useState(true);
     const [isResetDisabled, setIsResetDisabled] = useState(true);
     const { showLoading, hideLoading } = useLoading();
-    const { keycloak, initialized } = useKeycloak();
+    const { keycloak } = useKeycloak();
 
-
-    // Use useEffect to trigger logic when 'simulation' prop changes
     useEffect(() => {
         setIsCreateDisabled(isCreateSimuDisabled());
         setIsResetDisabled(isResetSimuDisabled());
     }, [simulation]);
 
+    const formatOperationMessage = (operation) => {
+        const statusLabel = ApiHelper.getOperationStatusLabel(operation.status);
+        const detail = operation.metadata?.message;
+        return detail ? `${statusLabel}: ${detail}` : statusLabel;
+    };
+
     const handleCreate = async () => {
-        showLoading(); // Start loading and show the spinner
+        showLoading('Submitting simulation...');
         try {
             const response = await fetch(ApiHelper.getSimulationUrl(simulation?.user?.username), {
                 method: 'POST',
@@ -29,24 +33,29 @@ const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreate
                 body: JSON.stringify(simulation),
             });
 
-            const agentsUpdated = await response.json();
-            if (response.status <= 299) {
+            if (response.status === 202) {
+                const { operationId } = await response.json();
+                const operation = await ApiHelper.pollOperation(operationId, keycloak, {
+                    onProgress: (currentOperation) => {
+                        showLoading(formatOperationMessage(currentOperation));
+                    },
+                });
                 notifySuccess("Simulation created");
+                onSimulationCreated(operation.result);
+                return;
             }
-            else
-            {
-                notifyError(`Error creating simulation: ${(agentsUpdated?.message || "No info available")}[${response.status}]`);
-            }
-            onSimulationCreated(agentsUpdated);
+
+            const errorBody = await response.json();
+            notifyError(`Error creating simulation: ${(errorBody?.message || errorBody?.detail || "No info available")}[${response.status}]`);
         } catch (error) {
-            notifyError(`Error:${error}`);
+            notifyError(`Error: ${error.message || error}`);
         } finally {
-            hideLoading(); // Stop loading and hide the spinner
+            hideLoading();
         }
     };
 
     const handleReset = async () => {
-        showLoading();
+        showLoading('Submitting simulation reset...');
         try {
             if (simulationLoaded) {
                 const response = await fetch(ApiHelper.getSimulationUrl(simulation?.user?.username), {
@@ -57,19 +66,26 @@ const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreate
                     },
                     body: JSON.stringify(simulation),
                 });
-                if (response.status != 204) {
+
+                if (response.status === 202) {
+                    const { operationId } = await response.json();
+                    await ApiHelper.pollOperation(operationId, keycloak, {
+                        onProgress: (currentOperation) => {
+                            showLoading(formatOperationMessage(currentOperation));
+                        },
+                    });
+                    notifySuccess("Simulation reset successfully.");
+                    onSimulationReset({ layout: [], agents: [] });
+                } else {
                     const errorMessageJson = await response.json();
                     const errorMessage = errorMessageJson?.message;
                     notifyError(`Error deleting simulation[${response.status}].\n${(errorMessage || "")}`);
-
                 }
-                else {
-                    notifySuccess("Simulation reset successfully.");
-                }
+            } else if (!simulationLoaded) {
+                onSimulationReset({ layout: [], agents: [] });
             }
-            onSimulationReset({ layout: [], agents: [] });
         } catch (error) {
-            notifyError("Error: " + error);
+            notifyError("Error: " + (error.message || error));
         } finally {
             hideLoading();
         }
@@ -84,7 +100,6 @@ const SimulationManagement = ({ simulationLoaded, simulation, onSimulationCreate
     };
 
     return (
-
         <div className="d-flex justify-content-center">
             <button className="btn btn-primary me-2 mb-2" id="primary-button" disabled={isCreateDisabled} onClick={handleCreate}>
                 Create

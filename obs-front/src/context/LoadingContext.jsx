@@ -1,33 +1,35 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 
-// 1. Create the context
 const LoadingContext = createContext();
 
-// 2. Create a custom hook for easy access
 export const useLoading = () => useContext(LoadingContext);
 
-// 3. Create the Provider component
 export const LoadingProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
 
-  // Use useCallback to prevent unnecessary re-renders
-  const showLoading = useCallback(() => setIsLoading(true), []);
-  const hideLoading = useCallback(() => setIsLoading(false), []);
+  const showLoading = useCallback((message = '') => {
+    setLoadingMessage(message);
+    setIsLoading(true);
+  }, []);
 
-  const value = { isLoading, showLoading, hideLoading };
+  const hideLoading = useCallback(() => {
+    setIsLoading(false);
+    setLoadingMessage('');
+  }, []);
+
+  const value = { isLoading, loadingMessage, showLoading, hideLoading };
 
   return (
     <LoadingContext.Provider value={value}>
       {children}
-      {isLoading && <GlobalLoadingSpinner />}
+      {isLoading && <GlobalLoadingSpinner message={loadingMessage} />}
     </LoadingContext.Provider>
   );
 };
 
-// 4. Co-locate the Spinner component and its styles here
-const GlobalLoadingSpinner = () => (
+const GlobalLoadingSpinner = ({ message }) => (
   <>
-    {/* This <style> tag injects the animation safely */}
     <style>{`
       @keyframes spin {
         0% { transform: rotate(0deg); }
@@ -35,30 +37,47 @@ const GlobalLoadingSpinner = () => (
       }
     `}</style>
     <div style={overlayStyles}>
-      <div style={spinnerStyles}></div>
+      <div style={panelStyles}>
+        <div style={spinnerStyles}></div>
+        {message ? <p style={messageStyles}>{message}</p> : null}
+      </div>
     </div>
   </>
 );
 
-// Styles for the overlay and spinner
 const overlayStyles = {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 1000, // Ensure it overlays everything
+  position: "fixed",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  backgroundColor: "rgba(0, 0, 0, 0.5)",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  zIndex: 1000,
+};
+
+const panelStyles = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  gap: "16px",
 };
 
 const spinnerStyles = {
-    border: "16px solid #f3f3f3", // Light gray
-    borderTop: "16px solid #3498db", // Blue
-    borderRadius: "50%",
-    width: "120px",
-    height: "120px",
-    animation: "spin 2s linear infinite",
+  border: "16px solid #f3f3f3",
+  borderTop: "16px solid #3498db",
+  borderRadius: "50%",
+  width: "120px",
+  height: "120px",
+  animation: "spin 2s linear infinite",
+};
+
+const messageStyles = {
+  color: "#fff",
+  fontSize: "1.1rem",
+  textAlign: "center",
+  maxWidth: "420px",
+  margin: 0,
 };

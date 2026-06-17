@@ -47,7 +47,7 @@ class MockAgentManager(AgentManagerInterface):
             agent_list.append(agent_info)
         JSONUtils.save_json_to_file(agent_list, self.__get_metrics_fullpath_file(user_id))
     
-    async def set_agent_metrics(self, method: str, user: str, payload: dict[str, Any]):
+    def set_agent_metrics(self, method: str, user: str, payload: dict[str, Any]):
         print(f"Method: {method}")
         print(f"User:   {user}")
         print(payload)
@@ -236,7 +236,7 @@ class MockAgentManager(AgentManagerInterface):
         print("Kick simulation finished.")
         return
     
-    async def delete_metrics_definitions(self, user_id):
+    def delete_metrics_definitions(self, user_id):
         metrics_file = self.__get_metrics_fullpath_file(user_id)
         JSONUtils.delete_json_file(metrics_file)
         JSONUtils.delete_json_file(f"/tmp/{user_id}-obs-demo-fw-comms.json")

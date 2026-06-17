@@ -47,7 +47,7 @@ class OpenShiftAgentManager(AgentManagerInterface):
             conn.close()
         return json_result
 
-    async def set_agent_metrics(self, method: str, user_id:str, payload: dict[str, Any]):
+    def set_agent_metrics(self, method: str, user_id:str, payload: dict[str, Any]):
         print("set_agent_metric")
         print(payload)
         print("----------------")

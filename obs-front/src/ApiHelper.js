@@ -35,6 +35,69 @@ export function getUserListUrl() {
     return `${MASTER_API_ADDRESS}/api/v1/users`
 }
 
+export function getOperationUrl(operationId) {
+    return `${MASTER_API_ADDRESS}/api/v1/operations/${operationId}`
+}
+
+const OPERATION_STATUS_LABELS = {
+    pending: 'Queued',
+    running: 'In progress',
+    succeeded: 'Completed',
+    failed: 'Failed',
+};
+
+export function getOperationStatusLabel(status) {
+    return OPERATION_STATUS_LABELS[status] || status;
+}
+
+export async function pollOperation(
+    operationId,
+    tokenOrKeycloak,
+    { intervalMs = 2000, timeoutMs = 600000, onProgress } = {},
+) {
+    const startedAt = Date.now();
+
+    const resolveAuthHeader = async () => {
+        if (tokenOrKeycloak && typeof tokenOrKeycloak.updateToken === 'function') {
+            await tokenOrKeycloak.updateToken(30);
+            return `Bearer ${tokenOrKeycloak.token}`;
+        }
+        const token = typeof tokenOrKeycloak === 'string' ? tokenOrKeycloak : tokenOrKeycloak?.token;
+        return `Bearer ${token}`;
+    };
+
+    while (Date.now() - startedAt < timeoutMs) {
+        const response = await fetch(getOperationUrl(operationId), {
+            headers: {
+                Accept: 'application/json',
+                Authorization: await resolveAuthHeader(),
+            },
+        });
+
+        if (response.status === 404) {
+            throw new Error('Operation not found');
+        }
+        if (!response.ok) {
+            throw new Error(`Failed to fetch operation status (${response.status})`);
+        }
+
+        const operation = await response.json();
+        if (onProgress) {
+            onProgress(operation);
+        }
+        if (operation.status === 'succeeded') {
+            return operation;
+        }
+        if (operation.status === 'failed') {
+            throw new Error(operation.error || 'Operation failed');
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+
+    throw new Error('Operation timed out');
+}
+
 //Root console address
 export let globalRootConsole = 'N/A';
 
@@ -99,6 +162,10 @@ export function getRoleMappings() {
 }
 
 export function getPrometheusRoute(username) {
+    const clusterSuffixOpenShift = getClusterSuffix();
+    if (!clusterSuffixOpenShift) {
+        return `https://prometheus-${username}-obs-demo-${username}.apps-crc.testing`
+    }
     return `https://prometheus-${username}-obs-demo-${username}${getClusterSuffix()}`
 }
 

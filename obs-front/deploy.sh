@@ -1,29 +1,81 @@
 #!/bin/bash
+set -euo pipefail
 
-# Get the directory where the script is located
+# Build obs-front via OpenShift BuildConfig and deploy to the active `oc` cluster.
+
 SCRIPT_DIR="$(realpath "$(dirname "$0")")"
 SOURCES_DIR=$SCRIPT_DIR/
 
 export CURRENT_NAMESPACE=$(oc project -q)
-echo CURRENT NAMESPACE=$CURRENT_NAMESPACE
+echo "CURRENT NAMESPACE=$CURRENT_NAMESPACE"
 
-# Function to check if a resource exists
 check_openshift_resource_exists() {
-    local resource_type="$1"
-    local resource_name="$2"    
+    oc get "$1" "$2" >/dev/null 2>&1
+}
 
-    if oc get $resource_type $resource_name >/dev/null 2>&1; then
-        return 0  # True: resource exists
-    else
-        return 1  # False: resource does not exist
+resolve_route_url() {
+    local route_name="$1"
+    local host
+    host="$(oc get route "$route_name" -o jsonpath='{.spec.host}' 2>/dev/null || true)"
+    if [ -z "$host" ]; then
+        echo "ERROR: Route '$route_name' not found in namespace $CURRENT_NAMESPACE" >&2
+        exit 1
+    fi
+    echo "https://${host}"
+}
+
+resolve_keycloak_url() {
+    local host
+
+    host="$(oc get route --selector app=keycloak -o jsonpath='{.items[0].spec.host}' 2>/dev/null || true)"
+    if [ -n "$host" ]; then
+        echo "https://${host}"
+        return
+    fi
+
+    host="$(oc get route -o jsonpath='{range .items[*]}{.spec.host}{"\n"}{end}' 2>/dev/null | grep -E "^oauth-" | head -1 || true)"
+    if [ -n "$host" ]; then
+        echo "https://${host}"
+        return
+    fi
+
+    host="$(oc get cm idp-data -o jsonpath='{.data.endpoint}' 2>/dev/null | sed -E 's#^https?://##' || true)"
+    if [ -n "$host" ]; then
+        echo "https://${host}"
+        return
+    fi
+
+    echo "ERROR: Could not discover Keycloak route (tried app=keycloak, oauth-*, idp-data)" >&2
+    exit 1
+}
+
+wait_for_build() {
+    local build_name="$1"
+    echo "Waiting for build ${build_name} to complete..."
+    if ! oc wait --for=condition=Complete --timeout=15m "build/${build_name}"; then
+        echo "ERROR: Build ${build_name} failed." >&2
+        oc logs "build/${build_name}" || true
+        exit 1
     fi
 }
 
-# Create ImageStream for Observability Demo Frontend if not exists
-if check_openshift_resource_exists ImageStream obs-front; then
-  echo "ImageStream obs-front exists"
-else
-  cat <<EOF | oc apply -f -
+export VITE_API_URL="$(resolve_route_url obs-main-api)"
+export IDP_URL="$(resolve_keycloak_url)"
+
+echo "Building frontend with:"
+echo "  VITE_OBSERVABILITY_DEMO_API=${VITE_API_URL}"
+echo "  VITE_KEYCLOAK_URL=${IDP_URL}"
+
+# .env.production is uploaded with the binary context (not gitignored).
+cat <<EOF > "${SOURCES_DIR}/.env.production"
+VITE_OBSERVABILITY_DEMO_API=${VITE_API_URL}
+VITE_KEYCLOAK_URL=${IDP_URL}
+VITE_KEYCLOAK_REALM=csa
+VITE_KEYCLOAK_CLIENT_ID=webauth
+EOF
+
+if ! check_openshift_resource_exists ImageStream obs-front; then
+    oc apply -f - <<EOF
 apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
@@ -34,12 +86,13 @@ spec:
   lookupPolicy:
     local: true
 EOF
-  # Create BuildConfig for Observability Demo Frontend if not exists
-  cat <<EOF | oc apply -f - 
+fi
+
+oc apply -f - <<EOF
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
-  labels:    
+  labels:
     build: obs-front-local
     observability-demo-framework: 'cicd'
   name: obs-front-local
@@ -52,50 +105,39 @@ spec:
     binary: {}
     type: Binary
   strategy:
-    dockerStrategy: 
-      dockerfilePath: Dockerfile
+    dockerStrategy:
+      dockerfilePath: Dockerfile.local
       buildArgs:
         - name: VITE_OBSERVABILITY_DEMO_API
+          value: "${VITE_API_URL}"
         - name: VITE_KEYCLOAK_URL
+          value: "${IDP_URL}"
+        - name: VITE_KEYCLOAK_REALM
+          value: "csa"
+        - name: VITE_KEYCLOAK_CLIENT_ID
+          value: "webauth"
     type: Docker
 EOF
-fi
 
-# Remove previous build objects
-oc delete build --selector build=obs-front-local > /dev/null 
-# Get keycloak route
-export route IDP_URL=https://$(oc get route --selector app=keycloak -ojsonpath='{.items[0].spec.host}')
-# Retrieve and set .env variables for API address
-export VITE_API_URL=https://$(oc get route obs-main-api -ojsonpath='{.spec.host}')
-cat <<EOF > $SOURCES_DIR/.env
-VITE_OBSERVABILITY_DEMO_API=${VITE_API_URL}
-VITE_KEYCLOAK_URL=${IDP_URL}
-VITE_KEYCLOAK_REALM=csa
-VITE_KEYCLOAK_CLIENT_ID=webauth
-EOF
-# Start build for obs-front
-oc start-build obs-front-local --from-file $SOURCES_DIR \
-  --build-arg=VITE_KEYCLOAK_URL="$IDP_URL" \
-  --build-arg=VITE_OBSERVABILITY_DEMO_API="${VITE_API_URL}"
-# Follow the logs until completion 
-oc logs $(oc get build --selector build=obs-front-local -oNAME) -f 
-# Check if a deployment already exists
+oc delete build --selector build=obs-front-local > /dev/null 2>&1 || true
+
+build_name="$(oc start-build obs-front-local --from-dir="${SOURCES_DIR}" --no-cache -o name | sed 's|build.build.openshift.io/||')"
+oc logs -f "build/${build_name}"
+wait_for_build "${build_name}"
+
 if check_openshift_resource_exists Deployment obs-front; then
-  # update deployment
-  echo "Updating deployment..."
-  oc set image \
-    deployment/obs-front \
-    obs-front=$(oc get istag obs-front:latest -o jsonpath='{.image.dockerImageReference}')
+    echo "Updating deployment..."
+    oc set image \
+        deployment/obs-front \
+        obs-front="$(oc get istag obs-front:latest -o jsonpath='{.image.dockerImageReference}')"
+    oc rollout status deployment/obs-front --timeout=5m
 else
-  echo "Creating deployment, service and route..."
-  # Create deployment
-  oc create deploy obs-front --image=obs-front:latest 
-  oc label deploy obs-front observability-demo-framework=frontend
-  # Create service
-  oc expose deploy/obs-front --port 8080
-  oc label service obs-front observability-demo-framework=frontend
-  # Create route
-  cat <<EOF | oc apply -f - 
+    echo "Creating deployment, service and route..."
+    oc create deploy obs-front --image=obs-front:latest
+    oc label deploy obs-front observability-demo-framework=frontend
+    oc expose deploy/obs-front --port 8080
+    oc label service obs-front observability-demo-framework=frontend
+    oc apply -f - <<EOF
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
@@ -109,7 +151,12 @@ spec:
   to:
     kind: Service
     name: obs-front
-  tls: 
+  tls:
     termination: edge
 EOF
+    oc rollout status deployment/obs-front --timeout=5m
 fi
+
+rm -f "${SOURCES_DIR}/.env.production"
+
+echo "Done. Open https://$(oc get route obs-front -o jsonpath='{.spec.host}')"
