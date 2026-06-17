@@ -4,10 +4,7 @@ from agent_manager.MockAgentManager              import MockAgentManager
 from cluster_connector.OpenShiftClusterConnector import OpenShiftClusterConnector
 from cluster_connector.MockClusterConnector      import MockClusterConnector
 
-from fastapi                 import FastAPI, HTTPException, Request, Depends, status, Response, BackgroundTasks # type: ignore
-                                    
-
-                                    
+from fastapi                 import FastAPI, HTTPException, Request, Depends, status, Response  # type: ignore
 from fastapi.responses       import JSONResponse                                                # type: ignore
 from fastapi.middleware.cors import CORSMiddleware                                              # type: ignore
 from fastapi.security        import HTTPBearer                                                  # type: ignore
@@ -20,7 +17,15 @@ from utils  import JSONUtils
 from pprint import pprint
 
 import os
+import asyncio
 import requests                                                                                 # type: ignore
+
+from operations.operation_tasks import (
+    run_user_create,
+    run_user_delete,
+    run_simulation_create,
+    run_simulation_delete,
+)
 
 #RESPONSE CODES HERE: https://github.com/Kludex/starlette/blob/main/starlette/status.py
 
@@ -210,63 +215,30 @@ async def get_simulation(user_id: str, current_user: dict = Depends(get_current_
     
     return simulation
 
-def run_simulation_worker(user_id: str, payload: Dict[str, Any]):
-    
-    try:        
-        cluster_connector.create_simulation_resources(
-            user_id, 
-            payload["agents"], 
-            payload["user"]["monitoringType"])
-
-        cluster_connector.save_simulation(user_id, payload)
-        print(f"Simulation for user {user_id} finished and saved successfully.")
-    except Exception as e:
-        __print_exception(e)
-        print(f"Background simulation failed for user {user_id}: {e}")
-
-
 @app.post("/api/v1/users/{user_id}/simulation", status_code=status.HTTP_202_ACCEPTED)
 async def create_simulation(
-    user_id: str, 
-    payload: Dict[str, Any], 
-    background_tasks: BackgroundTasks, 
-    current_user: dict = Depends(get_current_user)
-):    
-    print(f"Received simulation request for user {user_id}. Handing off to background...")
-    
-    background_tasks.add_task(run_simulation_worker, user_id, payload)
-    
-    return {"message": "Simulation triggered successfully."}
-
-def delete_simulation_worker(user_id: str):
-    print(f"Starting sync background cleanup for user {user_id}...")
-    try:
-        print("--- Deleting simulation.") 
-        
-        cluster_connector.delete_simulation(user_id)
-    except Exception as e:        
-        __print_exception(e)
-        print(f"[ERROR] Failed to delete simulation resource: {e}")
-        return
-
-    try:
-        print("--- Deleting simulation (metrics)")
-        agent_manager.delete_metrics_definitions(user_id)
-        print(f"Successfully cleaned up all resources for user {user_id}.")
-    except Exception as e:
-        __print_exception(e)
-        print(f"[ERROR] Failed to delete metrics: {e}")
+    user_id: str,
+    payload: Dict[str, Any],
+    current_user: dict = Depends(get_current_user),
+):
+    operation_id = cluster_connector.create_operation(
+        "simulation-create",
+        {"userId": user_id},
+    )
+    asyncio.create_task(run_simulation_create(cluster_connector, operation_id, user_id, payload))
+    return {"operationId": operation_id, "status": "pending"}
 
 @app.delete("/api/v1/users/{user_id}/simulation", status_code=status.HTTP_202_ACCEPTED)
-def delete_simulation(
-    user_id: str, 
-    background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_user)):
-    print(f"Received delete request for user {user_id}. Offloading to a background thread...")
-    
-    background_tasks.add_task(delete_simulation_worker, user_id)
-    
-    return {"message": "Simulation deletion pipeline initiated successfully."}
+async def delete_simulation(
+    user_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    operation_id = cluster_connector.create_operation(
+        "simulation-delete",
+        {"userId": user_id},
+    )
+    asyncio.create_task(run_simulation_delete(cluster_connector, operation_id, user_id, agent_manager))
+    return {"operationId": operation_id, "status": "pending"}
 
 @app.post("/api/v1/users/{user_id}/simulation/kick/{agent_id}")
 async def agent_kick(user_id, agent_id: str, payload: dict[str, Any], current_user: dict = Depends(get_current_user)):    
@@ -477,63 +449,36 @@ def get_alerts(user_id: str, current_user: dict = Depends(get_current_user)):
 def get_users(current_user: dict = Depends(get_current_user)):
     return cluster_connector.get_users_json()
 
-def sync_user_background(user_payload: dict[str, Any]):
-    print("Starting user processing in background...")
-    try:
-        users = cluster_connector.get_users_json()
-        users.append(user_payload)
-        
-        # Update Backend. 
-        cluster_connector.update_users_json(users)
-        
-        # Sync Users. 
-        if not cluster_connector.sync_users(): 
-            print("[ERROR] User not synced")
-            return
-            
-        print("Users successfully synced")
-    except Exception as e: 
-        __print_exception(e)
-        print(f"[ERROR] Error processing users in background: {e}")
+@app.get("/api/v1/operations/{operation_id}")
+def get_operation_status(operation_id: str, current_user: dict = Depends(get_current_user)):
+    operation = cluster_connector.get_operation(operation_id)
+    if operation is None:
+        raise HTTPException(status_code=404, detail="Operation not found")
+    return operation
 
 @app.post("/api/v1/users", status_code=status.HTTP_202_ACCEPTED)
-def post_user(
-    user_payload: dict[str, Any], 
-    background_tasks: BackgroundTasks,
-    current_user: dict = Depends(get_current_user)
-):    
-    print("User sync requested. Calling worker...")
-    
-    background_tasks.add_task(sync_user_background, user_payload)
- 
-    return {"message": "Users synchronization initiated."}
-
-def delete_user_background(user_id: str):
-    print(f"Starting user deletion in background for user_id: {user_id}...")
-    try:
-        users = cluster_connector.get_users_json()
-        
-        updated_users = [u for u in users if u.get("username") != user_id]
-
-        cluster_connector.update_users_json(updated_users)
-                
-        if not cluster_connector.sync_users(): 
-            print(f"[ERROR] Failed to sync users after deleting user {user_id}")
-            return
-            
-        print(f"User {user_id} successfully deleted and cluster synced.")
-    except Exception as e:
-        __print_exception(e)
-        print(f"[ERROR] Error processing user deletion in background: {e}")
+async def post_user(
+    user_payload: dict[str, Any],
+    current_user: dict = Depends(get_current_user),
+):
+    operation_id = cluster_connector.create_operation(
+        "user-create",
+        {"username": user_payload.get("username")},
+    )
+    asyncio.create_task(run_user_create(cluster_connector, operation_id, user_payload))
+    return {"operationId": operation_id, "status": "pending"}
 
 @app.delete("/api/v1/users/{user_id}", status_code=status.HTTP_202_ACCEPTED)
-def delete_user(
-    user_id: str, 
-    background_tasks: BackgroundTasks, 
-    current_user: dict = Depends(get_current_user)
+async def delete_user(
+    user_id: str,
+    current_user: dict = Depends(get_current_user),
 ):
-    print(f"Received delete request for user {user_id}. Handing off to background...")
-    
-    background_tasks.add_task(delete_user_background, user_id)
-    
-    return {"message": "User deletion and synchronization initiated."}
+    if not user_id:
+        raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+
+    operation_id = cluster_connector.create_operation(
+        "user-delete",
+        {"username": user_id},
+    )
+    asyncio.create_task(run_user_delete(cluster_connector, operation_id, user_id))
+    return {"operationId": operation_id, "status": "pending"}

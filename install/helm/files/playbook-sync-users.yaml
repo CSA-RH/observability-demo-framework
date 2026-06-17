@@ -98,7 +98,7 @@
 
         - name: Check if user exists in Keycloak
           uri:
-            url: "{{ keycloak_url }}/admin/realms/{{ keycloak_realm }}/users?username={{ user_item.username }}"
+            url: "{{ keycloak_url }}/admin/realms/{{ keycloak_realm }}/users?username={{ user_item.username }}&exact=true"
             method: GET
             headers:
               Authorization: "Bearer {{ token_response.json.access_token }}"
@@ -131,17 +131,10 @@
                   "firstName": user_item.username,
                   "lastName": "User",
                   "email": user_item.username ~ "@observability.com",
-                  "emailVerified": true,
-                  "credentials": [
-                    {
-                      "type": "password",
-                      "value": user_item.password,
-                      "temporary": false
-                    }
-                  ]
+                  "emailVerified": true
                 }
               }}
-            status_code: 201
+            status_code: [201, 409]
             validate_certs: false
           loop: "{{ generated_users }}"
           loop_control:
@@ -174,6 +167,35 @@
           loop_control:
             label: "Fetching ID for {{ user_item.username }}"
             loop_var: user_item
+
+        - name: Set password for each user from ConfigMap
+          ansible.builtin.uri:
+            url: "{{ keycloak_url }}/admin/realms/{{ keycloak_realm }}/users/{{ user_id }}/reset-password"
+            method: PUT
+            headers:
+              Authorization: "Bearer {{ token_response.json.access_token }}"
+              Content-Type: "application/json"
+            body_format: json
+            body:
+              type: password
+              value: "{{ user_item.password }}"
+              temporary: false
+            status_code: 204
+            validate_certs: false
+          loop: "{{ user_id_lookup_results.results }}"
+          loop_control:
+            label: "Setting password for {{ user_item.username }}"
+            loop_var: result_item
+          vars:
+            user_item: "{{ result_item.user_item }}"
+            user_id: >-
+              {{
+                result_item.json | default([])
+                | select('defined')
+                | map(attribute='id')
+                | first
+              }}
+          when: user_id is defined
 
         - name: Aggregate ID and Add user to 'obs-demo-users' group
           ansible.builtin.uri:

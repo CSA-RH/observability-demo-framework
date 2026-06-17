@@ -13,7 +13,7 @@ const hasLocalCerts = fs.existsSync(keyPath) && fs.existsSync(certPath)
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: './',
+  base: '/',
   plugins: [react()],
   server: {
     // Si existen los certs, configuramos el objeto https. Si no, pasamos false (HTTP plano)

@@ -3,6 +3,8 @@ from typing import Dict, List, Any
 from kubernetes import config, client, watch       # type: ignore
 from kubernetes.client.rest import ApiException    # type: ignore
 from utils import JSONUtils
+from operations.operation_store import new_operation, utc_now_iso
+from operations.lease_lock import user_sync_lease, LeaseLockError
 import sys
 
 import os, time, json, http.client, socket, base64
@@ -11,6 +13,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
 
     ALERTS_CONFIGMAP = "obs-demo-fwk-alerts"
     USERS_CONFIGMAP = "obs-demo-fwk-users"
+    OPERATIONS_CONFIGMAP = "obs-demo-fwk-operations"
 
     def __init__(self):        
         # Load Kubernetes configuration depending on the environment        
@@ -27,6 +30,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         self.__apps_v1_api = client.AppsV1Api()
         self.__custom_v1_api = client.CustomObjectsApi()
         self.__batch_v1_api = client.BatchV1Api()
+        self.__coordination_v1_api = client.CoordinationV1Api()
     
     def __get_current_namespace(self, context: str = None) -> str | None:
         ns_path = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
@@ -235,16 +239,23 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             }
         }
 
-        deployment_name = "." 
+        deployment_name = item["id"]
         try:
-            deployment_name = item["id"]
             self.__apps_v1_api.create_namespaced_deployment(namespace=user_namespace, body=deployment_manifest)
             print(f"Deployment {deployment_name} successfully created.")
-        except Exception as e: 
-            print(f"Error creating Deployment {deployment_name}. Exception: ")            
-            print(e)
-            print("-------")
-            raise        
+        except client.ApiException as e:
+            if e.status == 409:
+                self.__apps_v1_api.replace_namespaced_deployment(
+                    name=deployment_name,
+                    namespace=user_namespace,
+                    body=deployment_manifest,
+                )
+                print(f"Deployment {deployment_name} replaced successfully.")
+            else:
+                print(f"Error creating Deployment {deployment_name}. Exception: ")
+                print(e)
+                print("-------")
+                raise
     
     def __create_service(self, namespace, item):
         service_manifest = {
@@ -275,16 +286,23 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 }]
             }
         }
-        service_name = "."
+        service_name = item["id"]
         try:
-            service_name = item["id"]
             self.__core_v1_api.create_namespaced_service(namespace=namespace, body=service_manifest)
             print(f"Service {service_name} created successfully.")
-        except Exception as e: 
-            print(f"Error creating Service {service_name}. Exception: ")            
-            print(e)
-            print("-------")
-            raise
+        except client.ApiException as e:
+            if e.status == 409:
+                self.__core_v1_api.replace_namespaced_service(
+                    name=service_name,
+                    namespace=namespace,
+                    body=service_manifest,
+                )
+                print(f"Service {service_name} replaced successfully.")
+            else:
+                print(f"Error creating Service {service_name}. Exception: ")
+                print(e)
+                print("-------")
+                raise
         
     async def __get_agent_pods_dictionary(self, namespace):
         try:        
@@ -606,19 +624,23 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
        
     def save_simulation(self, user, json_data):
         namespace=f"{self.__get_current_namespace()}-{user}"
-        # Encode to base64
         encoded_data = base64.b64encode(json.dumps(json_data).encode('utf-8')).decode('utf-8')
-        
+
         secret = client.V1Secret(
-            metadata=client.V1ObjectMeta(name="obs-demo-fw-state", labels={"observability-demo-framework": "storage"}),            
+            metadata=client.V1ObjectMeta(name="obs-demo-fw-state", labels={"observability-demo-framework": "storage"}),
             data={"simulation": encoded_data},
         )
+        secret_name = "obs-demo-fw-state"
         try:
             self.__core_v1_api.create_namespaced_secret(namespace, secret)
-            print(f"Simulation saved successfully in the cluster as secret obs-demo-fw-state.")
+            print(f"Simulation saved successfully in the cluster as secret {secret_name}.")
         except client.ApiException as e:
-            print(f"Exception when saving simulation as a secret[obs-demo-fw-state]: {e}")
-            raise
+            if e.status == 409:
+                self.__core_v1_api.replace_namespaced_secret(secret_name, namespace, secret)
+                print(f"Simulation secret {secret_name} updated successfully.")
+            else:
+                print(f"Exception when saving simulation as a secret[{secret_name}]: {e}")
+                raise
     
     def create_simulation_resources(self, user, agents: List[Dict[str, Any]], stack):
         
@@ -656,7 +678,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             service_ip = self.__wait_for_service_ready_and_get_ip(namespace, item["id"])
             if service_ip:
                 print(f"The Service IP address of {item['id']} is: {service_ip}")                
-                item["dns"] = f"{item["id"]}.{namespace}.svc"
+                item["dns"] = f"{item['id']}.{namespace}.svc"
                 item["port"] = 8080
             else:
                 print(f"Failed to retrieve the Service IP address for {item['id']}.")
@@ -979,10 +1001,10 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(f"Secret '{secret_name}' deleted successfully.")
         except client.exceptions.ApiException as e:
             if e.status == 404:
-                print(f"Secret '{secret_name}' not found in namespace '{namespace}'.")
+                print(f"Secret '{secret_name}' not found in namespace '{namespace}'. Skipping.")
             else:
-                print(f"Failed to delete Secret '{secret_name}': {e}")            
-            raise 
+                print(f"Failed to delete Secret '{secret_name}': {e}")
+                raise
         
         # Delete config map
         config_map = self.ALERTS_CONFIGMAP
@@ -991,10 +1013,10 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(f"ConfigMap '{config_map}' deleted successfully.")
         except client.exceptions.ApiException as e:
             if e.status == 404:
-                print(f"ConfigMap '{config_map}' not found in namespace '{namespace}'.")
+                print(f"ConfigMap '{config_map}' not found in namespace '{namespace}'. Skipping.")
             else:
                 print(f"Failed to delete ConfigMap '{config_map}': {e}")
-                raise 
+                raise
 
         print("All matching resources deleted successfully.")
 
@@ -1043,6 +1065,51 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         namespace = self.__get_current_namespace()
         print(users)
         self.__save_json_to_configmap(users, self.USERS_CONFIGMAP, "users", namespace)
+
+    def __load_operations(self) -> Dict[str, Any]:
+        namespace = self.__get_current_namespace()
+        operations = self.__load_json_from_configmap(self.OPERATIONS_CONFIGMAP, "operations", namespace)
+        if isinstance(operations, dict):
+            return operations
+        return {}
+
+    def __save_operations(self, operations: Dict[str, Any]):
+        namespace = self.__get_current_namespace()
+        self.__save_json_to_configmap(operations, self.OPERATIONS_CONFIGMAP, "operations", namespace)
+
+    def create_operation(self, operation_type: str, metadata: Dict[str, Any] | None = None) -> str:
+        operations = self.__load_operations()
+        operation = new_operation(operation_type, metadata)
+        operations[operation["id"]] = operation
+        self.__save_operations(operations)
+        return operation["id"]
+
+    def get_operation(self, operation_id: str) -> Dict[str, Any] | None:
+        return self.__load_operations().get(operation_id)
+
+    def update_operation(
+        self,
+        operation_id: str,
+        status: str | None = None,
+        error: str | None = None,
+        result: Any = None,
+        metadata: Dict[str, Any] | None = None,
+    ):
+        operations = self.__load_operations()
+        operation = operations.get(operation_id)
+        if operation is None:
+            raise KeyError(f"Operation '{operation_id}' not found")
+        if status is not None:
+            operation["status"] = status
+        if error is not None:
+            operation["error"] = error
+        if result is not None:
+            operation["result"] = result
+        if metadata is not None:
+            operation["metadata"] = metadata
+        operation["updatedAt"] = utc_now_iso()
+        operations[operation_id] = operation
+        self.__save_operations(operations)
         
     def __wait_for_job_completion(self, batch_v1, job_name, timeout=300, interval=5):
         """Waits for the specified Job to either Complete or Fail."""
@@ -1073,6 +1140,32 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         return False
     
     def sync_users(self):
+        issuer = os.getenv("KEYCLOAK_ISSUER", "")
+        if "localhost" in issuer or "127.0.0.1" in issuer:
+            print(
+                "Local development mode: user registry updated in ConfigMap only. "
+                "Cluster Keycloak sync job skipped."
+            )
+            return True
+
+        namespace = self.__get_current_namespace()
+        try:
+            with user_sync_lease(self.__coordination_v1_api, namespace):
+                return self.__run_sync_users_job()
+        except ApiException as exc:
+            if exc.status == 403:
+                print(
+                    "WARNING: obs-main-api-sa cannot manage leases.coordination.k8s.io. "
+                    "Running user sync without lock. "
+                    "Apply obs-main-api/scripts/patch-rbac-leases.sh to fix RBAC."
+                )
+                return self.__run_sync_users_job()
+            raise
+        except LeaseLockError as exc:
+            print(f"WARNING: Could not acquire user-sync lease ({exc}). Running sync without lock.")
+            return self.__run_sync_users_job()
+
+    def __run_sync_users_job(self):
         print("Users")
         sync_users_service_account = "obs-sync-users"
         job_manifest_body = {
