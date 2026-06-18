@@ -29,9 +29,9 @@ To allow the OTel Collector to push data to Elastic, you need two pieces of info
 3. Give it a descriptive name (e.g., `otel-collector-exporter`).
 4. Copy the generated Base64 API Key. **Save it securely**, as you will not be able to see it again.
 
-![Create API key](install/bash/addons/otel-elastic-aws/create-api-key.png)
+![Create API key](create-api-key.png)
 
-![Example of created API key](install/bash/addons/otel-elastic-aws/sample-api-key-created.png)
+![Example of created API key](sample-api-key-created.png)
 
 ---
 
