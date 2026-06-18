@@ -98,6 +98,8 @@ EOF
 
 # 3. Install the OTel Collector
 echo " - Installing OTel Collector"
+export ELASTIC_INGEST_ENDPOINT=<YOUR_INGEST_ENDPOINT>
+export ELASTIC_API_KEY=<YOUR_API_KEY>
 cat <<EOF | oc apply -f -  
 apiVersion: opentelemetry.io/v1beta1
 kind: OpenTelemetryCollector
@@ -109,15 +111,21 @@ spec:
     metrics:
       enableMetrics: true
   config:
+    processors:
+      batch: {}
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 75
+        spike_limit_percentage: 15
     exporters:      
       otlp_http/elastic:
         # REPLACE with your Elastic Ingest/APM URL (ensure it starts with https://)
-        endpoint: 'https://<YOUR_INGEST_ENDPOINT>'
+        endpoint: 'https://$ELASTIC_INGEST_ENDPOINT'
         tls:
           insecure: false
         headers:
           # REPLACE with your actual API Key
-          Authorization: 'ApiKey <YOUR_API_KEY>'          
+          Authorization: 'ApiKey $ELASTIC_API_KEY'          
     receivers:      
       prometheus:
         config:
@@ -196,7 +204,13 @@ Once the pod for the OpenTelemetry Collector is in a `Running` state, it will st
 To verify that the pipeline is working:
 
 1. Open your Elastic Cloud project UI (Kibana).
+   
+2. For Metrics: Go to Discover -> Select APM -> write the metric name (`meloinvento` in the image), select one item and search for the metric name to see the value.
 
-2. For Logs: Go to Discover or Observability -> Logs -> Stream. You should see your application logs flowing in.
+![Create a custom metric (with the app)](metrics-app.png)
 
-3. For Traces: Go to Observability -> APM -> Services. You should see your instrumented application listed. Click on it to explore the transaction waterfalls and trace data.
+![Inspect the value in Elastic](metrics-kibana.png)  
+
+3. For Logs: Go to Discover or Observability -> Logs -> Stream. You should see your application logs flowing in.
+
+4. For Traces: Go to Observability -> APM -> Services. You should see your instrumented application listed. Click on it to explore the transaction waterfalls and trace data.
