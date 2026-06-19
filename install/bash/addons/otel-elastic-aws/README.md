@@ -1,13 +1,13 @@
 # OpenTelemetry Collector Integration with Elastic Cloud (Serverless on AWS)
 
-This guide provides a walkthrough on how to deploy and configure an OpenTelemetry (OTel) Collector to receive telemetry data (logs and traces) from your applications and export it to an Elastic Cloud Serverless project hosted on AWS.
+This guide provides a walkthrough on how to deploy and configure an OpenTelemetry (OTel) Collector to receive telemetry data (metrics, logs and traces) from your applications and export it to an Elastic Cloud Serverless project hosted on AWS.
 
 ## 📋 Prerequisites
 
 Before starting, ensure you have the following ready:
 * A working Kubernetes/OpenShift cluster.
 * The **OpenTelemetry Operator** (e.g., Red Hat build of OpenTelemetry) installed on your cluster.
-* Applications deployed in the cluster that are already instrumented to emit logs and traces in **OTLP format** (e.g., via the `Instrumentation` CRD).
+* Applications deployed in the cluster that are already instrumented to emit metrics, logs and traces in **OTLP format** (e.g., via the `Instrumentation` CRD).
 
 ---
 
@@ -56,8 +56,50 @@ metadata:
   namespace: $CURRENT_NAMESPACE
 EOF
 
-# 2. Install the OTel Collector
+# 2. Provide RBAC permissions for OTel to be able to scrape metrics from pods.
+echo " - Providing RBAC to otel-collector Service Account"
+cat <<EOF | oc apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: otel-collector-view
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - nodes/proxy
+      - services
+      - endpoints
+      - pods
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["extensions", "apps"]
+    resources:
+      - daemonsets
+      - deployments
+      - replicasets
+      - statefulsets
+    verbs: ["get", "list", "watch"]
+  - nonResourceURLs: ["/metrics"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: otel-collector-view-binding
+subjects:
+  - kind: ServiceAccount
+    name: otel-collector
+    namespace: obs-demo 
+roleRef:
+  kind: ClusterRole
+  name: otel-collector-view 
+  apiGroup: rbac.authorization.k8s.io
+EOF
+
+# 3. Install the OTel Collector
 echo " - Installing OTel Collector"
+export ELASTIC_INGEST_ENDPOINT=<YOUR_INGEST_ENDPOINT>
+export ELASTIC_API_KEY=<YOUR_API_KEY>
 cat <<EOF | oc apply -f -  
 apiVersion: opentelemetry.io/v1beta1
 kind: OpenTelemetryCollector
@@ -69,16 +111,50 @@ spec:
     metrics:
       enableMetrics: true
   config:
+    processors:
+      batch: {}
+      memory_limiter:
+        check_interval: 1s
+        limit_percentage: 75
+        spike_limit_percentage: 15
     exporters:      
       otlp_http/elastic:
         # REPLACE with your Elastic Ingest/APM URL (ensure it starts with https://)
-        endpoint: 'https://<YOUR_INGEST_ENDPOINT>'
+        endpoint: 'https://$ELASTIC_INGEST_ENDPOINT'
         tls:
           insecure: false
         headers:
           # REPLACE with your actual API Key
-          Authorization: 'ApiKey <YOUR_API_KEY>'          
-    receivers:
+          Authorization: 'ApiKey $ELASTIC_API_KEY'          
+    receivers:      
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: 'openshift-apps-scraping'              
+              kubernetes_sd_configs:
+                - role: pod              
+              relabel_configs:                
+                - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+                  action: keep
+                  regex: true
+                
+                - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+                  action: replace
+                  target_label: __metrics_path__
+                  regex: (.+)
+                
+                - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+                  action: replace
+                  regex: ([^:]+)(?::\d+)?;(\d+)
+                  replacement: $1:$2
+                  target_label: __address__
+                
+                - source_labels: [__meta_kubernetes_namespace]
+                  action: replace
+                  target_label: namespace
+                - source_labels: [__meta_kubernetes_pod_name]
+                  action: replace
+                  target_label: pod            
       otlp:
         protocols:
           grpc:
@@ -87,6 +163,14 @@ spec:
             endpoint: '0.0.0.0:4318'            
     service:
       pipelines:
+        metrics:
+          receivers:
+            - prometheus
+          processors:
+            - memory_limiter
+            - batch
+          exporters:
+            - otlp_http/elastic          
         logs:
           exporters:
             - otlp_http/elastic
@@ -103,6 +187,16 @@ spec:
 EOF
 ```
 
+For pods in the target namespace, we need to annotate the pods with the specified filters for the collector being able to scrape the endpoint
+
+```bash
+oc get deploy -n $TARGET_NAMESPACE -oname \
+  | xargs -I {} oc patch {} \
+    -n $TARGET_NAMESPACE \
+    -p '{"spec":{"template":{"metadata":{"annotations":{"prometheus.io/scrape":"true","prometheus.io/port":"8081","prometheus.io/path":"/metrics"}}}}}'
+ 
+```
+
 ## 🧪 Step 3: Verification
 
 Once the pod for the OpenTelemetry Collector is in a `Running` state, it will start receiving data from your apps and forwarding it.
@@ -110,7 +204,13 @@ Once the pod for the OpenTelemetry Collector is in a `Running` state, it will st
 To verify that the pipeline is working:
 
 1. Open your Elastic Cloud project UI (Kibana).
+   
+2. For Metrics: Go to Discover -> Select APM -> write the metric name (`meloinvento` in the image), select one item and search for the metric name to see the value.
 
-2. For Logs: Go to Discover or Observability -> Logs -> Stream. You should see your application logs flowing in.
+![Create a custom metric (with the app)](metrics-app.png)
 
-3. For Traces: Go to Observability -> APM -> Services. You should see your instrumented application listed. Click on it to explore the transaction waterfalls and trace data.
+![Inspect the value in Elastic](metrics-kibana.png)  
+
+3. For Logs: Go to Discover or Observability -> Logs -> Stream. You should see your application logs flowing in.
+
+4. For Traces: Go to Observability -> APM -> Services. You should see your instrumented application listed. Click on it to explore the transaction waterfalls and trace data.
