@@ -23,6 +23,7 @@ import requests                                                                 
 
 from agent_manager.OpenShiftAgentManager import AgentRequestError
 
+from validators import validate_username
 from operations.operation_tasks import (
     run_user_create,
     run_user_delete,
@@ -478,6 +479,10 @@ async def post_user(
     user_payload: dict[str, Any],
     current_user: dict = Depends(get_current_user),
 ):
+    username_error = validate_username(user_payload.get("username"))
+    if username_error:
+        raise HTTPException(status_code=400, detail=username_error)
+
     operation_id = cluster_connector.create_operation(
         "user-create",
         {"username": user_payload.get("username")},

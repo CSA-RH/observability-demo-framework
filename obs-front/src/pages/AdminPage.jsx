@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getNamesPool, getRoleMappings, isValidK8sName, generateRandomPassword, getUserListUrl, pollOperation, getOperationStatusLabel } from '../ApiHelper';
+import { getNamesPool, getRoleMappings, getUsernameValidationError, generateRandomPassword, getUserListUrl, pollOperation, getOperationStatusLabel } from '../ApiHelper';
 import ConfirmationModal from '../components/ConfirmationModal';
 import PasswordCell from '../components/PasswordCell';
 import { useKeycloak } from "@react-keycloak/web";
@@ -110,9 +110,17 @@ const AdminPage = () => {
         return;
       }
       if (postUserResponse.status > 299) {
-        setUsers([]);
-        setError(`Error creating user ${user.username}[${postUserResponse.status}]`)
-        throw new Error(`Error creating user ${user.username}`);
+        let errorDetail = `Error creating user ${user.username}[${postUserResponse.status}]`;
+        try {
+          const result = await postUserResponse.json();
+          if (result?.detail) {
+            errorDetail = result.detail;
+          }
+        } catch (_) {
+          // Keep default message when response body is not JSON.
+        }
+        setError(errorDetail);
+        throw new Error(errorDetail);
       }
     } catch (error) {
       const errorMessage = `Error creating user[${error.message || error}]`
@@ -218,19 +226,19 @@ const AdminPage = () => {
   }
 
   const handleAddNewUser = (e) => {
-    // Validation
-    if (!isValidK8sName(newUserData.username)) {
-      setError("Name not valid.");
+    const usernameError = getUsernameValidationError(newUserData.username);
+    if (usernameError) {
+      setError(usernameError);
       return;
     }
-    if (!isReservedName(newUserData.username)) {
+    if (isReservedName(newUserData.username)) {
       setError(`Username ${newUserData.username} is reserved.`);
+      return;
     }
     if (!isUserUnique(newUserData.username)) {
       setError(`user ${newUserData.username} already exists.`);
       return;
     }
-    // Show Modal Window
     handleShowCreateModal();
   }
   return (
@@ -274,7 +282,8 @@ const AdminPage = () => {
                         name="username"
                         value={newUserData.username}
                         onChange={handleInputChange}
-                        placeholder="User"
+                        placeholder="User (min. 3 chars)"
+                        minLength={3}
                         className="form-control"
                         style={{ width: "180px", textAlign: 'center' }}
                       />

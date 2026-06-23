@@ -259,6 +259,10 @@ export function getNamesPool() {
     ];
 }
 
+export const USERNAME_MIN_LENGTH = 3;
+const USERNAME_MAX_LENGTH = 63;
+const USERNAME_LABEL_REGEX = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
+
 export function isValidK8sName(name) {
     const DNS_SUBDOMAIN_NAME_REGEX = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/;
     const MAX_LENGTH = 253; // Maximum length for DNS Subdomain Names
@@ -268,6 +272,34 @@ export function isValidK8sName(name) {
     }
 
     return DNS_SUBDOMAIN_NAME_REGEX.test(name);
+}
+
+export function isValidUsername(name) {
+    if (!name || name.length < USERNAME_MIN_LENGTH || name.length > USERNAME_MAX_LENGTH) {
+        return false;
+    }
+
+    return USERNAME_LABEL_REGEX.test(name);
+}
+
+export function getUsernameValidationError(name) {
+    if (!name || name.trim() === "") {
+        return "Username cannot be empty.";
+    }
+
+    if (name.length < USERNAME_MIN_LENGTH) {
+        return `Username must be at least ${USERNAME_MIN_LENGTH} characters.`;
+    }
+
+    if (name.length > USERNAME_MAX_LENGTH) {
+        return `Username must be at most ${USERNAME_MAX_LENGTH} characters.`;
+    }
+
+    if (!USERNAME_LABEL_REGEX.test(name)) {
+        return "Username must be a valid DNS label (lowercase letters, numbers, hyphens; cannot start or end with a hyphen).";
+    }
+
+    return null;
 }
 
 // src/utils/PasswordGeneratorUtil.js
