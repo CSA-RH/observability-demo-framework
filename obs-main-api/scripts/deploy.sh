@@ -147,6 +147,21 @@ rules:
   - apiGroups: ["monitoring.rhobs"]
     resources: ["prometheusrules"]
     verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+  - apiGroups: ["operators.coreos.com"]
+    resources: ["subscriptions"]
+    verbs: ["get", "list"]
+  - apiGroups: ["loki.grafana.com"]
+    resources: ["lokistacks"]
+    verbs: ["get", "list"]
+  - apiGroups: ["tempo.grafana.com"]
+    resources: ["tempostacks"]
+    verbs: ["get", "list"]
+  - apiGroups: ["opentelemetry.io"]
+    resources: ["instrumentations", "opentelemetrycollectors"]
+    verbs: ["get", "list"]
+  - apiGroups: ["k8s.keycloak.org"]
+    resources: ["keycloaks"]
+    verbs: ["get", "list"]
 EOF
   # - Create role binding (obs-main-api-role and obs-main-api-clusterrole to obs-main-api-sa)
   cat <<EOF | oc apply -f -

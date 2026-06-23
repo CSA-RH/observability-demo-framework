@@ -72,6 +72,21 @@ rules:
   - apiGroups: ["monitoring.rhobs"]
     resources: ["prometheusrules"]
     verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+  - apiGroups: ["operators.coreos.com"]
+    resources: ["subscriptions"]
+    verbs: ["get", "list"]
+  - apiGroups: ["loki.grafana.com"]
+    resources: ["lokistacks"]
+    verbs: ["get", "list"]
+  - apiGroups: ["tempo.grafana.com"]
+    resources: ["tempostacks"]
+    verbs: ["get", "list"]
+  - apiGroups: ["opentelemetry.io"]
+    resources: ["instrumentations", "opentelemetrycollectors"]
+    verbs: ["get", "list"]
+  - apiGroups: ["k8s.keycloak.org"]
+    resources: ["keycloaks"]
+    verbs: ["get", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

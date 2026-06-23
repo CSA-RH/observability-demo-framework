@@ -5,6 +5,7 @@ from kubernetes.client.rest import ApiException    # type: ignore
 from utils import JSONUtils
 from operations.operation_store import new_operation, utc_now_iso
 from operations.lease_lock import user_sync_lease, LeaseLockError
+from cluster_connector.installation_status import InstallationStatusDetector
 import sys
 
 import os, time, json, http.client, socket, base64
@@ -78,7 +79,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             return url
 
         # If no route matches the selector
-        return None, None
+        return None
+
+    def __find_route_url(self, namespace, selector) -> str | None:
+        try:
+            return self.__get_route_url_by_selector(namespace, selector)
+        except Exception:
+            return None
     
     def __get_users(self):
         label_selector = "observability-demo-framework=users"
@@ -158,6 +165,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
 
         except (config.ConfigException, KeyError):
             return {"Connected": False}
+
+        installation_status = InstallationStatusDetector(
+            self.__core_v1_api,
+            self.__custom_v1_api,
+            api_namespace,
+            self.__find_route_url,
+        ).detect()
         
         return {
             "Connected": True,
@@ -167,7 +181,8 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             "apiLogsURL": f"{console_url}/k8s/ns/{api_namespace}/pods/{os.getenv('HOSTNAME')}/logs", 
             "JaegerUI": jaegerui_route, 
             "GrafanaURL": grafana_url_route, 
-            "Users": users
+            "Users": users,
+            "InstallationStatus": installation_status,
         }
     
     def __get_image(self, tech_stack):

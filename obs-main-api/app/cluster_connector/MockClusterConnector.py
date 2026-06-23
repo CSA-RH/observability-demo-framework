@@ -24,10 +24,28 @@ class MockClusterConnector(ClusterConnectorInterface):
             "Connected": True,
             "Name": "Fake Cluster",
             "Namespace": f"fake-namespace-{user}",
-            "ConsoleURL": "https://redhat.com", 
-            "apiLogsURL": "https://redhat.com", 
-            "JaegerUI": "https://redhat.com", 
-            "GrafanaURL": "https://ibm.com"
+            "ConsoleURL": "https://redhat.com",
+            "apiLogsURL": "https://redhat.com",
+            "JaegerUI": "https://redhat.com",
+            "GrafanaURL": "https://ibm.com",
+            "Users": [],
+            "InstallationStatus": {
+                "components": [
+                    {"id": "uwm", "label": "User Workload Monitoring", "installed": True, "detail": "Mock enabled"},
+                    {"id": "loki", "label": "Loki", "installed": True, "detail": "Mock LokiStack"},
+                    {"id": "tempo", "label": "Tempo", "installed": False, "detail": "Not installed in mock"},
+                    {"id": "opentelemetry", "label": "OpenTelemetry", "installed": True, "detail": "Mock OTel"},
+                    {"id": "grafana", "label": "Grafana", "installed": True, "detail": "https://ibm.com"},
+                    {"id": "keycloak", "label": "Keycloak", "installed": True, "detail": "Mock Keycloak"},
+                    {"id": "coo", "label": "Cluster Observability", "installed": True, "detail": "Mock MonitoringStack"},
+                ],
+                "operators": [
+                    {"id": "rhbk-operator", "label": "RHBK Operator", "installed": True, "detail": "rhbk-operator.v26.0.0"},
+                    {"id": "cluster-observability-operator", "label": "Cluster Observability Operator", "installed": True, "detail": "cluster-observability-operator.v0.0.1"},
+                    {"id": "grafana-operator", "label": "Grafana Operator", "installed": True, "detail": "grafana-operator.v5.0.0"},
+                    {"id": "opentelemetry-product", "label": "OpenTelemetry Operator", "installed": False, "detail": "Not subscribed"},
+                ],
+            },
         }
 
     def __generate_pod_suffix(self):

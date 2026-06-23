@@ -97,6 +97,21 @@ const ClusterInfo = ({ selectedUser, setSelectedUser }) => {
         setSelectedUser(findUserByUsername(value, data.Users));
     }
 
+    const renderStatusBadge = (item) => {
+        const badgeClass = item.installed ? "bg-success" : "bg-secondary";
+        return (
+            <span
+                key={item.id}
+                className={`badge ${badgeClass} me-1 mb-1`}
+                title={item.detail}
+            >
+                {item.label}
+            </span>
+        );
+    };
+
+    const installationStatus = data.InstallationStatus;
+
     return (
         <div className="container my-3 p-3 border rounded bg-danger text-white">
             <div className='row'>
@@ -192,6 +207,21 @@ const ClusterInfo = ({ selectedUser, setSelectedUser }) => {
 
             </div>
 
+            {installationStatus && (
+                <div className="row mt-2 pt-2 border-top border-light">
+                    <div className="col-12">
+                        <strong className="me-2">Installation:</strong>
+                        {installationStatus.components?.map(renderStatusBadge)}
+                        {installationStatus.operators?.length > 0 && (
+                            <>
+                                <span className="mx-2">|</span>
+                                <strong className="me-2">Operators:</strong>
+                                {installationStatus.operators.map(renderStatusBadge)}
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
 
         </div>
     );
