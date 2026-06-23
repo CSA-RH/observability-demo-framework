@@ -2,18 +2,15 @@
 
 const express = require('express');
 const axios = require('axios');
-const api = require('@opentelemetry/api');
-const crypto = require('crypto'); 
-const { MeterRegistry } = require('@opentelemetry/metrics');
-const { PrometheusExporter } = require('@opentelemetry/exporter-prometheus');
+const crypto = require('crypto');
+const http = require('http');
+const client = require('prom-client');
 
 // 1. Initialize Pino with the OTel Mixin
 // This ensures TraceId/SpanId are injected into every log in PascalCase (matching .NET)
 const logger = require('pino')({
     formatters: {
         log(object) {
-            // The OTel agent has already injected trace_id/span_id into 'object'
-            // We simply rename them to PascalCase and delete the snake_case versions
             if (object.trace_id) {
                 object.TraceId = object.trace_id;
                 delete object.trace_id;
@@ -22,80 +19,74 @@ const logger = require('pino')({
                 object.SpanId = object.span_id;
                 delete object.span_id;
             }
-            
-            // Optional: Clean up other OTel-injected fields if they clutter your logs
-            delete object.trace_flags; 
-            
-            return object; // Return the sanitized object
+            delete object.trace_flags;
+            return object;
         }
     }
 });
 
-// 2. Override console methods to use Pino
-// Now console.log() automatically produces single-line JSON with Trace context
 console.log = (...args) => logger.info(...args);
 console.error = (...args) => logger.error(...args);
-
-/** * NOTE: Manual LoggerProvider and OTLPLogExporter are removed. 
- * The OTel Operator handles the SDK, and Vector/Loki handles the collection 
- * via stdout, making the app code much lighter.
- */
 
 const metricOrigin = "src";
 const prometheusPort = 8081;
 const app = express();
 
+const register = new client.Registry();
 var _dict = {};
-var _meter = {};
-var _labels = {};
+var _prometheusServer = null;
 const _agents = new Map();
 
 function initializePrometheusEndpoint() {
-    _meter = new MeterRegistry().getMeter('example-prometheus');
-    const exporter = new PrometheusExporter(
-        {
-            startServer: true,
-            port: prometheusPort
-        },
-        () => {
-            console.log(`prometheus scrape endpoint: http://0.0.0.0:${prometheusPort}/metrics`);
-        }
-    );
-    _meter.addExporter(exporter);
-    _labels = _meter.labels({ metricOrigin: metricOrigin });
+    register.clear();
     _dict = {};
+
+    if (_prometheusServer) {
+        _prometheusServer.close();
+        _prometheusServer = null;
+    }
+
+    _prometheusServer = http.createServer(async (req, res) => {
+        res.setHeader('Content-Type', register.contentType);
+        res.end(await register.metrics());
+    });
+
+    _prometheusServer.listen(prometheusPort, () => {
+        console.log(`prometheus scrape endpoint: http://0.0.0.0:${prometheusPort}/metrics`);
+    });
 }
 
-function initializeAgentTargets() {    
-    // 1. Fetch the environment variable
+function initializeAgentTargets() {
     const targetEnv = process.env.TARGETS;
 
-    // 2. Safely check if the variable is missing or just empty spaces
     if (!targetEnv || !targetEnv.trim()) {
         return;
     }
 
-    // 3. Split by comma, clean up spaces, and populate the Map
     targetEnv.split(',').forEach(id => {
         const trimmedId = id.trim();
-        
-        // Ensure we don't add empty keys if there were trailing or double commas (e.g. "agent1,,agent2")
         if (trimmedId) {
             _agents.set(trimmedId, { port: 8080 });
         }
     });
 }
 
+function parseMetricValue(rawValue) {
+    const value = Number.parseInt(rawValue, 10);
+    if (Number.isNaN(value)) {
+        return null;
+    }
+    return value;
+}
 
 // --- Metrics Handlers ---
 function getAllMetrics(req, res) {
-    var results = [];
-    for (var metricName in _dict) {
-        const result = {
+    const results = [];
+    for (const metricName in _dict) {
+        results.push({
             name: metricName,
-            value: _dict[metricName].bind(_labels)._data.toString()
-        };
-        results.push(result);
+            value: String(_dict[metricName].value)
+        });
     }
     res.status(200).send(JSON.stringify(results));
 }
@@ -103,7 +94,7 @@ function getAllMetrics(req, res) {
 function getMetric(req, res) {
     const metricName = req.params.metricName;
     if (metricName in _dict) {
-        res.status(200).send(_dict[metricName].bind(_labels)._data.toString());
+        res.status(200).send(String(_dict[metricName].value));
     } else {
         res.status(404).send("Not found");
     }
@@ -111,26 +102,46 @@ function getMetric(req, res) {
 
 function postMetric(req, res) {
     const metricName = req.params.metricName;
-    const value = parseInt(req.query.value);
+    const value = parseMetricValue(req.query.value);
+
+    if (value === null) {
+        res.status(400).send("Invalid metric value");
+        return;
+    }
+
     if (metricName in _dict) {
         res.status(409).send(`Cannot create metric ${metricName}. Already created`);
-    } else {
-        const newMetric = _meter.createGauge(metricName, {
-            monotonic: false,
-            labelKeys: ["metricOrigin"],
-            description: `Metric ${metricName}`
+        return;
+    }
+
+    try {
+        const gauge = new client.Gauge({
+            name: metricName,
+            help: `Metric ${metricName}`,
+            labelNames: ["metricOrigin"],
+            registers: [register],
         });
-        newMetric.bind(_labels).set(value);
-        _dict[metricName] = newMetric;
+        gauge.set({ metricOrigin }, value);
+        _dict[metricName] = { gauge, value };
         res.status(200).send(`Created metric ${metricName} with value ${value}`);
+    } catch (error) {
+        console.error(`Failed to create metric ${metricName}: ${error.message}`);
+        res.status(400).send(`Cannot create metric ${metricName}`);
     }
 }
 
 function putMetric(req, res) {
     const metricName = req.params.metricName;
-    const value = parseInt(req.query.value);
+    const value = parseMetricValue(req.query.value);
+
+    if (value === null) {
+        res.status(400).send("Invalid metric value");
+        return;
+    }
+
     if (metricName in _dict) {
-        _dict[metricName].bind(_labels).set(value);
+        _dict[metricName].gauge.set({ metricOrigin }, value);
+        _dict[metricName].value = value;
         res.status(200).send(`Modified metric ${metricName} with value ${value}`);
     } else {
         res.status(404).send(`Cannot modify metric ${metricName}. Not found`);
@@ -166,23 +177,23 @@ function deleteAgent(req, res) {
 // --- Operation Handlers (Business Logic) ---
 function order(req, res) {
     const customer = process.env.HOSTNAME;
-    const requestId = crypto.randomUUID(); 
-    const waiter = getAvailableWaiter(_agents);    
-    console.log(`[${requestId}] Ordering a tasting menu...`);    
+    const requestId = crypto.randomUUID();
+    const waiter = getAvailableWaiter(_agents);
+    console.log(`[${requestId}] Ordering a tasting menu...`);
     if (!waiter) {
         console.error(`[${requestId}] There is no waiter available.`);
         res.status(404).send("No waiter available");
         return;
     }
 
-    const postData = { customer, requestId, waiter: waiter.name };    
+    const postData = { customer, requestId, waiter: waiter.name };
     axios.post(`http://${waiter.name}:${waiter.port}/operations/request`, postData)
-        .then(() => {                
-            console.log(`[${requestId}] It was soooo good!`);            
+        .then(() => {
+            console.log(`[${requestId}] It was soooo good!`);
             res.status(200).send();
         })
         .catch(error => {
-            console.error(`[${requestId}] Error: ${error.message}`);            
+            console.error(`[${requestId}] Error: ${error.message}`);
             res.status(400).send();
         });
 }
@@ -198,7 +209,7 @@ function request(req, res){
         return;
     }
 
-    console.log(`[${requestId}] Looking for a cook...`);    
+    console.log(`[${requestId}] Looking for a cook...`);
     if (!cook) {
         console.error(`[${requestId}] No cook available for ${customer}`);
         res.status(404).send("No cook available");
@@ -207,27 +218,27 @@ function request(req, res){
 
     const postData = { waiter, requestId, cook: cook.name };
     axios.post(`http://${cook.name}:${cook.port}/operations/cook`, postData)
-        .then(() => {                
+        .then(() => {
             console.log(`[${requestId}] Serving menu from ${cook.name} to ${customer}`);
             res.status(200).send();
         })
         .catch(error => {
-            console.error(`[${requestId}] Error: ${error.message}`);            
+            console.error(`[${requestId}] Error: ${error.message}`);
             res.status(400).send();
         });
 }
 
 function cook(req, res){
-    const cookName = process.env.HOSTNAME;    
+    const cookName = process.env.HOSTNAME;
     const { requestId, waiter } = req.body;
-    
+
     if (!requestId) {
         console.error("[N/A] Error: No request ID");
         res.status(400).send("No request ID found.");
         return;
     }
 
-    const crazy = Math.random() < 0.2; 
+    const crazy = Math.random() < 0.2;
     if (crazy){
         console.log(`[${requestId}] Cook ${cookName} went crazy!`);
         res.status(400).send("Cook went crazy.");

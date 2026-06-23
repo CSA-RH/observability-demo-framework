@@ -18,7 +18,10 @@ from pprint import pprint
 
 import os
 import asyncio
+import inspect
 import requests                                                                                 # type: ignore
+
+from agent_manager.OpenShiftAgentManager import AgentRequestError
 
 from operations.operation_tasks import (
     run_user_create,
@@ -247,13 +250,27 @@ async def agent_kick(user_id, agent_id: str, payload: dict[str, Any], current_us
     kick_initial_count = payload['count']    
     return agent_manager.kick(user_id, agent_id, agent_dns, kick_initial_count)
 
+async def _invoke_set_agent_metrics(method: str, user_id: str, payload: dict[str, Any]):
+    result = agent_manager.set_agent_metrics(method, user_id, payload=payload)
+    if inspect.isawaitable(result):
+        result = await result
+    return result
+
 @app.post("/api/v1/users/{user_id}/simulation/metrics")
 async def create_agent_metric(user_id: str, payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
-    await agent_manager.set_agent_metrics("POST", user_id, payload=payload)
+    try:
+        message = await _invoke_set_agent_metrics("POST", user_id, payload)
+        return {"message": message or "Metric created"}
+    except AgentRequestError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.message) from exc
 
 @app.put("/api/v1/users/{user_id}/simulation/metrics")
 async def modify_agent_metric(user_id: str, payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
-    await agent_manager.set_agent_metrics("PUT", user_id, payload=payload)
+    try:
+        message = await _invoke_set_agent_metrics("PUT", user_id, payload)
+        return {"message": message or "Metric updated"}
+    except AgentRequestError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.message) from exc
 
 def __map_expression_to_alert(expression):
     """

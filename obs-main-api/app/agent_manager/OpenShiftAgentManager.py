@@ -6,6 +6,14 @@ import socket
 from agent_manager.AgentManagerInterface import AgentManagerInterface
 from typing import Any
 
+
+class AgentRequestError(Exception):
+    def __init__(self, status: int, message: str):
+        self.status = status
+        self.message = message
+        super().__init__(message)
+
+
 class OpenShiftAgentManager(AgentManagerInterface):
 
     def __init__(self):
@@ -73,37 +81,46 @@ class OpenShiftAgentManager(AgentManagerInterface):
             raise
             
         print(f"Agent {agent_id}. Setting metric {metricInfo['name']}[{method}]")
-        
+
+        result = self.__request_agent_metric(agent_dns, method, full_path)
+        if method == "PUT" and result["status"] == 404:
+            print(
+                f"Metric {metricInfo['name']} not found on agent; creating with POST instead."
+            )
+            result = self.__request_agent_metric(agent_dns, "POST", full_path)
+
+        if result["status"] >= 400:
+            raise AgentRequestError(result["status"], result["body"])
+
+        return result["body"]
+
+    def __request_agent_metric(self, agent_dns: str, method: str, full_path: str) -> dict:
+        conn = http.client.HTTPConnection(host=agent_dns, port=8080, timeout=1)
         try:
-            conn = http.client.HTTPConnection(host=agent_dns, port=8080, timeout=1)
             conn.request(method, full_path)
             print(f"Requested: {method} {full_path}")
-            
+
             response = conn.getresponse()
             data = response.read()
 
             try:
-                # Try to decode the response content
-                result = data.decode("utf-8")
-                print("Response received successfully:")
-                print(result)
+                body = data.decode("utf-8")
             except UnicodeDecodeError:
                 raise Exception("Failed to decode response content.")
-                    
+
+            print("Response received successfully:")
+            print(body)
+            return {"status": response.status, "body": body}
         except http.client.HTTPException as e:
-            # Handle HTTP related errors
             print(f"HTTP error occurred: {e}")
             raise
         except (ConnectionError, TimeoutError) as e:
-            # Handle connection errors
             print(f"Connection error occurred: {e}")
             raise
         except Exception as e:
-            # General exception handler for other potential errors
             print(f"An error occurred: {e}")
             raise
         finally:
-            # Ensure the connection is closed
             conn.close()
     
     def kick(self, user_id, agent_id, agent_dns, kick_initial_count):
