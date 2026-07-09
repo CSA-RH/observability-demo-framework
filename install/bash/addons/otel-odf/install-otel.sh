@@ -142,4 +142,5 @@ echo "   waiting for OTel Collector to initialize..."
 oc wait \
     --for=condition=available \
     --timeout=300s \
+    -n $GLOBAL_ROOT_NAMESPACE \
     deployment otel-collector
