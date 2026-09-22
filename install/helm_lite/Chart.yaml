@@ -1,0 +1,4 @@
+apiVersion: v2
+name: observability-demo
+description: A Helm chart installing the OpenShift Observability Demo
+version: 0.1.0

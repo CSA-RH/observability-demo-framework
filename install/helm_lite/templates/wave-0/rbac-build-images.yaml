@@ -1,0 +1,29 @@
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: build-trigger-role
+  namespace: {{ .Release.Namespace }}
+rules:  
+  - apiGroups: ["build.openshift.io"]
+    resources: ["buildconfigs/instantiate"]
+    verbs: ["create"]
+ 
+  - apiGroups: ["build.openshift.io"]
+    resources: ["builds"]
+    verbs: ["get", "watch", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: build-trigger-binding
+  namespace:  {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: build-trigger-role
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Values.jobBuildImagesServiceAccount }}
