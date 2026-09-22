@@ -10,8 +10,7 @@ spec:
   source:  
     repoURL: https://github.com/CSA-RH/observability-demo-framework.git
     targetRevision: feature/crc-install-lite
-    path: install/helm_lite
-    source:
+    path: install/helm_lite    
     helm:
       valueFiles:
         - values.yaml
