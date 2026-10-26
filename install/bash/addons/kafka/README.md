@@ -1,4 +1,4 @@
-# Connecting two collectors via Kafka topics for logs and metrics. 
+# Connecting two collectors via Kafka topics for logs and traces. 
 
 ## Install operators
 - Streams for Kafka (For create cluster and topics to send/receive telemetry)
