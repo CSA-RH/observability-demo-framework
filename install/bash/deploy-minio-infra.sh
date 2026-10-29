@@ -2,14 +2,14 @@
 set -euo pipefail # Fail fast on errors
 
 SCRIPT_DIR="$(realpath "$(dirname "$0")")"
-RELEASE_NAME="obs-minio"
-NAMESPACE="minio"
+RELEASE_NAME="minio"
+NAMESPACE="obs-minio"
 CHART_NAME="minio/minio"
 VALUES_FILE="$SCRIPT_DIR/obs-values.yaml"
 
 # 1. Add and update the repo (idempotent)
 echo "Adding Helm repositories..."
-helm repo add minio https://charts.min.io/
+helm repo add minio ./.io/ 2>/dev/null || true
 helm repo update
 
 # 2. Run the idempotent install/upgrade
@@ -32,7 +32,7 @@ metadata:
   labels:
     app: minio    
   name: obs-minio-console
-  namespace: minio
+  namespace: obs-minio
 spec:
   port:
     targetPort: 9001
@@ -45,7 +45,7 @@ spec:
   wildcardPolicy: None
 EOF
 
-echo "   MinIO console address: https://$(oc get route obs-minio-console -n minio -ojsonpath='{.spec.host}')"
+echo "   MinIO console address: https://$(oc get route obs-minio-console -n obs-minio -ojsonpath='{.spec.host}')"
 
 oc create configmap script-minio \
     --from-file create-bucket.sh=${SCRIPT_DIR}/scripts/create-minio-buckets.sh \

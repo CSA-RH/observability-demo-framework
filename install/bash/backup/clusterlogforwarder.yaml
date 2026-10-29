@@ -1,0 +1,103 @@
+apiVersion: observability.openshift.io/v1
+kind: ClusterLogForwarder
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"observability.openshift.io/v1","kind":"ClusterLogForwarder","metadata":{"annotations":{},"name":"instance","namespace":"openshift-logging"},"spec":{"outputs":[{"lokiStack":{"authentication":{"token":{"from":"serviceAccount"}},"target":{"name":"loki","namespace":"openshift-logging"}},"name":"lokistack-out","tls":{"ca":{"configMapName":"openshift-service-ca.crt","key":"service-ca.crt"}},"type":"lokiStack"}],"pipelines":[{"inputRefs":["application"],"name":"app-logs","outputRefs":["lokistack-out"]}],"serviceAccount":{"name":"logging-collector"}}}
+  creationTimestamp: '2026-10-20T14:49:38Z'
+  generation: 2
+  managedFields:
+    - apiVersion: observability.openshift.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:metadata':
+          'f:annotations':
+            .: {}
+            'f:kubectl.kubernetes.io/last-applied-configuration': {}
+        'f:spec':
+          .: {}
+          'f:managementState': {}
+          'f:outputs':
+            .: {}
+            'k:{"name":"lokistack-out"}':
+              .: {}
+              'f:lokiStack':
+                .: {}
+                'f:authentication':
+                  .: {}
+                  'f:token':
+                    .: {}
+                    'f:from': {}
+                'f:target':
+                  .: {}
+                  'f:name': {}
+                  'f:namespace': {}
+              'f:name': {}
+              'f:tls':
+                .: {}
+                'f:ca':
+                  .: {}
+                  'f:configMapName': {}
+                  'f:key': {}
+              'f:type': {}
+          'f:pipelines':
+            .: {}
+            'k:{"name":"app-logs"}':
+              .: {}
+              'f:inputRefs': {}
+              'f:name': {}
+              'f:outputRefs': {}
+          'f:serviceAccount': {}
+      manager: kubectl-client-side-apply
+      operation: Update
+      time: '2026-10-20T14:49:38Z'
+    - apiVersion: observability.openshift.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:spec':
+          'f:serviceAccount':
+            'f:name': {}
+      manager: kubectl-edit
+      operation: Update
+      time: '2026-10-20T14:52:56Z'
+    - apiVersion: observability.openshift.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:status':
+          .: {}
+          'f:conditions': {}
+          'f:inputConditions': {}
+          'f:outputConditions': {}
+          'f:pipelineConditions': {}
+      manager: cluster-logging-operator
+      operation: Update
+      subresource: status
+      time: '2026-10-21T15:01:29Z'
+  name: instance
+  namespace: openshift-logging
+  resourceVersion: '446615'
+  uid: a95d9eb9-61ec-4caf-b726-cbe11796458e
+spec:
+  managementState: Managed
+  outputs:
+    - lokiStack:
+        authentication:
+          token:
+            from: serviceAccount
+        target:
+          name: loki
+          namespace: openshift-logging
+      name: lokistack-out
+      tls:
+        ca:
+          configMapName: openshift-service-ca.crt
+          key: service-ca.crt
+      type: lokiStack
+  pipelines:
+    - inputRefs:
+        - application
+      name: app-logs
+      outputRefs:
+        - lokistack-out
+  serviceAccount:
+    name: loki-collector
