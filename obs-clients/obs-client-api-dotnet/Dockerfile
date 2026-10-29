@@ -9,7 +9,7 @@ COPY . ./
 RUN dotnet publish -c Release -o out
 
 # Runtime 
-FROM registry.redhat.io/ubi9/dotnet-10-runtime AS runtime
+FROM registry.redhat.io/ubi9/dotnet-100-runtime AS runtime
 WORKDIR /opt/app-root
 
 COPY --from=build /opt/app-root/out .
