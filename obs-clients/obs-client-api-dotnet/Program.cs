@@ -9,6 +9,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 // Register IHttpClientFactory
 builder.Services.AddHttpClient();
+// Set the log level to Warning
+builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
 
 var app = builder.Build();
 
