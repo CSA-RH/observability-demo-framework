@@ -22,7 +22,7 @@ spec:
     spec:      
       containers:
       - name: minio-bootstrap
-        image: minio/mc
+        image: cgr.dev/chainguard/minio:latest
         command: ["/bin/sh", "/runner/create-bucket.sh"]
         volumeMounts:
         - name: runner-vol
@@ -31,7 +31,7 @@ spec:
       volumes: 
       - name: runner-vol
         configMap:
-          name: script-minio
+          name: script-create-buckets
           defaultMode: 0555
 EOF
 )
