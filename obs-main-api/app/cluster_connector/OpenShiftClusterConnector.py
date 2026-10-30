@@ -208,10 +208,10 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                     'metadata': {
                         'labels': {
                             'app': item["id"], 
-                            'observability-demo-framework': 'agent'                    
+                            'observability-demo-framework': 'agent'
                         }, 
                         'annotations': {
-                            self.__get_inject_annotation(item['type']): 'true'
+                            self.__get_inject_annotation(item['type']): 'obs-otel/instrumentation'
                         }
                     },
                     'spec': {

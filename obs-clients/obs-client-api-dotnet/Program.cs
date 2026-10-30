@@ -11,6 +11,11 @@ builder.Services.AddControllers();
 builder.Services.AddHttpClient();
 // Set the log level to Warning
 builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
+builder.Logging.AddOpenTelemetry(options =>
+{
+    options.IncludeFormattedMessage = true;
+});
+
 
 var app = builder.Build();
 
@@ -23,6 +28,8 @@ app.MapControllers();
 app.MapMetrics();
 
 app.Logger.LogInformation("Starting metrics server");
+app.Logger.LogInformation("*** MY APP UPDATED VERSION V2 IS RUNNING ***");
+
 // Start a separate Prometheus metrics server on port 8081
 var metricServer = new KestrelMetricServer(port: 8081);
 metricServer.Start();

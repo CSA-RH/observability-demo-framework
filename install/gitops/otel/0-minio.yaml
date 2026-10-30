@@ -11,7 +11,19 @@ metadata:
 data:
   password: U3VwZXJTZWNyZXQxMjMh
   user: YWRtaW4=
---- 
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-pvc
+  namespace: obs-minio
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -28,8 +40,7 @@ spec:
         app: minio
     spec:
       containers:
-      - name: minio
-        # Usamos el registro de Chainguard, que CRC no intentará interceptar con sus credenciales
+      - name: minio        
         image: cgr.dev/chainguard/minio:latest
         args: ["server", "/data", "--console-address", ":9001"]
         env:
@@ -53,7 +64,8 @@ spec:
           mountPath: /data
       volumes:
       - name: data
-        emptyDir: {} 
+        persistentVolumeClaim:
+          claimName: minio-pvc
 ---
 apiVersion: v1
 kind: Service
@@ -100,10 +112,8 @@ data:
     set -eu
 
     # Define a writeable config directory inside the container
-    mkdir -p /tmp
-    echo export CONFIG_DIR=/tmp/.mc
-    export CONFIG_DIR=/tmp/.mc
-    env
+    mkdir -p /tmp    
+    export CONFIG_DIR=/tmp/.mc    
 
 
     # Use the --config-dir flag on ALL mc commands
