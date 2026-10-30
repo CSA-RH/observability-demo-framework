@@ -6,7 +6,7 @@ USER root
 COPY *.csproj ./
 RUN dotnet restore
 COPY . ./
-RUN dotnet publish -c Release -o out
+RUN dotnet publish obs-client-api-dotnet.csproj -c Release -o out
 
 # Runtime 
 FROM registry.redhat.io/ubi9/dotnet-100 AS runtime
