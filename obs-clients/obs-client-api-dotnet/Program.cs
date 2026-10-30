@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Prometheus;
-using OpenTelemetry.Logs;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,11 +12,6 @@ builder.Services.AddControllers();
 builder.Services.AddHttpClient();
 // Set the log level to Warning
 builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
-builder.Logging.AddOpenTelemetry(options =>
-{
-    options.IncludeFormattedMessage = true;
-});
-
 
 var app = builder.Build();
 
