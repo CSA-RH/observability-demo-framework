@@ -106,8 +106,6 @@ spec:
         value: otlp
       - name: OTEL_DOTNET_AUTO_LOGS_INCLUDE_FORMATTED_MESSAGE
         value: 'true'
-      - name: ASPNETCORE_HOSTINGSTARTUPASSEMBLIES
-        value: OpenTelemetry.AutoInstrumentation.AspNetCoreBootstrapper
 ---
 apiVersion: opentelemetry.io/v1beta1
 kind: OpenTelemetryCollector
