@@ -87,6 +87,7 @@ spec:
     global:
       queries:
         queryTimeout: 3m
+  storageClassName: crc-csi-hostpath-provisioner
   storage:
     schemas:
       - effectiveDate: '2022-06-01'
