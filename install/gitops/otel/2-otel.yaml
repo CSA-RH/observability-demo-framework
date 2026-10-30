@@ -181,8 +181,7 @@ spec:
             - otlp
         traces:
           exporters:
-            - otlp/tempo
-            - spanmetrics
+            - otlp/tempo            
           receivers:
             - otlp
   mode: deployment
