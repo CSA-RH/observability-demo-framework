@@ -137,7 +137,7 @@ data:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  generateName: minio-buckets-
+  name: minio-buckets-creation-job
   labels: 
     observability-demo-framework: bootstrap
 spec:
