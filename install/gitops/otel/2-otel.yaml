@@ -51,7 +51,7 @@ spec:
   sampler:
     type: parentbased_always_on
   exporter:
-    endpoint: 'http://otel-collector.obs-demo.svc.cluster.local:4318'
+    endpoint: 'http://otel-collector.obs-otel.svc.cluster.local:4318'
   nodejs:
     env:
       - name: OTEL_NODEJS_LOG_INJECTION
@@ -61,11 +61,11 @@ spec:
       - name: OTEL_NODEJS_AUTO_INSTRUMENTATION_ENABLED
         value: 'true'
       - name: OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
-        value: 'http://otel-collector.obs-demo.svc.cluster.local:4318/v1/logs'
+        value: 'http://otel-collector.obs-otel.svc.cluster.local:4318/v1/logs'
   dotnet:
     env:
       - name: OTEL_EXPORTER_OTLP_ENDPOINT
-        value: 'http://otel-collector.obs-demo.svc.cluster.local:4318'
+        value: 'http://otel-collector.obs-otel.svc.cluster.local:4318'
       - name: OTEL_EXPORTER_OTLP_PROTOCOL
         value: http/protobuf
       - name: OTEL_TRACES_EXPORTER
