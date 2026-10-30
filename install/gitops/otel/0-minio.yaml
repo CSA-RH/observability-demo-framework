@@ -138,6 +138,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: minio-buckets-creation-job
+  namespace: obs-minio
   labels: 
     observability-demo-framework: bootstrap
 spec:
