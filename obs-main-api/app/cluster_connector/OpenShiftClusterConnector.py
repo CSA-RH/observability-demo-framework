@@ -899,15 +899,6 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                     namespace=namespace,
                     plural="monitoringstacks",
                     name=monitoring_stack_name)                
-                # Delete Grafana Datasource from current namespace
-                grafana_datasource_name = f"ds-grafana-coo-prometheus-{user}"
-                print (f"Deleting Grafana Datasource {grafana_datasource_name}")
-                self.__custom_v1_api.delete_namespaced_custom_object(
-                    group="grafana.integreatly.org",
-                    version="v1beta1",
-                    namespace=self.__get_current_namespace(),
-                    plural="grafanadatasources",
-                    name=grafana_datasource_name)
                 print ("Deleting routes")
                 self.__delete_openshift_route(namespace, f"prometheus-{user}")
                 self.__delete_openshift_route(namespace, f"alertmanager-{user}")
