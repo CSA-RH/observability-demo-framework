@@ -36,7 +36,7 @@ metadata:
   name: minio
   namespace: obs-minio
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   replicas: 1
   selector:
@@ -156,7 +156,7 @@ metadata:
   labels: 
     observability-demo-framework: bootstrap
   annotations:
-    argocd.argoproj.io/sync-wave: "3"
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   backoffLimit: 0
   ttlSecondsAfterFinished: 180  
