@@ -2,18 +2,24 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: obs-loki
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: loki-collector
   namespace: obs-loki
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: loki-minio-secret
   namespace: obs-loki
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 stringData:  
   endpoint: "http://minio.obs-minio.svc:9000"
   bucketnames: "loki-bucket"
@@ -26,6 +32,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: logging-collector-logs-writer
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -39,6 +47,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:  
   name: collect-application-logs
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -52,6 +62,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: collect-audit-logs
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -65,6 +77,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: collect-infrastructure-logs
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -79,6 +93,8 @@ kind: LokiStack
 metadata:
   name: loki
   namespace: obs-loki
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
 spec:
   tenants:
     mode: openshift-logging

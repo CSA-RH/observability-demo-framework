@@ -1,8 +1,17 @@
 apiVersion: v1
+kind: Namespace
+metadata:
+  name: obs-otel
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+---
+apiVersion: v1
 kind: ServiceAccount
 metadata:  
   name: otel-collector
   namespace: obs-otel
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -10,6 +19,8 @@ metadata:
   name: loki-writer
   labels:
     observability-demo-framework: rbac
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 rules:
  - apiGroups: ["loki.grafana.com"]
    resourceNames: ["logs"]
@@ -31,6 +42,8 @@ metadata:
   name: otel-collector-logs-writer
   labels:
     observability-demo-framework: rbac
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -40,13 +53,14 @@ subjects:
     name: otel-collector
     namespace: obs-otel
 ---
----
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: tempo-writer
   labels: 
     observability-demo-framework: rbac
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 rules:
 - apiGroups:
   - tempo.grafana.com
@@ -63,6 +77,8 @@ metadata:
   name: otel-collector-traces-writer
   labels: 
     observability-demo-framework: rbac
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -79,6 +95,8 @@ metadata:
   namespace: obs-otel
   labels:
     observability-demo-framework: otel
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   sampler:
     type: parentbased_always_on
@@ -114,6 +132,8 @@ metadata:
   namespace: obs-otel
   labels: 
     observability-demo-framework: 'otel'
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
 spec:
   observability:
     metrics:
