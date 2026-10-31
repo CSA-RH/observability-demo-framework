@@ -447,49 +447,6 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(e)
             print("--------")
             raise
-
-        # Define Grafana Datasource
-        main_namespace = self.__get_current_namespace()
-        grafana_user_datasource = f"ds-grafana-coo-prometheus-{user}"
-        grafana_datasource_body = {
-            "apiVersion": "grafana.integreatly.org/v1beta1",
-            "kind": "GrafanaDatasource",
-            "metadata": {
-                "name": grafana_user_datasource,
-                "namespace": main_namespace, 
-                "labels": {                    
-                    'observability-demo-framework': 'grafana',
-                    "monitoring-stack": user
-                }
-            },
-            "spec": {
-                "instanceSelector": {
-                    "matchLabels": {
-                        "dashboards": "grafana-escotilla"
-                    }
-                }, 
-                "datasource": {
-                    "name": f"Prometheus[COO]: {user}",
-                    "type": "prometheus", 
-                    "access": "proxy",
-                    "url": f"http://prometheus-operated.{namespace}.svc:9090"
-                }
-            }
-        }
-        try:            
-            self.__custom_v1_api.create_namespaced_custom_object(
-                group="grafana.integreatly.org",
-                version="v1beta1",
-                namespace=main_namespace,
-                plural="grafanadatasources",
-                body=grafana_datasource_body
-            )
-            print(f"Grafana Datasource {grafana_user_datasource} created successfully.")
-        except client.exceptions.ApiException as e:
-            print(f"Exception when creating Grafana Datasource {grafana_user_datasource}")
-            print(e)
-            print("--------")
-            raise
         
         # Create Routes for Prometheus and Alertmanager
         alertmanager_route = {
