@@ -13,3 +13,14 @@ observabilityOperator:
   sourceNamespace: openshift-marketplace
   startingCSV: cluster-observability-operator.v1.3.0
 
+annotationsWave0: 
+  argocd.argoproj.io/sync-wave: "0"
+annotationsWave1: 
+  argocd.argoproj.io/sync-wave: "1"
+annotationsWave2: 
+  argocd.argoproj.io/sync-wave: "2"
+annotationsWave3: 
+  argocd.argoproj.io/sync-wave: "3"
+annotationsWave4: 
+  argocd.argoproj.io/sync-wave: "4"
+
