@@ -1,3 +1,6 @@
+applicationNamespace: obs-demo
+idpNamespace: obs-idp
+
 jobKeycloakCertServiceAccount: job-keycloak-cert-generator-sa
 jobBuildImagesServiceAccount: build-image-sa
 jobSyncUsersServiceAccount: obs-sync-users

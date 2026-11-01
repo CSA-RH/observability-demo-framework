@@ -9,7 +9,7 @@ metadata:
   name: keycloak-operator-group
 spec:
   targetNamespaces:
-  - {{ .Release.Namespace }}
+  - {{ .Values.applicationNamespace }}
 ---
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
@@ -19,7 +19,7 @@ metadata:
   {{- if .Values.annotationsWave0 }}
   annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
   {{- end }}
-  name: rhbk-operator  
+  name: rhbk-operator
 spec:
   channel: stable-v26.6
   installPlanApproval: Automatic

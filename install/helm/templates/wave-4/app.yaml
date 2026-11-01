@@ -1,10 +1,11 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: obs-front
+  namespace: {{ .Values.applicationNamespace }}
   labels:
     app: obs-front
-    observability-demo-framework: frontend
-  name: obs-front
+    observability-demo-framework: frontend  
   {{- if .Values.annotationsWave4 }}
   annotations: {{- toYaml .Values.annotationsWave4 | nindent 4 }}
   {{- end }}
@@ -25,13 +26,14 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: obs-main-api  
+  namespace: {{ .Values.applicationNamespace }}
   labels:
     app: obs-main-api
     observability-demo-framework: 'backend'
   {{- if .Values.annotationsWave4 }}
   annotations: {{- toYaml .Values.annotationsWave4 | nindent 4 }}
   {{- end }}
-  name: obs-main-api
 spec:
   replicas: 1
   selector:

@@ -2,13 +2,9 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: operator-waiter-job
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ .Values.applicationNamespace }}
   annotations:
     argocd.argoproj.io/sync-wave: "1"
-    #argocd.argoproj.io/hook-delete-policy: HookSucceeded
-    #helm.sh/hook: post-install,post-upgrade
-    #helm.sh/hook-delete-policy: hook-succeeded
-    #helm.sh/hook-weight: "5" # Runs *after* the RBAC/ConfigMap
 spec:
   backoffLimit: 2
   activeDeadlineSeconds: 600

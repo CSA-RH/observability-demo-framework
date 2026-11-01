@@ -2,6 +2,7 @@ apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
   name: obs-client-dotnet
+  namespace: {{ .Values.applicationNamespace }}
   {{- if .Values.annotationsWave0 }}
   annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
   {{- end }}
@@ -12,12 +13,13 @@ spec:
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
+  name: obs-client-dotnet
+  namespace: {{ .Values.applicationNamespace }}
   labels:
     build: obs-client-dotnet
   {{- if .Values.annotationsWave0 }}
   annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
-  {{- end }}
-  name: obs-client-dotnet
+  {{- end }}  
 spec:
   successfulBuildsHistoryLimit: 1
   failedBuildsHistoryLimit: 1
@@ -39,7 +41,8 @@ spec:
 apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
-  name: obs-client-node
+  name: obs-client-node  
+  namespace: {{ .Values.applicationNamespace }}
   labels: 
     observability-demo-framework: cicd
   {{- if .Values.annotationsWave0 }}
@@ -52,13 +55,14 @@ spec:
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
+  name: obs-client-node
+  namespace: {{ .Values.applicationNamespace }}
   labels:
     build: obs-client-node
     observability-demo-framework: cicd
   {{- if .Values.annotationsWave0 }}
   annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
-  {{- end }}
-  name: obs-client-node
+  {{- end }}  
 spec:
   successfulBuildsHistoryLimit: 1
   failedBuildsHistoryLimit: 1
@@ -81,6 +85,7 @@ apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
   name: obs-front
+  namespace: {{ .Values.applicationNamespace }}
   labels:
     observability-demo-framework: 'cicd'
   {{- if .Values.annotationsWave0 }}
@@ -93,13 +98,14 @@ spec:
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
+  name: obs-front
+  namespace: {{ .Values.applicationNamespace }}
   labels:    
     build: obs-front
     observability-demo-framework: 'cicd'
   {{- if .Values.annotationsWave0 }}
   annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
-  {{- end }}
-  name: obs-front
+  {{- end }}  
 spec:
   successfulBuildsHistoryLimit: 1
   failedBuildsHistoryLimit: 1
@@ -125,6 +131,7 @@ apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
   name: obs-main-api
+  namespace: {{ .Values.applicationNamespace }}
   labels: 
     observability-demo-framework: 'cicd'
   {{- if .Values.annotationsWave0 }}
@@ -137,13 +144,14 @@ spec:
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
+  name: obs-main-api
+  namespace: {{ .Values.applicationNamespace }}
   labels:
     build: obs-main-api
     observability-demo-framework: 'cicd'
   {{- if .Values.annotationsWave0 }}
   annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
-  {{- end }}
-  name: obs-main-api
+  {{- end }}  
 spec:
   successfulBuildsHistoryLimit: 1
   failedBuildsHistoryLimit: 1
@@ -165,7 +173,8 @@ spec:
 apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
-  name: obs-sync-users
+  name: obs-sync-users  
+  namespace: {{ .Values.applicationNamespace }}
   labels: 
     observability-demo-framework: 'users'
   {{- if .Values.annotationsWave0 }}
@@ -178,13 +187,14 @@ spec:
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
+  name: obs-sync-users
+  namespace: {{ .Values.applicationNamespace }}
   labels:
     build: obs-sync-users
     observability-demo-framework: 'cicd'
   {{- if .Values.annotationsWave0 }}
   annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
-  {{- end }}
-  name: obs-sync-users
+  {{- end }}  
 spec:
   successfulBuildsHistoryLimit: 1
   failedBuildsHistoryLimit: 1
