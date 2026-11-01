@@ -10,11 +10,11 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  name: keycloak-bootstrap-role
+  namespace: {{ .Values.applicationNamespace }}
   {{- if .Values.annotationsWave2 }}
   annotations: {{- toYaml .Values.annotationsWave2 | nindent 4 }}
-  {{- end }}
-  name: keycloak-bootstrap-role
-  namespace: {{ .Release.Namespace }}
+  {{- end }}  
 rules:
 - apiGroups: [""]
   resources: ["secrets"]
@@ -30,7 +30,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: keycloak-bootstrap-binding
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ .Values.applicationNamespace }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -42,11 +42,11 @@ subjects:
 apiVersion: v1
 kind: ConfigMap
 metadata:
+  name: keycloak-bootstrap-script
+  namespace: {{ .Values.applicationNamespace }}
   {{- if .Values.annotationsWave2 }}
   annotations: {{- toYaml .Values.annotationsWave2 | nindent 4 }}
   {{- end }}
-  name: keycloak-bootstrap-script
-  namespace: {{ .Release.Namespace }}
 data:
   bootstrap.sh: |
     #!/bin/bash
@@ -395,7 +395,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: bootstrap-keycloak-realm
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ .Values.applicationNamespace }}
   annotations:
     {{- if .Values.annotationsWave3 }}
     {{- toYaml .Values.annotationsWave3 | nindent 4 }}
