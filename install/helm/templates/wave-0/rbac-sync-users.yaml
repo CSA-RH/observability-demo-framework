@@ -2,6 +2,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: idp-configmap-automation-role
+  namespace: {{ .Values.applicationNamespace }}
   {{- if .Values.annotationsWave0 }}
   annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
   {{- end }}
@@ -14,6 +15,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: idp-configmap-automation-binding
+  namespace: {{ .Values.applicationNamespace }}
   {{- if .Values.annotationsWave0 }}
   annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
   {{- end }}
@@ -56,7 +58,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: {{ .Values.jobSyncUsersServiceAccount }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ .Values.applicationNamespace }}
 roleRef:
   kind: ClusterRole
   name: idp-configmap-automation-clusterrole

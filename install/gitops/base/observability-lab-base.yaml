@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: obs-lab-base
+  name: observability-lab-base
   namespace: openshift-gitops
   annotations:
     argocd.argoproj.io/sync-options: Prune=false
@@ -11,11 +11,6 @@ spec:
     repoURL: https://github.com/CSA-RH/observability-demo-framework.git
     targetRevision: main
     path: install/helm
-    source:
-    helm:
-      valueFiles:
-        - values.yaml
-        - values-argocd.yaml        
   destination:
     server: https://kubernetes.default.svc
     namespace: obs-demo

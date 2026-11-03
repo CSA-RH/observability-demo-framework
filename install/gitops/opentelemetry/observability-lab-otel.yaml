@@ -10,7 +10,7 @@ spec:
   source:  
     repoURL: https://github.com/CSA-RH/observability-demo-framework.git
     targetRevision: main
-    path: install/gitops/otel
+    path: install/gitops/opentelemetry/manifests    
   destination:
     server: https://kubernetes.default.svc
     namespace: obs-otel

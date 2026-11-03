@@ -2,6 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: bootstrap-build-backend
+  namespace: {{ .Values.applicationNamespace }}
   {{- if .Values.annotationsWave3 }}
   annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
   {{- end }}
@@ -39,6 +40,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: bootstrap-build-frontend
+  namespace: {{ .Values.applicationNamespace }}
   {{- if .Values.annotationsWave3 }}
   annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
   {{- end }}
@@ -86,6 +88,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: bootstrap-build-sync-users
+  namespace: {{ .Values.applicationNamespace }}
   {{- if .Values.annotationsWave3 }}
   annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
   {{- end }}
@@ -123,6 +126,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: bootstrap-build-client-node
+  namespace: {{ .Values.applicationNamespace }}
   {{- if .Values.annotationsWave3 }}
   annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
   {{- end }}
@@ -160,6 +164,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: bootstrap-build-client-dotnet
+  namespace: {{ .Values.applicationNamespace }}
   {{- if .Values.annotationsWave3 }}
   annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
   {{- end }}

@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: postgresql-db
-  namespace: {{ .Values.rootNamespace }}
+  namespace: {{ .Values.applicationNamespace }}
   labels: 
     observability-demo-framework: idp
   {{- if .Values.annotationsWave0 }}
@@ -42,7 +42,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgres-db
-  namespace: {{ .Values.rootNamespace }}
+  namespace: {{ .Values.applicationNamespace }}
   labels: 
     observability-demo-framework: idp
   {{- if .Values.annotationsWave0 }}
@@ -61,7 +61,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: keycloak-database-secret
-  namespace: {{ .Values.rootNamespace }}
+  namespace: {{ .Values.applicationNamespace }}
   labels: 
     observability-demo-framework: idp
   {{- if .Values.annotationsWave0 }}
