@@ -27,3 +27,17 @@ annotationsWave3:
 annotationsWave4: 
   argocd.argoproj.io/sync-wave: "4"
 
+
+# Container images for the application Deployments.
+# registry: leave empty to use the in-cluster registry populated by the BuildConfigs
+#   (image-registry.openshift-image-registry.svc:5000/<applicationNamespace>).
+#   Set it (e.g. quay.io/<org>) once images are published externally.
+images:
+  registry: ""
+  pullPolicy: Always
+  frontend:
+    name: obs-front
+    tag: latest
+  backend:
+    name: obs-main-api
+    tag: latest

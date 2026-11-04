@@ -110,6 +110,9 @@ class MockClusterConnector(ClusterConnectorInterface):
     def get_users_json(self):
         return JSONUtils.load_json_from_file(self.PATH_USERS_DEF) or []
 
+    def retrieve_hostname_from_service_id(self, user, id):
+        return f"{id}.fake-namespace-{user}.svc"
+
     def sync_users(self):
         return True
 

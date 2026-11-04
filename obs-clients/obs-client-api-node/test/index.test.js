@@ -1,4 +1,4 @@
-const { getAvailableCook, getAvailableWaiter } = require('../index');
+const { getAvailableCook, getAvailableWaiter } = require('../app/index');
 
 const _agents = new Map();
 const _agentsNoWaiters = new Map();

@@ -20,7 +20,8 @@ spec:
         app: obs-front
     spec:
       containers:
-      - image: obs-front:latest
+      - image: {{ include "obs.image" (dict "image" .Values.images.frontend "root" .) }}
+        imagePullPolicy: {{ .Values.images.pullPolicy }}
         name: obs-front
 ---
 apiVersion: apps/v1
@@ -53,7 +54,8 @@ spec:
           secretName: keycloak-route-ca-secret
           defaultMode: 420
       containers:
-      - image: obs-main-api:latest
+      - image: {{ include "obs.image" (dict "image" .Values.images.backend "root" .) }}
+        imagePullPolicy: {{ .Values.images.pullPolicy }}
         name: obs-main-api
         volumeMounts:
         - name: keycloak-route-ca-secret
