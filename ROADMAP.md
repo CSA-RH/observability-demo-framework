@@ -47,12 +47,35 @@ Phases are ordered by dependency: each one makes the next one safer. Tick items 
 
 ## Phase 1 - Safety net
 
-- [ ] Characterization tests for all endpoints using FastAPI `TestClient` with
-      `CLUSTER_CONNECTOR=mock`, `AGENT_MANAGER=mock` and `get_current_user` overridden.
-- [ ] Unit tests for `validators.py`, `utils.py`, `operations/*` (lease lock, operation store).
-- [ ] Frontend: replace CRA test with Vitest + React Testing Library; fix `npm test`.
-- [ ] Pin backend dependencies (`requirements.txt` has no versions).
-- [ ] Coverage reporting in CI.
+- [x] Characterization tests for all 14 endpoints using FastAPI `TestClient` with mock connectors
+      and `get_current_user` overridden (`obs-main-api/tests/api`). Async operations are polled to
+      completion; mock storage is isolated per test.
+- [x] Auth tests: real JWT validation path with a throwaway RSA key (expired, wrong audience/issuer,
+      missing/unknown `kid`, bad signature, Keycloak unreachable).
+- [x] Unit tests for `validators.py`, `utils.py`, `operations/*` (operation store, async tasks with
+      rollback, lease lock) and alert-rule helpers (`obs-main-api/tests/unit`).
+- [x] Fixed on the way: `MockClusterConnector` signatures had drifted from the interface
+      (`create_simulation_resources`, `save_alert_definition`, `delete_alert`,
+      `delete_alert_definition`), breaking simulation and alerts in mock mode.
+- [x] Frontend: Vitest + React Testing Library (`ApiHelper`, `pollOperation`, `ConfirmationModal`,
+      `PasswordCell`); `npm test` works. Upgraded `@vitejs/plugin-react` 1.x -> 6.x (required by Vite 8).
+- [x] Pin backend runtime and dev dependencies.
+- [x] Coverage reporting in CI with a ratchet (`--cov-fail-under`, currently 50%).
+
+Known gaps recorded as strict `xfail` / `it.fails` tests. Fixing one makes its test fail, which
+is the signal to turn it into a regular test:
+
+- [ ] Duplicate usernames accepted (expected 409).
+- [ ] Deleting an unknown user succeeds (expected 404).
+- [ ] Missing payload fields return 500 instead of 422 (no request models).
+- [ ] JWKS fetched from Keycloak on every request (no cache).
+- [ ] UI username validation does not reject reserved names (`admin`, `cluster-admin`).
+
+Still open:
+
+- [ ] `OpenShiftClusterConnector` / `OpenShiftAgentManager` coverage is 10-15%; add tests with a
+      fake Kubernetes client as part of the Phase 2 split.
+- [ ] Component tests for `LayoutCanvas`, `AgentInfo`, `AdminPage` (need Keycloak/Cytoscape fakes).
 
 ## Phase 2 - Modular monolith (backend)
 
@@ -66,6 +89,7 @@ Phases are ordered by dependency: each one makes the next one safer. Tick items 
   - `OperationStore` - async operations persistence
   - `CapabilityService` - cluster info, installed operators/features
 - [ ] Settings via `pydantic-settings`; replace `print` with structured logging.
+- [ ] Pydantic request/response models for every endpoint (fixes the 500-vs-422 gap).
 - [ ] Remove `--reload` from the production container command.
 - [ ] Define a common client API contract (OpenAPI) for `obs-clients` (discovery, capabilities).
 

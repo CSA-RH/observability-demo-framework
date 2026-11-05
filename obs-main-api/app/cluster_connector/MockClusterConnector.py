@@ -42,7 +42,7 @@ class MockClusterConnector(ClusterConnectorInterface):
         pod_suffix = f"{first_part}-{second_part}"
         return pod_suffix
     
-    def create_simulation_resources(self, user, payload: List[Dict[str, Any]]):
+    def create_simulation_resources(self, user, payload: List[Dict[str, Any]], stack):
         print("create simulation resources")
         for item in payload:            
                 item["ip"] = "1.2.3.4"
@@ -84,16 +84,16 @@ class MockClusterConnector(ClusterConnectorInterface):
         return id   
 
     
-    def save_alert_definition(self, alert):    
+    def save_alert_definition(self, user, alert):    
         alerts_definition=JSONUtils.load_json_from_file(self.PATH_ALERTS_DEF)
         alerts_definition.append(alert)
         JSONUtils.save_json_to_file(alerts_definition, self.PATH_ALERTS_DEF)
     
-    def delete_alert(self, alert_name):
+    def delete_alert(self, user, alert_name):
         print("Delete alert in Mock. Nothing to do")
         return {"success": True}
 
-    def delete_alert_definition(self, alert_name):
+    def delete_alert_definition(self, user, alert_name):
         alerts = JSONUtils.load_json_from_file(self.PATH_ALERTS_DEF)   
         cleaned_alerts = [item for item in alerts if item.get("id") != alert_name]
         print(cleaned_alerts)

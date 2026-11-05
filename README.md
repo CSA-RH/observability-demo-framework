@@ -68,15 +68,19 @@ locally against a CRC cluster with a local Keycloak.
 Tests:
 
 ```bash
-# Backend (Python 3.12+), runs against the mock connectors
-cd obs-main-api && pip install -r requirements-dev.txt && python -m pytest tests
+# Backend (Python 3.12+): unit + API tests against the mock connectors, no cluster needed
+cd obs-main-api && pip install -r requirements-dev.txt && python -m pytest --cov=app
+
+# Frontend (Vitest + React Testing Library)
+cd obs-front && npm ci && npm test
 
 # Node.js client
 cd obs-clients/obs-client-api-node && npm install && npm test
 ```
 
-CI (`.github/workflows/ci.yaml`) lints and renders the Helm chart, runs the tests above, builds the
-frontend and builds the .NET client.
+CI (`.github/workflows/ci.yaml`) lints and renders the Helm chart, runs the tests above (with a
+backend coverage floor), builds the frontend and builds the .NET client. Known gaps are recorded as
+expected-failure tests; see [ROADMAP.md](ROADMAP.md).
 
 ## Using the UI
 

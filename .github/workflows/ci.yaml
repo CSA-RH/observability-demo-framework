@@ -38,7 +38,8 @@ jobs:
             obs-main-api/app/requirements.txt
             obs-main-api/requirements-dev.txt
       - run: pip install -r requirements-dev.txt
-      - run: python -m pytest -q tests
+      # Coverage floor acts as a ratchet: raise it as coverage grows, never lower it.
+      - run: python -m pytest --cov=app --cov-report=term-missing --cov-fail-under=50
 
   frontend:
     name: Frontend (obs-front)
@@ -54,6 +55,7 @@ jobs:
           cache: npm
           cache-dependency-path: obs-front/package-lock.json
       - run: npm ci
+      - run: npm test
       - run: npm run build
 
   client-node:

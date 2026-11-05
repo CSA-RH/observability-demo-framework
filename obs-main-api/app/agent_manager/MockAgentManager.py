@@ -18,6 +18,9 @@ class MockAgentManager(AgentManagerInterface):
     def __get_metrics_fullpath_file(self, user_id):
         return f"{self.ROOT_METRICS_DIR}/{user_id}-{self.METRICS_FILE_SUFFIX}"
     
+    def _get_comms_fullpath_file(self, user_id):
+        return f"{self.ROOT_METRICS_DIR}/{user_id}-{self.COMMS_FILE_SUFFIX}"
+
     def __load_metrics(self, user_id):
         metrics_json = JSONUtils.load_json_from_file(self.__get_metrics_fullpath_file(user_id))
         agent_metrics = {}
@@ -102,7 +105,7 @@ class MockAgentManager(AgentManagerInterface):
         """
         
         # Define the user-specific file path
-        file_path = f"/tmp/{user_id}-obs-demo-fw-comms.json"
+        file_path = self._get_comms_fullpath_file(user_id)
         
         source_agent = source_agent_dns.split('.')[0]
         print(f"Reading/Writing communications for {user_id} at {file_path}")
@@ -178,7 +181,7 @@ class MockAgentManager(AgentManagerInterface):
         print("-------")
 
         # --- 1. Load the communication graph from the file ---
-        file_path = f"/tmp/{user_id}-obs-demo-fw-comms.json"
+        file_path = self._get_comms_fullpath_file(user_id)
         user_comms = {}
         try:
             # Open for reading ('r')
@@ -239,4 +242,4 @@ class MockAgentManager(AgentManagerInterface):
     def delete_metrics_definitions(self, user_id):
         metrics_file = self.__get_metrics_fullpath_file(user_id)
         JSONUtils.delete_json_file(metrics_file)
-        JSONUtils.delete_json_file(f"/tmp/{user_id}-obs-demo-fw-comms.json")
+        JSONUtils.delete_json_file(self._get_comms_fullpath_file(user_id))
