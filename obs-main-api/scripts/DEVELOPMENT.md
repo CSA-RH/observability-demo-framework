@@ -5,7 +5,7 @@ This guide covers running the React UI and FastAPI control plane on your Mac whi
 ## Prerequisites
 
 - CRC running and logged in (`oc login`)
-- `obs-demo` namespace deployed on the cluster (Helm or bash install)
+- `obs-demo` namespace deployed on the cluster (GitOps/Helm install, see the root README)
 - `podman`, `openssl`, `python3`, `oc`
 - Node.js for the frontend
 

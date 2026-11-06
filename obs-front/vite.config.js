@@ -25,4 +25,15 @@ export default defineConfig({
     port: 5173,
     host: '0.0.0.0', // '0.0.0.0' es necesario para que OpenShift pueda enrutar el tráfico internamente
   },
+  test: {
+    environment: 'jsdom',
+    setupFiles: './src/setupTests.js',
+    // Fixed values so tests never depend on a developer's local .env files.
+    env: {
+      VITE_OBSERVABILITY_DEMO_API: 'https://obs-main-api.apps.example.com',
+      VITE_KEYCLOAK_URL: 'https://keycloak.apps.example.com',
+      VITE_KEYCLOAK_REALM: 'csa',
+      VITE_KEYCLOAK_CLIENT_ID: 'webauth',
+    },
+  },
 })

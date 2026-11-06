@@ -1,1 +1,0 @@
-/bin/bash -c "cd src && go build -o promgen"

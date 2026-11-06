@@ -1,87 +1,106 @@
-# Introduction
+# Observability Demo Framework
 
-This repository showcases examples of the Observability features provided by Red Hat OpenShift, including metrics, logging, and tracing. The project consists of the following components:
+A lab for showcasing Red Hat OpenShift observability (metrics, logs, traces, alerts). Users draw a
+graph of agents (nodes) and communication paths (edges) in a web UI, and the framework deploys real
+microservice pods into the user's namespace that talk to each other along those paths and emit
+telemetry.
 
-- **Python FastAPI-based REST API**: (folder obs-main-api). This API leverages the Kubernetes Python client to interact with an OpenShift cluster, facilitating various observability operations. 
-- **React 18 Frontend**: A modern frontend application built with ReactJS that interacts with the FastAPI backend to display observability data in a user-friendly interface.
-- **Client Microservice API**: A blueprint for microservices deployed within OpenShift pods. This microservice enables the creation and modification of custom Prometheus metrics, facilitating real-time metric collection and management. It also establishes communication paths to interact with other microservices, supporting scalable and efficient observability across distributed systems. Currently, the repository only contains a NodeJS based one with one operation.
+> Project status and planned work: see [ROADMAP.md](ROADMAP.md).
 
-# Deployment model. 
- 
-All applications are deployed to an OpenShift cluster as ImageStreams. Each application's dedicated folder contains a `deploy.sh` script, which uses a binary BuildConfig to create a new image and deploy it as needed.
+## Components
 
-The Python API is currently exposed through an OpenShift Route, but it does not yet have authentication or authorization (authZ) functionality.
+| Folder | Description |
+|---|---|
+| [`obs-front`](obs-front) | React + Vite UI. Graph editor (Cytoscape), simulation, metrics and alert management. Authenticates users against Keycloak. |
+| [`obs-main-api`](obs-main-api) | Python FastAPI control plane. Validates Keycloak JWTs, manages users/namespaces and simulations on OpenShift through the Kubernetes Python client. |
+| [`obs-clients`](obs-clients) | Agent microservices deployed as simulation pods: **Node.js** and **.NET** (Go and Java are stubs). Expose custom Prometheus metrics and forward "kick" requests to their next hops. |
+| [`obs-sync-users`](obs-sync-users) | Ansible execution image used by the job that syncs app users to Keycloak. |
+| [`install`](install) | Installation: Helm chart (`install/helm`) and Argo CD applications (`install/gitops`). |
 
-## Python API Deployment and Configuration
+### Backend bootstrap
 
-- **Cluster Deployment**: When deployed to the OpenShift cluster, the Python API utilizes the underlying service account to manage OpenShift resources.
-- **Local Deployment**: If running the API locally, it relies on the kubeconfig file from a valid oc login session to connect to the cluster.
-- **Testing Mode**: For testing purposes, a cluster is not required. The API can be started with mock components, enabling full functionality without interacting with a live OpenShift environment.
+At startup the API instantiates two implementations, selected through environment variables:
 
-## Bootstrap process
+- `ClusterConnectorInterface`: `CLUSTER_CONNECTOR=mock` for an in-memory fake, otherwise OpenShift.
+- `AgentManagerInterface`: `AGENT_MANAGER=mock` for a fake, otherwise calls to the agent pods.
 
-During the bootstrap process, the main API creates instances of two classes that implement the following interfaces:
+![Backend design](img/PythonAPI.png)
 
-- **ClusterConnectorInterface**
-- **AgentManagerInterface**
+Long-running operations (user and simulation creation/deletion) are asynchronous: the API returns
+`202 Accepted` with an operation id that the UI polls at `/api/v1/operations/{id}`.
 
-These interfaces allow the API to abstract cluster management and agent interaction logic. The behavior of the API can be controlled using environment variables:
+## Installation (OpenShift)
 
-- Setting `CLUSTER_CONNECTOR=mock` instructs the API to use a mock version for connecting to the OpenShift cluster.
-- Setting `AGENT_MANAGER=mock` allows the interaction with client APIs to be mocked.
+The supported installation is GitOps-based. It requires the **OpenShift GitOps** operator.
 
-Below is the architecture diagram that illustrates this process:
+1. **Foundations and application.** The Helm chart in `install/helm` installs the operators (Red Hat
+   build of Keycloak, Cluster Observability Operator), Keycloak with its realm and generated
+   secrets, builds the images in-cluster and deploys the app, in Argo CD sync waves 0-4:
 
-![UML Diagram](img/PythonAPI.png)
+   ```bash
+   oc apply -f install/gitops/base/observability-lab-base.yaml
+   ```
 
-A route is created for both Front and Back ends. The Frontend is generated in the container at build time, and the API address taken for injecting it as .env variable in the final build. The build process will retrieve the route address and set the `REACT_APP_OBSERVABILITY_DEMO_API` to it. 
+2. **Logging and tracing stack (optional).** MinIO, LokiStack, TempoStack, OpenTelemetry Collector
+   and the console UI plugins:
 
-# Frontend simple usage
+   ```bash
+   oc apply -f install/gitops/opentelemetry/observability-lab-otel.yaml
+   ```
 
-The primary goal of this API is to provide an automated way to **mock microservice communication paths** and **generate telemetry** in a customizable manner. The provided frontend allows you to:
+Main chart values (`install/helm/values.yaml`):
 
-- Model communication paths between microservices.
-- Manage custom Prometheus gauge metrics.
-- Perform a **Kick operation**, which triggers a sequence of interactions between agents along a defined communication path.
+| Value | Default | Purpose |
+|---|---|---|
+| `applicationNamespace` | `obs-demo` | Namespace for the app |
+| `idpNamespace` | `obs-idp` | Namespace for Keycloak |
+| `images.registry` | _(empty)_ | Registry for app images. Empty means the in-cluster registry (`image-registry.openshift-image-registry.svc:5000/<applicationNamespace>`). Set it, e.g. `quay.io/<org>`, to use pre-built images. |
+| `images.{frontend,backend}.tag` | `latest` | Image tags |
 
-### Kick Operation
+> The frontend image currently embeds the API and Keycloak URLs at build time, which is why images
+> are built inside the cluster. Making it runtime-configurable is on the roadmap.
 
-A **Kick operation** is initiated by the "kicker" agent, sending a message to all its next hops with a counter set to `4`. Each receiving agent repeats this process, decrementing the counter by `1` until the counter reaches zero. This operation generates telemetry traces across the communication path, which can be visualized in Jaeger.
+## Local development
 
-### Agent Naming
+See [`obs-main-api/scripts/DEVELOPMENT.md`](obs-main-api/scripts/DEVELOPMENT.md) to run the UI and API
+locally against a CRC cluster with a local Keycloak.
 
-The agents are named after historic players from **Málaga CF** and **CD Málaga** football teams. This is a **very important requirement** for the system.
+Tests:
 
-### Example: Communication Model
+```bash
+# Backend (Python 3.12+): unit + API tests against the mock connectors, no cluster needed
+cd obs-main-api && pip install -r requirements-dev.txt && python -m pytest --cov=app
 
-Below is an example of a communication model created in the frontend:
+# Frontend (Vitest + React Testing Library)
+cd obs-front && npm ci && npm test
 
-![Communication Model](img/obs-front-main.png)
+# Node.js client
+cd obs-clients/obs-client-api-node && npm install && npm test
+```
 
-### Example: Agent Metrics
+CI (`.github/workflows/ci.yaml`) lints and renders the Helm chart, runs the tests above (with a
+backend coverage floor), builds the frontend and builds the .NET client. Known gaps are recorded as
+expected-failure tests; see [ROADMAP.md](ROADMAP.md).
 
-Here is an example of Prometheus metrics configured for the agent named `fabrice-olinga`:
+## Using the UI
+
+- **Model** communication paths between agents on the canvas.
+- **Metrics**: create and update custom Prometheus gauges per agent.
+- **Alerts**: define PrometheusRule alerts on those metrics.
+- **Kick**: an agent sends a message to all its next hops with a counter (starting at `4`); each
+  receiver forwards it, decrementing the counter until zero, which produces distributed traces.
+
+Agents are named after historic players of **Málaga CF** and **CD Málaga**, a very important
+requirement of the system.
+
+![Communication model](img/obs-front-main.png)
+
+Agent metrics in the UI and in the cluster:
 
 ![Frontend metrics](img/obs-front-metrics.png)
-
-### Example: Cluster Metrics
-
-And here’s how these metrics appear within the OpenShift cluster:
-
 ![Cluster metrics](img/cluster-metrics.png)
 
-### Pod Logs
-
-You can access pod information directly from the frontend by clicking the pod name in the agent details section. Below is an example of the logs generated after a Kick operation:
+Pod logs after a kick, and the resulting trace:
 
 ![Kick operation logs](img/kick-cluster-pod.png)
-
-### Tracing with Jaeger
-
-From the frontend, you can click the **Jaeger button** to navigate to the Jaeger UI, where traces of the Kick operation are displayed:
-
-![Kick operation jaeger](img/kick-jaeger.png)
-
-
-
-
+![Kick operation trace](img/kick-jaeger.png)

@@ -1,0 +1,6 @@
+-r app/requirements.txt
+pytest==9.2.0
+pytest-cov==7.1.0
+httpx==0.28.1
+# Used by tests to sign JWTs with a throwaway RSA key.
+cryptography==50.0.2

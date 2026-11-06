@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: obs-opentelemetry
+  name: observability-lab-otel
   namespace: openshift-gitops
   annotations:
     argocd.argoproj.io/sync-options: Prune=false
@@ -10,7 +10,7 @@ spec:
   source:  
     repoURL: https://github.com/CSA-RH/observability-demo-framework.git
     targetRevision: main
-    path: install/gitops/opentelemetry/manifests    
+    path: install/gitops/opentelemetry/manifests
   destination:
     server: https://kubernetes.default.svc
     namespace: obs-otel

@@ -8,7 +8,7 @@ metadata:
   {{- end }}
 spec:
   lookupPolicy:
-    local: true
+    local: false
 ---
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
@@ -50,7 +50,7 @@ metadata:
   {{- end }}
 spec:
   lookupPolicy:
-    local: true
+    local: false
 ---
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
@@ -93,7 +93,7 @@ metadata:
   {{- end }}
 spec:
   lookupPolicy:
-    local: true
+    local: false
 ---
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
@@ -139,7 +139,7 @@ metadata:
   {{- end }}
 spec:
   lookupPolicy:
-    local: true
+    local: false
 ---
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
@@ -182,7 +182,7 @@ metadata:
   {{- end }}
 spec:
   lookupPolicy:
-    local: true
+    local: false
 ---
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
@@ -207,7 +207,7 @@ spec:
     git: 
       uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
       ref: main
-    contextDir: install/bash/sync-users/job-image
+    contextDir: obs-sync-users
   strategy:
     dockerStrategy: 
       dockerfilePath: Dockerfile

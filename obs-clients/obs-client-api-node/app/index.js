@@ -263,7 +263,6 @@ const getAvailableCook = (agents) => getAvailableAgent("cook", agents);
 const getAvailableWaiter = (agents) => getAvailableAgent("waiter", agents);
 
 // --- App Startup ---
-initializePrometheusEndpoint();
 initializeAgentTargets();
 app.use(express.json());
 
@@ -280,8 +279,12 @@ app.post("/operations/order", order);
 app.post("/operations/request", request);
 app.post("/operations/cook", cook);
 
-app.listen(8080, () => {
-    console.log("API for Observability Framework Demo at 8080!\nPrometheus endpoint at 8081");
-});
+// Only bind the port when run directly (node app/index.js), not when required by tests.
+if (require.main === module) {
+    initializePrometheusEndpoint();
+    app.listen(8080, () => {
+        console.log("API for Observability Framework Demo at 8080!\nPrometheus endpoint at 8081");
+    });
+}
 
 module.exports = { getAvailableCook, getAvailableWaiter };

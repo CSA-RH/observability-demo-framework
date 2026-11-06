@@ -14,17 +14,6 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: obs-demo
-  ignoreDifferences: 
-  - group: apps
-    kind: Deployment
-    name: obs-main-api
-    jqPathExpressions: 
-    - .spec.template.spec.containers[].image
-  - group: apps
-    kind: Deployment
-    name: obs-front
-    jqPathExpressions: 
-    - .spec.template.spec.containers[].image
   syncPolicy:
     automated:
       prune: true
