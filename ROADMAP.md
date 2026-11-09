@@ -9,7 +9,25 @@ Phases are ordered by dependency: each one makes the next one safer. Tick items 
 
 ---
 
-## Current state (snapshot, Nov 2026)
+## Status (2026-11-09)
+
+Phases 0 and 1 are done, plus the component rename (PR #67), the RHBK 26.6 Keycloak fix (PR #68)
+and the operators/operands GitOps split (PR #69). Validated end to end on a fresh CRC: base
+install, operators, MinIO/Loki/Tempo/OTel instances; user creation, COO metrics, traces in
+Observe > Traces and logs in Observe > Logs.
+
+**Next steps, in order:**
+
+1. Phase 2: move the monitoring stack choice from users to simulations; explicit `admin`/`user`
+   roles in the API; then split `main.py` into routers and the connector into domain services.
+2. Phase 3: operands-only module charts (`minio`, `loki`, `tempo`, `otel`) with per-platform
+   StorageClass overlays; operators chart with one flag per operator; root app-of-apps.
+3. Phase 4: capability detection, including real health of LokiStack/TempoStack (Argo CD cannot
+   see a Degraded LokiStack).
+
+## Starting point (pre-Phase 0 snapshot, Nov 2026)
+
+Kept for history; component names are the old ones.
 
 | Area | Observation |
 |---|---|
@@ -104,7 +122,7 @@ Argo CD. Approach:
 - [x] Rewrite README with accurate architecture and links; consolidate the local `NOTES.md` backlog
       into this roadmap. Replace CRA boilerplate in `obs-front/README.md`.
 - [ ] Keycloak secrets: the promoted install generates them (`bootstrap-keycloak-idp` in the chart).
-      `obs-main-api/scripts/import/realm-definition.json` is only used by local dev
+      `obs-orchestrator/scripts/import/realm-definition.json` is only used by local dev
       (`scripts/dev-start.sh`); replace its hardcoded client secrets with placeholders generated at
       dev-start time (low priority, local only).
 
@@ -198,6 +216,9 @@ See "Target model" above for the decided installation story.
       `applications.argoproj.io` in `openshift-gitops`.
 - [ ] Admin panel "Modules" section: install / uninstall / status per module.
 - [ ] Move the hardcoded MinIO credentials out of the manifests (generated Secret).
+- [ ] Enable user workload monitoring as part of the install (`enableUserWorkload: true` in
+      `openshift-monitoring/cluster-monitoring-config`), behind a value: today `user-workload`
+      simulations show no metrics on a fresh cluster.
 - [ ] Runtime configuration for the frontend (serve `config.json`/env at container start instead of
       Vite build args) so images become cluster-independent.
 - [ ] Build images in CI and publish to Quay; chart defaults switch from in-cluster builds to
