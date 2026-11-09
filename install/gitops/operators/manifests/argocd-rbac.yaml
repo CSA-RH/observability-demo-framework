@@ -21,6 +21,15 @@ rules:
 - apiGroups: ["observability.openshift.io"]
   resources: ["uiplugins"]
   verbs: ["*"]
+# TempoStack in `openshift` tenancy mode: its gateway creates TokenReviews and
+# SubjectAccessReviews, and the Tempo admission webhook requires the creator of the TempoStack to
+# hold those permissions too.
+- apiGroups: ["authentication.k8s.io"]
+  resources: ["tokenreviews"]
+  verbs: ["create"]
+- apiGroups: ["authorization.k8s.io"]
+  resources: ["subjectaccessreviews"]
+  verbs: ["create"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
