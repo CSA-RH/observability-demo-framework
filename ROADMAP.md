@@ -19,8 +19,10 @@ Observe > Traces and logs in Observe > Logs.
 **Next steps, in order:**
 
 1. Phase 2: move the monitoring stack choice from users to simulations; explicit `admin`/`user`
-   roles in the API; then split `main.py` into routers and the connector into domain services.
-2. Phase 3: operands-only module charts (`minio`, `loki`, `tempo`, `otel`) with per-platform
+   roles in the API; settings that remove the orchestrator's own-namespace assumptions; then split
+   `main.py` into routers and the connector into domain services.
+2. Phase 3: namespace split (`obs-idp`, then `obs-lab` + `obs-usr-<name>`, then `obs-images`);
+   operands-only module charts (`minio`, `loki`, `tempo`, `otel`) with per-platform
    StorageClass overlays; operators chart with one flag per operator; root app-of-apps.
 3. Phase 4: capability detection, including real health of LokiStack/TempoStack (Argo CD cannot
    see a Degraded LokiStack).
@@ -93,6 +95,32 @@ Argo CD. Approach:
 - The platform is chosen once at bootstrap (root app value) and published in a ConfigMap that the
   orchestrator reads when it creates module Applications.
 - Charts fail rendering with a clear message if `storageClassName` is missing (`required`).
+
+### Namespace layout (decided 2026-11-09)
+
+Split by ownership and privilege, not by technology: everything in a namespace shares lifecycle
+and blast radius.
+
+| Namespace | Contents | Why separate |
+|---|---|---|
+| `obs-lab` | `obs-orchestrator`, `obs-console`, state ConfigMaps/Secret, user-sync Job | The app and its own privileged work |
+| `obs-idp` | RHBK operator (OwnNamespace), Keycloak, PostgreSQL | Own lifecycle; replaceable (e.g. OpenShift IdP integration); Keycloak secrets isolated |
+| `obs-images` | BuildConfigs and ImageStreams (app, clients, sync image) | Build concern only; optional once images come from Quay |
+| `obs-usr-<name>` | One per lab user | Consistent prefix, distinct from system namespaces |
+| `obs-minio`, `obs-loki`, `obs-tempo`, `obs-otel` | Logging/tracing modules | Already split |
+
+- The **user-sync Job stays with the app**, not in `obs-idp`: it provisions tenants (namespaces,
+  RoleBindings, image-puller bindings, OTel resources) with cluster-wide privileges, besides
+  syncing Keycloak users. It belongs to the orchestrator's tenant domain (`TenantService`, first
+  candidate for extraction in Phase 4).
+- **Cross-namespace config is published, not read:** the IdP bootstrap writes the connection info
+  (`idp-data`, Keycloak CA) into `obs-lab`; consumers never read from `obs-idp`.
+- **Image pulls:** `system:image-puller` bindings on `obs-images` for `obs-lab` service accounts
+  and for each `obs-usr-*` namespace (the sync playbook already creates per-user bindings).
+- User namespaces keep being discovered by label (`observability-demo-framework=users`), never by
+  name prefix.
+- Renaming `obs-demo` -> `obs-lab` and `obs-demo-<name>` -> `obs-usr-<name>` orphans existing
+  user namespaces: fresh installs only.
 
 ### Component names
 
@@ -178,6 +206,11 @@ Still open:
   - `OperationStore` - async operations persistence
   - `CapabilityService` - cluster info, installed operators/features
 - [ ] Settings via `pydantic-settings`; replace `print` with structured logging.
+- [ ] Remove "everything lives in my namespace" assumptions from the orchestrator (prerequisite for
+      the namespace split): settings for the IdP connection namespace, image registry/namespace
+      (sync image, agent images) and user-namespace prefix (`obs-usr-`). Today: the `obs-demo-`
+      prefix in `main.py`, `root_namespace: obs-demo` in the sync playbook, and the sync Job image,
+      `idp-data` and Job namespace all derived from the orchestrator's own namespace.
 - [ ] Pydantic request/response models for every endpoint (fixes the 500-vs-422 gap).
 - [ ] Move the monitoring stack choice (`user-workload` / `coo`) from user creation to
       simulation creation. Today `monitoringType` lives on the user (`AdminPage.jsx`,
@@ -193,6 +226,14 @@ Still open:
 
 See "Target model" above for the decided installation story.
 
+- [ ] Namespace split, step 1: move RHBK operator, Keycloak and PostgreSQL to `obs-idp` (the
+      namespace already exists in the chart, `idpNamespace`, but is empty). IdP bootstrap
+      publishes `idp-data` and the Keycloak CA into the app namespace.
+- [ ] Namespace split, step 2: rename `obs-demo` -> `obs-lab` and user namespaces to
+      `obs-usr-<name>`, together with the monitoring-type migration (both break existing installs).
+      Update the Keycloak group/realm naming (`obs-demo-users`) at the same time.
+- [ ] Namespace split, step 3: BuildConfigs/ImageStreams to `obs-images`, tied to Quay publishing
+      (in-cluster builds become optional); image-puller bindings for `obs-lab` and `obs-usr-*`.
 - [ ] Single entry point: one root Argo CD application for the minimal core (Keycloak, COO,
       orchestrator, console). Bootstrap value `platform: crc | rosa | aro | odf`, published in a
       ConfigMap for the orchestrator.
