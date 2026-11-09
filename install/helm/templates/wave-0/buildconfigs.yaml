@@ -84,7 +84,7 @@ spec:
 apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
-  name: obs-front
+  name: obs-console
   namespace: {{ .Values.applicationNamespace }}
   labels:
     observability-demo-framework: 'cicd'
@@ -98,10 +98,10 @@ spec:
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
-  name: obs-front
+  name: obs-console
   namespace: {{ .Values.applicationNamespace }}
   labels:    
-    build: obs-front
+    build: obs-console
     observability-demo-framework: 'cicd'
   {{- if .Values.annotationsWave0 }}
   annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
@@ -112,13 +112,13 @@ spec:
   output:
     to:
       kind: ImageStreamTag
-      name: obs-front:latest
+      name: obs-console:latest
   source:
     type: Git
     git: 
       uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
       ref: main
-    contextDir: obs-front
+    contextDir: obs-console
   strategy:
     dockerStrategy:
       buildArgs: 
@@ -130,7 +130,7 @@ spec:
 apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
-  name: obs-main-api
+  name: obs-orchestrator
   namespace: {{ .Values.applicationNamespace }}
   labels: 
     observability-demo-framework: 'cicd'
@@ -144,10 +144,10 @@ spec:
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
-  name: obs-main-api
+  name: obs-orchestrator
   namespace: {{ .Values.applicationNamespace }}
   labels:
-    build: obs-main-api
+    build: obs-orchestrator
     observability-demo-framework: 'cicd'
   {{- if .Values.annotationsWave0 }}
   annotations: {{- toYaml .Values.annotationsWave0 | nindent 4 }}
@@ -158,13 +158,13 @@ spec:
   output:
     to:
       kind: ImageStreamTag
-      name: obs-main-api:latest
+      name: obs-orchestrator:latest
   source:    
     type: Git
     git: 
       uri: 'https://github.com/CSA-RH/observability-demo-framework.git'
       ref: main
-    contextDir: obs-main-api/app
+    contextDir: obs-orchestrator/app
   strategy:
     dockerStrategy: 
       dockerfilePath: Dockerfile

@@ -14,7 +14,7 @@ Trust the local development CA once:
 ```bash
 sudo security add-trusted-cert -d -r trustRoot \
   -k /Library/Keychains/System.keychain \
-  obs-main-api/scripts/certs/rootCA.crt
+  obs-orchestrator/scripts/certs/rootCA.crt
 ```
 
 ## Backend (local API + local Keycloak)
@@ -22,7 +22,7 @@ sudo security add-trusted-cert -d -r trustRoot \
 From the repository root:
 
 ```bash
-obs-main-api/scripts/dev-start.sh --mode local
+obs-orchestrator/scripts/dev-start.sh --mode local
 ```
 
 What the script does:
@@ -50,7 +50,7 @@ Environment defaults in local mode:
 ### Against local API + local Keycloak
 
 ```bash
-cd obs-front
+cd obs-console
 npm install
 npm run start:local
 ```
@@ -65,7 +65,7 @@ VITE_KEYCLOAK_URL=https://localhost:8443
 ### Against CRC routes (cluster API + cluster Keycloak)
 
 ```bash
-cd obs-front
+cd obs-console
 npm run start:crc
 ```
 
@@ -82,8 +82,8 @@ In **local mode** (`KEYCLOAK_ISSUER` points to `localhost`), user records are st
 On **cluster-deployed API**, user sync uses a Kubernetes `Lease` (`user-sync-lock`). If you see `403 Forbidden` on leases, run:
 
 ```bash
-obs-main-api/scripts/patch-rbac-leases.sh obs-demo
-oc rollout restart deployment/obs-main-api -n obs-demo
+obs-orchestrator/scripts/patch-rbac-leases.sh obs-demo
+oc rollout restart deployment/obs-orchestrator -n obs-demo
 ```
 
 ## Troubleshooting

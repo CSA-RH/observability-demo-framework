@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:  
-  name: obs-main-api-sa
+  name: obs-orchestrator-sa
   namespace: {{ .Values.applicationNamespace }}
   {{- if .Values.annotationsWave3 }}
   annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
@@ -10,7 +10,7 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: obs-main-api-role
+  name: obs-orchestrator-role
   namespace: {{ .Values.applicationNamespace }}
   labels:
     observability-demo-framework: 'rbac'
@@ -37,7 +37,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: obs-main-api-clusterrole
+  name: obs-orchestrator-clusterrole
   labels:
     observability-demo-framework: 'rbac'
   {{- if .Values.annotationsWave3 }}
@@ -78,7 +78,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: obs-main-api-rolebinding
+  name: obs-orchestrator-rolebinding
   namespace: {{ .Values.applicationNamespace }}
   labels:
     observability-demo-framework: 'rbac'
@@ -87,17 +87,17 @@ metadata:
   {{- end }}
 subjects:
   - kind: ServiceAccount
-    name: obs-main-api-sa
+    name: obs-orchestrator-sa
     namespace: {{ .Values.applicationNamespace }}
 roleRef:
   kind: Role
-  name: obs-main-api-role
+  name: obs-orchestrator-role
   apiGroup: rbac.authorization.k8s.io
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: obs-main-api-clusterrolebinding
+  name: obs-orchestrator-clusterrolebinding
   labels:
     observability-demo-framework: 'rbac'
   {{- if .Values.annotationsWave3 }}
@@ -105,21 +105,21 @@ metadata:
   {{- end }}
 subjects:
   - kind: ServiceAccount
-    name: obs-main-api-sa
+    name: obs-orchestrator-sa
     namespace: {{ .Values.applicationNamespace }}
 roleRef:
   kind: ClusterRole
-  name: obs-main-api-clusterrole
+  name: obs-orchestrator-clusterrole
   apiGroup: rbac.authorization.k8s.io
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: obs-main-api
+  name: obs-orchestrator
   namespace: {{ .Values.applicationNamespace }}
   labels:
-    app: obs-main-api
+    app: obs-orchestrator
     observability-demo-framework: backend
   {{- if .Values.annotationsWave3 }}
   annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
@@ -130,15 +130,15 @@ spec:
     protocol: TCP
     targetPort: 8000
   selector:
-    app: obs-main-api
+    app: obs-orchestrator
 ---
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: obs-main-api
+  name: obs-orchestrator
   namespace: {{ .Values.applicationNamespace }}
   labels:
-    app: obs-main-api
+    app: obs-orchestrator
     observability-demo-framework: 'backend'
   {{- if .Values.annotationsWave3 }}
   annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
@@ -148,17 +148,17 @@ spec:
     targetPort: 8000
   to:
     kind: Service
-    name: obs-main-api
+    name: obs-orchestrator
   tls: 
     termination: edge
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: obs-front
+  name: obs-console
   namespace: {{ .Values.applicationNamespace }}
   labels:
-    app: obs-front
+    app: obs-console
     app.kubernetes.io/instance: obs-demo-wave-4
     observability-demo-framework: frontend
   {{- if .Values.annotationsWave3 }}
@@ -170,15 +170,15 @@ spec:
     protocol: TCP
     targetPort: 8080
   selector:
-    app: obs-front
+    app: obs-console
 ---
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
-  name: obs-front
+  name: obs-console
   namespace: {{ .Values.applicationNamespace }}
   labels:
-    app: obs-front
+    app: obs-console
     observability-demo-framework: frontend
   {{- if .Values.annotationsWave3 }}
   annotations: {{- toYaml .Values.annotationsWave3 | nindent 4 }}
@@ -188,6 +188,6 @@ spec:
     targetPort: 8080
   to:
     kind: Service
-    name: obs-front
+    name: obs-console
   tls: 
     termination: edge

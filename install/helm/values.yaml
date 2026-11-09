@@ -36,8 +36,8 @@ images:
   registry: ""
   pullPolicy: Always
   frontend:
-    name: obs-front
+    name: obs-console
     tag: latest
   backend:
-    name: obs-main-api
+    name: obs-orchestrator
     tag: latest

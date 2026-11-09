@@ -1103,9 +1103,9 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         except ApiException as exc:
             if exc.status == 403:
                 print(
-                    "WARNING: obs-main-api-sa cannot manage leases.coordination.k8s.io. "
+                    "WARNING: obs-orchestrator-sa cannot manage leases.coordination.k8s.io. "
                     "Running user sync without lock. "
-                    "Apply obs-main-api/scripts/patch-rbac-leases.sh to fix RBAC."
+                    "Apply obs-orchestrator/scripts/patch-rbac-leases.sh to fix RBAC."
                 )
                 return self.__run_sync_users_job()
             raise

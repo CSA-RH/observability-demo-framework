@@ -23,6 +23,58 @@ Phases are ordered by dependency: each one makes the next one safer. Tick items 
 
 ---
 
+## Target model (decided Nov 2026)
+
+### Roles
+
+| Role | Can do |
+|---|---|
+| **Administrator** | Create/delete users. Install optional modules (Loki, Tempo, OTel, Service Mesh). Set lab-wide profiles (pod naming themes, dashboards, ...). Act as any user by picking them in the user drop-down. |
+| **User** | Run simulations, metrics, alerts and logs inside their own namespace. Never installs cluster components. |
+
+Users no longer pick a monitoring stack (`user-workload` / `coo`) when they are created. The choice
+moves to each **simulation**, so one user can run different kinds of simulations.
+
+### Installation story
+
+1. **Bootstrap (GitOps):** a single root Argo CD application installs the minimal core:
+   Keycloak, COO, `obs-orchestrator`, `obs-console`.
+2. **The administrator logs in**, creates users and installs the remaining modules from the Admin
+   panel. Each module is an Argo CD `Application` created by the orchestrator in a restricted
+   `AppProject`. Argo CD does the installation; the orchestrator never installs operators or
+   operands itself.
+3. **Users** play with simulations in their namespace. The administrator can do the same for any
+   user by selecting them.
+
+### Platform differences (storage)
+
+**Object storage: MinIO on every platform.** MinIO runs on a PVC of the cluster's default
+StorageClass, and Loki/Tempo use it via S3. Good enough for demo purposes, so no Azure Storage
+Accounts, ODF ObjectBucketClaims or AWS S3 credentials are needed.
+
+**Block storage:** `LokiStack.spec.storageClassName` is mandatory in the CRD schema (and `""`
+means "no class", not "default"), so it must be set explicitly. Helm `lookup` does not work under
+Argo CD. Approach:
+
+- Each module chart has a default `values.yaml` plus a one-line overlay per platform with the
+  StorageClass name: `values-crc.yaml` (`crc-csi-hostpath-provisioner`), `values-rosa.yaml`
+  (`gp3-csi`), `values-aro.yaml` (`managed-csi`), `values-odf.yaml`
+  (`ocs-storagecluster-ceph-rbd`).
+- The module `Application` lists `valueFiles: [values.yaml, values-<platform>.yaml]`.
+- The platform is chosen once at bootstrap (root app value) and published in a ConfigMap that the
+  orchestrator reads when it creates module Applications.
+- Charts fail rendering with a clear message if `storageClassName` is missing (`required`).
+
+### Component names
+
+| Old | New |
+|---|---|
+| `obs-main-api` | `obs-orchestrator` |
+| `obs-front` | `obs-console` |
+| (Phase 4) | `obs-capabilities` |
+
+---
+
 ## Phase 0 - Hygiene
 
 - [x] Tag pre-cleanup state (`legacy-before-phase-0`) so removed content stays reachable.
@@ -79,6 +131,14 @@ Still open:
 
 ## Phase 2 - Modular monolith (backend)
 
+- [x] **Rename components first** (one dedicated commit, CI as safety net): `obs-main-api` ->
+      `obs-orchestrator`, `obs-front` -> `obs-console`. Covers folders, ImageStreams,
+      BuildConfigs, Deployments, Services/Routes, RBAC, `values.yaml` `images.*`, CI workflow,
+      README, dev scripts. Keycloak clients use wildcard redirect URIs, so only `backend-url`
+      (derived from the API Route name) changed.
+  - Existing installs: delete Job `bootstrap-keycloak-idp` before syncing (its pod template is
+    immutable and now carries the new API host), then rebuild the console image (API URL is
+    baked in at build time). Fresh installs need nothing.
 - [ ] Split `main.py` into FastAPI routers: `users`, `simulation`, `metrics`, `alerts`,
       `operations`, `cluster-info`.
 - [ ] Extract auth into its own module; cache JWKS; restrict CORS to the frontend route.
@@ -90,14 +150,38 @@ Still open:
   - `CapabilityService` - cluster info, installed operators/features
 - [ ] Settings via `pydantic-settings`; replace `print` with structured logging.
 - [ ] Pydantic request/response models for every endpoint (fixes the 500-vs-422 gap).
+- [ ] Move the monitoring stack choice (`user-workload` / `coo`) from user creation to
+      simulation creation. Today `monitoringType` lives on the user (`AdminPage.jsx`,
+      `operation_tasks.py`, `ApiHelper.js`, `AgentInfo.jsx`, `AlertManagement.jsx`,
+      `SimulationPage.jsx`). Includes migrating existing users stored in the ConfigMap.
+- [ ] Explicit roles: `admin` vs `user` Keycloak realm roles enforced in the API (admin-only:
+      user management, modules, profiles). Admin can target any user's namespace; users only
+      their own.
 - [ ] Remove `--reload` from the production container command.
 - [ ] Define a common client API contract (OpenAPI) for `obs-clients` (discovery, capabilities).
 
 ## Phase 3 - Installation experience
 
-- [ ] Single entry point: one ArgoCD app-of-apps.
-- [ ] Fold `install/gitops/opentelemetry` raw manifests into the Helm chart (or a sub-chart) behind
-      flags: `loki.enabled`, `tempo.enabled`, `otel.enabled`, later `serviceMesh.enabled`.
+See "Target model" above for the decided installation story.
+
+- [ ] Single entry point: one root Argo CD application for the minimal core (Keycloak, COO,
+      orchestrator, console). Bootstrap value `platform: crc | rosa | aro | odf`, published in a
+      ConfigMap for the orchestrator.
+- [ ] Split `install/gitops/opentelemetry` raw manifests into one Helm chart per module
+      (`minio`, `loki`, `tempo`, `otel`, later `service-mesh`). Each chart bundles the operator
+      Subscription and its operand (e.g. LokiStack) with sync waves, so one module = one
+      Application (operand CRs need `SkipDryRunOnMissingResource=true`).
+- [ ] Per-platform overlays `values-<platform>.yaml` (StorageClass name only) in each module
+      chart; remove the hardcoded `crc-csi-hostpath-provisioner` from the LokiStack; `required`
+      check on `storageClassName`. MinIO stays the only object store on all platforms.
+- [ ] Restricted `AppProject` (`obs-lab-modules`): source repo limited to this repository,
+      allowed destinations/namespaces and resource kinds whitelisted. Without it, creating
+      Applications in `default` is effectively cluster-admin.
+- [ ] Orchestrator `ModuleService`: create/delete module Applications (`valueFiles: [values.yaml,
+      values-<platform>.yaml]`) and report their Argo CD sync/health status. RBAC limited to
+      `applications.argoproj.io` in `openshift-gitops`.
+- [ ] Admin panel "Modules" section: install / uninstall / status per module.
+- [ ] Move the hardcoded MinIO credentials out of the manifests (generated Secret).
 - [ ] Runtime configuration for the frontend (serve `config.json`/env at container start instead of
       Vite build args) so images become cluster-independent.
 - [ ] Build images in CI and publish to Quay; chart defaults switch from in-cluster builds to
@@ -107,8 +191,12 @@ Still open:
 
 ## Phase 4 - First extracted microservice: capabilities / gamification
 
-- [ ] New service that detects installed operators/CSVs and options (UWM, COO, Loki, Tempo,
-      OTel, Service Mesh, Grafana/Perses) and exposes them as "achievements"/checklist.
+- [ ] `obs-capabilities`: detects installed operators/CSVs and options (UWM, COO, Loki, Tempo,
+      OTel, Service Mesh, Grafana/Perses) and exposes them as "achievements"/checklist. Reports
+      *who* manages each module (lab-managed Argo CD Application vs. installed outside the lab)
+      so the Admin panel does not offer "Install" on something already present.
+- [ ] Simulation options in the console are enabled/disabled based on detected capabilities
+      (e.g. logs view only when Loki is ready, traces only when Tempo + OTel are ready).
 - [ ] Establish the template for future services: shared auth library, Helm sub-chart, CI
       pipeline, least-privilege ServiceAccount.
 - [ ] Next candidates for extraction, driven by RBAC boundaries: tenant management (high
@@ -119,8 +207,8 @@ Still open:
 - [ ] **Service Mesh**: per-simulation option to enroll user namespaces and inject sidecars; link
       to Kiali graph.
 - [ ] **Multitenancy**: OpenShift IdP <-> Keycloak integration
-      ([article](https://access.redhat.com/articles/7062788)); per-tenant naming themes from
-      labelled ConfigMaps; namespace separation for loki / otel / tempo / user namespaces.
+      ([article](https://access.redhat.com/articles/7062788)); admin-managed **profiles**
+      (pod naming themes from labelled ConfigMaps, dashboards/graphics) assignable per user; namespace separation for loki / otel / tempo / user namespaces.
 - [ ] Grafana / Perses dashboards; better LogQL queries for the logs view.
 - [ ] Alerting receivers configurable from the UI (AlertmanagerConfig).
 - [ ] Exemplars (metrics <-> traces), korrel8r integration.

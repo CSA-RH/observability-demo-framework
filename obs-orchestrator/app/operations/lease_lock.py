@@ -35,7 +35,7 @@ class LeaseLock:
         self._lease_name = lease_name
         self._holder_identity = holder_identity or os.getenv(
             "LEASE_HOLDER_IDENTITY",
-            os.getenv("HOSTNAME", "obs-main-api"),
+            os.getenv("HOSTNAME", "obs-orchestrator"),
         )
         self._lease_duration_seconds = lease_duration_seconds
         self._acquire_timeout_seconds = acquire_timeout_seconds

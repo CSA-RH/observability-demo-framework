@@ -18,7 +18,7 @@ import {
     setglobalCurrentNamespace,
 } from './ApiHelper';
 
-const API = 'https://obs-main-api.apps.example.com';
+const API = 'https://obs-orchestrator.apps.example.com';
 
 describe('API URLs', () => {
     it('are built from VITE_OBSERVABILITY_DEMO_API', () => {
