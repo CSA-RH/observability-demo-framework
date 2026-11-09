@@ -1,0 +1,47 @@
+# The OpenShift GitOps application controller is not cluster-admin. Namespaced core resources
+# (Deployments, Jobs, Secrets, ...) are granted per namespace through the
+# `argocd.argoproj.io/managed-by: openshift-gitops` label, but the operand custom resources of the
+# operators installed here are not covered (and UIPlugin is cluster-scoped). Grant exactly those.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: observability-lab-argocd-operands
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+rules:
+- apiGroups: ["loki.grafana.com"]
+  resources: ["lokistacks"]
+  verbs: ["*"]
+- apiGroups: ["tempo.grafana.com"]
+  resources: ["tempostacks", "tempomonolithics"]
+  verbs: ["*"]
+- apiGroups: ["opentelemetry.io"]
+  resources: ["opentelemetrycollectors", "instrumentations"]
+  verbs: ["*"]
+- apiGroups: ["observability.openshift.io"]
+  resources: ["uiplugins"]
+  verbs: ["*"]
+# TempoStack in `openshift` tenancy mode: its gateway creates TokenReviews and
+# SubjectAccessReviews, and the Tempo admission webhook requires the creator of the TempoStack to
+# hold those permissions too.
+- apiGroups: ["authentication.k8s.io"]
+  resources: ["tokenreviews"]
+  verbs: ["create"]
+- apiGroups: ["authorization.k8s.io"]
+  resources: ["subjectaccessreviews"]
+  verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: observability-lab-argocd-operands
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: observability-lab-argocd-operands
+subjects:
+- kind: ServiceAccount
+  name: openshift-gitops-argocd-application-controller
+  namespace: openshift-gitops

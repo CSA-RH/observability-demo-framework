@@ -1,0 +1,21 @@
+# Cluster-admin prerequisites for observability-lab-otel: Loki, Tempo and OpenTelemetry operators,
+# plus the RBAC that lets the Argo CD controller manage their custom resources.
+# Apply this before (or together with) install/gitops/opentelemetry/observability-lab-otel.yaml.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-lab-operators
+  namespace: openshift-gitops
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/CSA-RH/observability-demo-framework.git
+    targetRevision: main
+    path: install/gitops/operators/manifests
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      # Removing a Subscription from git must not uninstall an operator other workloads may use.
+      prune: false
+      selfHeal: true

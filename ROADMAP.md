@@ -46,6 +46,17 @@ moves to each **simulation**, so one user can run different kinds of simulations
 3. **Users** play with simulations in their namespace. The administrator can do the same for any
    user by selecting them.
 
+**Operators vs. operands.** Operators (Subscriptions) are cluster-wide singletons and a cluster
+administrator's concern; a shared cluster (ROSA/ARO) may already have them. They live in their own
+Application (`observability-lab-operators`), separate from the operands (MinIO, LokiStack,
+TempoStack, OTel collector, UIPlugins). The lab's capability detection then tells the admin
+whether each operator is installed and healthy, regardless of who installed it.
+Users managing their own LokiStack/TempoStack (multi-tenant operands) is out of scope for now.
+
+**Argo CD RBAC.** The OpenShift GitOps controller is not cluster-admin. Namespaced workloads need
+the namespace label `argocd.argoproj.io/managed-by: openshift-gitops`; operand CRs (and the
+cluster-scoped UIPlugin) need an explicit ClusterRole, shipped with the operators Application.
+
 ### Platform differences (storage)
 
 **Object storage: MinIO on every platform.** MinIO runs on a PVC of the cluster's default
@@ -167,10 +178,15 @@ See "Target model" above for the decided installation story.
 - [ ] Single entry point: one root Argo CD application for the minimal core (Keycloak, COO,
       orchestrator, console). Bootstrap value `platform: crc | rosa | aro | odf`, published in a
       ConfigMap for the orchestrator.
+- [x] Restore a working `observability-lab-otel` on fresh clusters: new
+      `observability-lab-operators` Application (Loki, Tempo, OTel Subscriptions + Argo CD RBAC
+      for operand CRs); `managed-by` label on operand namespaces; `SkipDryRunOnMissingResource`
+      and retry on the operands Application. StorageClass still hardcoded for CRC.
 - [ ] Split `install/gitops/opentelemetry` raw manifests into one Helm chart per module
-      (`minio`, `loki`, `tempo`, `otel`, later `service-mesh`). Each chart bundles the operator
-      Subscription and its operand (e.g. LokiStack) with sync waves, so one module = one
-      Application (operand CRs need `SkipDryRunOnMissingResource=true`).
+      (`minio`, `loki`, `tempo`, `otel`, later `service-mesh`), operands only. Operators stay in
+      `observability-lab-operators` (one chart, one flag per operator, so a cluster that already
+      has an operator can skip it). Module Applications keep `SkipDryRunOnMissingResource=true`
+      and retry.
 - [ ] Per-platform overlays `values-<platform>.yaml` (StorageClass name only) in each module
       chart; remove the hardcoded `crc-csi-hostpath-provisioner` from the LokiStack; `required`
       check on `storageClassName`. MinIO stays the only object store on all platforms.
