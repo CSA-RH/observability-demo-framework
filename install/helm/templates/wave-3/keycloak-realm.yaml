@@ -183,7 +183,28 @@ data:
         -d "$ALL_ADMIN_ROLES_JSON" > /dev/null
       echo "All admin roles assigned."
     fi
-    
+
+    # Keycloak/RHBK 26.6+ only accepts Admin REST API tokens that carry the audience added by the
+    # built-in 'kc-admin-api' client scope. It is attached to admin-cli by default, but not to
+    # clients we create, whose tokens are then rejected with a bare 401. Older versions don't have
+    # the scope, so skip when absent. The PUT is idempotent (204 if already attached).
+    echo "Checking for client scope 'kc-admin-api'..."
+    ADMIN_API_SCOPE_ID=$(curl -s -k -X GET \
+      "$KEYCLOAK_URL/admin/realms/$PRIMARY_REALM/client-scopes" \
+      -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.[] | select(.name=="kc-admin-api") | .id')
+    if [ -n "$ADMIN_API_SCOPE_ID" ]; then
+      HTTP_CODE=$(curl -s -k -o /dev/null -w "%{http_code}" -X PUT \
+        "$KEYCLOAK_URL/admin/realms/$PRIMARY_REALM/clients/$CLIENT_UUID/default-client-scopes/$ADMIN_API_SCOPE_ID" \
+        -H "Authorization: Bearer $ADMIN_TOKEN")
+      if [ "$HTTP_CODE" != "204" ]; then
+        echo "ERROR: Failed to attach 'kc-admin-api' to '$SERVICE_CLIENT_ID' (HTTP $HTTP_CODE)." >&2
+        exit 1
+      fi
+      echo "Client scope 'kc-admin-api' attached to '$SERVICE_CLIENT_ID'."
+    else
+      echo "Client scope 'kc-admin-api' not present (Keycloak < 26.6). Skipping."
+    fi
+
     echo "Retrieving secret for '$SERVICE_CLIENT_ID'..."
     CLIENT_SECRET=$(curl -s -k -X GET \
       "$KEYCLOAK_URL/admin/realms/$PRIMARY_REALM/clients/$CLIENT_UUID/client-secret" \

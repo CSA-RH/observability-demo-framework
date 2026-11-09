@@ -187,6 +187,15 @@ See "Target model" above for the decided installation story.
 - [ ] Build images in CI and publish to Quay; chart defaults switch from in-cluster builds to
       `quay.io/...` (in-cluster BuildConfigs kept as an optional value).
 - [ ] Consolidate duplicated wave hooks (e.g. operator-check jobs).
+- [ ] Bootstrap Jobs with `ttlSecondsAfterFinished` (e.g. `bootstrap-keycloak-realm`, 300s) are
+      deleted by Kubernetes and recreated by Argo CD selfHeal, so they re-run every ~5 minutes.
+      Turn them into Argo CD hooks (`hook: Sync`, `hook-delete-policy: BeforeHookCreation`) or
+      drop the TTL.
+- [x] RHBK 26.6+: Admin REST API rejects tokens without the `kc-admin-api` scope audience (bare
+      401). `bootstrap-keycloak-realm` now attaches the scope to `automation-client`.
+  - [ ] Local dev (`dev-start.sh`, `quay.io/keycloak/keycloak:latest` + exported
+        `realm-definition.json`) likely has the same issue; verify and add `kc-admin-api` to
+        `automation-client` there.
 - [ ] Document install / uninstall / upgrade; add an uninstall cleanup job.
 
 ## Phase 4 - First extracted microservice: capabilities / gamification
