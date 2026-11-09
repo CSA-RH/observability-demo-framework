@@ -20,6 +20,16 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      # Operand CRDs (LokiStack, TempoStack, OpenTelemetryCollector, ...) only exist once the
+      # operators from observability-lab-operators are installed. Skip the dry-run for them and
+      # retry until they are available.
+      - SkipDryRunOnMissingResource=true
+    retry:
+      limit: 15
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
     managedNamespaceMetadata:
       labels:
         argocd.argoproj.io/managed-by: openshift-gitops
