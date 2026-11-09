@@ -126,23 +126,45 @@ expected-failure tests; see [ROADMAP.md](ROADMAP.md).
 
 ## Using the UI
 
+A simulation is a small restaurant: **customers**, **waiters** and **cooks** are agent pods
+connected on the canvas.
+
 - **Model** communication paths between agents on the canvas.
 - **Metrics**: create and update custom Prometheus gauges per agent.
 - **Alerts**: define PrometheusRule alerts on those metrics.
-- **Kick**: an agent sends a message to all its next hops with a counter (starting at `4`); each
-  receiver forwards it, decrementing the counter until zero, which produces distributed traces.
+- **Order**: a customer orders a tasting menu. The order goes to an available waiter, who passes
+  it to a cook. Cooks sometimes "go crazy" (about 1 in 5 orders fail), so a few orders give you
+  errors to find in logs and traces. Each order is one distributed trace across the three agents.
 
 Agents are named after historic players of **Málaga CF** and **CD Málaga**, a very important
 requirement of the system.
 
 ![Communication model](img/obs-console-main.png)
 
-Agent metrics in the UI and in the cluster:
+### Metrics
+
+Agent metrics in the UI, and the same metrics queried in the cluster:
 
 ![Frontend metrics](img/obs-console-metrics.png)
 ![Cluster metrics](img/cluster-metrics.png)
 
-Pod logs after a kick, and the resulting trace:
+### Logs
 
-![Kick operation logs](img/kick-cluster-pod.png)
-![Kick operation trace](img/kick-jaeger.png)
+Each agent writes structured logs. Every line carries the order's request id plus the `TraceId`
+and `SpanId`, so a log line can be matched to its trace. Raw pod logs of a customer after a few
+orders, including a failed one:
+
+![Order logs in the pod](img/order-cluster-pod.png)
+
+All the simulation's logs in **Observe > Logs** in the OpenShift console, stored in Loki and
+filtered by the user's namespace. The OpenTelemetry collector adds Kubernetes and service
+attributes (namespace, pod, deployment, `service_name`); below, a .NET waiter's log line expanded:
+
+![Logs in Loki from the OpenShift console](img/logs-loki.png)
+
+### Traces
+
+The trace of one order in **Observe > Traces** (Tempo): the customer's `POST /operations/order`,
+then the waiter, then the cook:
+
+![Order trace in the OpenShift console](img/order-console.png)
