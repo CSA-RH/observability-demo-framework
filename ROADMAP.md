@@ -125,10 +125,14 @@ Still open:
 
 ## Phase 2 - Modular monolith (backend)
 
-- [ ] **Rename components first** (one dedicated commit, CI as safety net): `obs-main-api` ->
+- [x] **Rename components first** (one dedicated commit, CI as safety net): `obs-main-api` ->
       `obs-orchestrator`, `obs-front` -> `obs-console`. Covers folders, ImageStreams,
-      BuildConfigs, Deployments, Services/Routes, `values.yaml` `images.*`, CI workflow, README.
-      Watch the console Route host: Keycloak client redirect URIs and CORS origin must follow.
+      BuildConfigs, Deployments, Services/Routes, RBAC, `values.yaml` `images.*`, CI workflow,
+      README, dev scripts. Keycloak clients use wildcard redirect URIs, so only `backend-url`
+      (derived from the API Route name) changed.
+  - Existing installs: delete Job `bootstrap-keycloak-idp` before syncing (its pod template is
+    immutable and now carries the new API host), then rebuild the console image (API URL is
+    baked in at build time). Fresh installs need nothing.
 - [ ] Split `main.py` into FastAPI routers: `users`, `simulation`, `metrics`, `alerts`,
       `operations`, `cluster-info`.
 - [ ] Extract auth into its own module; cache JWKS; restrict CORS to the frontend route.

@@ -1,10 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: obs-front
+  name: obs-console
   namespace: {{ .Values.applicationNamespace }}
   labels:
-    app: obs-front
+    app: obs-console
     observability-demo-framework: frontend  
   {{- if .Values.annotationsWave4 }}
   annotations: {{- toYaml .Values.annotationsWave4 | nindent 4 }}
@@ -13,24 +13,24 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: obs-front
+      app: obs-console
   template:
     metadata:
       labels:
-        app: obs-front
+        app: obs-console
     spec:
       containers:
       - image: {{ include "obs.image" (dict "image" .Values.images.frontend "root" .) }}
         imagePullPolicy: {{ .Values.images.pullPolicy }}
-        name: obs-front
+        name: obs-console
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: obs-main-api  
+  name: obs-orchestrator  
   namespace: {{ .Values.applicationNamespace }}
   labels:
-    app: obs-main-api
+    app: obs-orchestrator
     observability-demo-framework: 'backend'
   {{- if .Values.annotationsWave4 }}
   annotations: {{- toYaml .Values.annotationsWave4 | nindent 4 }}
@@ -39,15 +39,15 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: obs-main-api
+      app: obs-orchestrator
   strategy: {}
   template:
     metadata:      
       labels:
-        app: obs-main-api
+        app: obs-orchestrator
         observability-demo-framework: 'backend'
     spec:
-      serviceAccountName: obs-main-api-sa
+      serviceAccountName: obs-orchestrator-sa
       volumes:
       - name: keycloak-route-ca-secret
         secret:
@@ -56,7 +56,7 @@ spec:
       containers:
       - image: {{ include "obs.image" (dict "image" .Values.images.backend "root" .) }}
         imagePullPolicy: {{ .Values.images.pullPolicy }}
-        name: obs-main-api
+        name: obs-orchestrator
         volumeMounts:
         - name: keycloak-route-ca-secret
           readOnly: true

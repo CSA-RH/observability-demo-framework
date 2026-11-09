@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Build obs-front via OpenShift BuildConfig and deploy to the active `oc` cluster.
+# Build obs-console via OpenShift BuildConfig and deploy to the active `oc` cluster.
 
 SCRIPT_DIR="$(realpath "$(dirname "$0")")"
 SOURCES_DIR=$SCRIPT_DIR/
@@ -59,7 +59,7 @@ wait_for_build() {
     fi
 }
 
-export VITE_API_URL="$(resolve_route_url obs-main-api)"
+export VITE_API_URL="$(resolve_route_url obs-orchestrator)"
 export IDP_URL="$(resolve_keycloak_url)"
 
 echo "Building frontend with:"
@@ -74,12 +74,12 @@ VITE_KEYCLOAK_REALM=csa
 VITE_KEYCLOAK_CLIENT_ID=webauth
 EOF
 
-if ! check_openshift_resource_exists ImageStream obs-front; then
+if ! check_openshift_resource_exists ImageStream obs-console; then
     oc apply -f - <<EOF
 apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
-  name: obs-front
+  name: obs-console
   labels:
     observability-demo-framework: 'cicd'
 spec:
@@ -93,14 +93,14 @@ apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
   labels:
-    build: obs-front-local
+    build: obs-console-local
     observability-demo-framework: 'cicd'
-  name: obs-front-local
+  name: obs-console-local
 spec:
   output:
     to:
       kind: ImageStreamTag
-      name: obs-front:latest
+      name: obs-console:latest
   source:
     binary: {}
     type: Binary
@@ -119,44 +119,44 @@ spec:
     type: Docker
 EOF
 
-oc delete build --selector build=obs-front-local > /dev/null 2>&1 || true
+oc delete build --selector build=obs-console-local > /dev/null 2>&1 || true
 
-build_name="$(oc start-build obs-front-local --from-dir="${SOURCES_DIR}" --no-cache -o name | sed 's|build.build.openshift.io/||')"
+build_name="$(oc start-build obs-console-local --from-dir="${SOURCES_DIR}" --no-cache -o name | sed 's|build.build.openshift.io/||')"
 oc logs -f "build/${build_name}"
 wait_for_build "${build_name}"
 
-if check_openshift_resource_exists Deployment obs-front; then
+if check_openshift_resource_exists Deployment obs-console; then
     echo "Updating deployment..."
     oc set image \
-        deployment/obs-front \
-        obs-front="$(oc get istag obs-front:latest -o jsonpath='{.image.dockerImageReference}')"
-    oc rollout status deployment/obs-front --timeout=5m
+        deployment/obs-console \
+        obs-console="$(oc get istag obs-console:latest -o jsonpath='{.image.dockerImageReference}')"
+    oc rollout status deployment/obs-console --timeout=5m
 else
     echo "Creating deployment, service and route..."
-    oc create deploy obs-front --image=obs-front:latest
-    oc label deploy obs-front observability-demo-framework=frontend
-    oc expose deploy/obs-front --port 8080
-    oc label service obs-front observability-demo-framework=frontend
+    oc create deploy obs-console --image=obs-console:latest
+    oc label deploy obs-console observability-demo-framework=frontend
+    oc expose deploy/obs-console --port 8080
+    oc label service obs-console observability-demo-framework=frontend
     oc apply -f - <<EOF
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   labels:
-    app: obs-front
+    app: obs-console
     observability-demo-framework: frontend
-  name: obs-front
+  name: obs-console
 spec:
   port:
     targetPort: 8080
   to:
     kind: Service
-    name: obs-front
+    name: obs-console
   tls:
     termination: edge
 EOF
-    oc rollout status deployment/obs-front --timeout=5m
+    oc rollout status deployment/obs-console --timeout=5m
 fi
 
 rm -f "${SOURCES_DIR}/.env.production"
 
-echo "Done. Open https://$(oc get route obs-front -o jsonpath='{.spec.host}')"
+echo "Done. Open https://$(oc get route obs-console -o jsonpath='{.spec.host}')"

@@ -21,14 +21,14 @@ check_openshift_resource_exists() {
 }
 
 # Create ImageStream for Observability Demo API if not exists
-if check_openshift_resource_exists ImageStream obs-main-api; then
-  echo "ImageStream obs-main-api exists"
+if check_openshift_resource_exists ImageStream obs-orchestrator; then
+  echo "ImageStream obs-orchestrator exists"
 else
   cat <<EOF | oc apply -f -
 apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
-  name: obs-main-api
+  name: obs-orchestrator
   labels: 
     observability-demo-framework: 'cicd'
 spec:
@@ -36,22 +36,22 @@ spec:
     local: true
 EOF
 fi
-if check_openshift_resource_exists BuildConfig obs-main-api-local; then
-  echo "BuildConfig obs-main-api-local exists"
+if check_openshift_resource_exists BuildConfig obs-orchestrator-local; then
+  echo "BuildConfig obs-orchestrator-local exists"
 else
   cat <<EOF | oc apply -f -
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
   labels:
-    build: obs-main-api-local
+    build: obs-orchestrator-local
     observability-demo-framework: 'cicd'
-  name: obs-main-api-local
+  name: obs-orchestrator-local
 spec:
   output:
     to:
       kind: ImageStreamTag
-      name: obs-main-api:latest
+      name: obs-orchestrator:latest
   source:
     binary: {}
     type: Binary
@@ -63,32 +63,32 @@ EOF
 fi
   
 # Remove previous build objects
-oc delete build --selector build=obs-main-api-local > /dev/null 
-# Start build for obs-main-api
-oc start-build obs-main-api-local --from-file $SOURCES_DIR
+oc delete build --selector build=obs-orchestrator-local > /dev/null 
+# Start build for obs-orchestrator
+oc start-build obs-orchestrator-local --from-file $SOURCES_DIR
 # Follow the logs until completion 
-oc logs $(oc get build --selector build=obs-main-api-local -oNAME) -f 
+oc logs $(oc get build --selector build=obs-orchestrator-local -oNAME) -f 
 # Check if a deployment already exists
-if check_openshift_resource_exists Deployment obs-main-api; then
+if check_openshift_resource_exists Deployment obs-orchestrator; then
   # update deployment
   echo "Updating deployment..."
   oc set image \
-    deployment/obs-main-api \
-    obs-main-api=$(oc get istag obs-main-api:latest -o jsonpath='{.image.dockerImageReference}')
+    deployment/obs-orchestrator \
+    obs-orchestrator=$(oc get istag obs-orchestrator:latest -o jsonpath='{.image.dockerImageReference}')
 else
   echo "Creating deployment, service and route..."
   # Create deployment
-  #oc create deploy obs-main-api --image=obs-main-api:latest
+  #oc create deploy obs-orchestrator --image=obs-orchestrator:latest
   
-  # Customize backend permissions (to sa obs-main-api-sa) to match only the used resources.
-  # - Create service account obs-main-api-sa
-  oc create sa obs-main-api-sa
+  # Customize backend permissions (to sa obs-orchestrator-sa) to match only the used resources.
+  # - Create service account obs-orchestrator-sa
+  oc create sa obs-orchestrator-sa
   # - Create role and clusterrole for service account
   cat <<EOF | oc apply -f -
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: obs-main-api-role
+  name: obs-orchestrator-role
   labels:
     observability-demo-framework: 'rbac'
 rules:
@@ -113,7 +113,7 @@ EOF
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: obs-main-api-clusterrole
+  name: obs-orchestrator-clusterrole
   labels:
     observability-demo-framework: 'rbac'
 rules:
@@ -148,37 +148,37 @@ rules:
     resources: ["prometheusrules"]
     verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
 EOF
-  # - Create role binding (obs-main-api-role and obs-main-api-clusterrole to obs-main-api-sa)
+  # - Create role binding (obs-orchestrator-role and obs-orchestrator-clusterrole to obs-orchestrator-sa)
   cat <<EOF | oc apply -f -
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: obs-main-api-rolebinding
+  name: obs-orchestrator-rolebinding
   labels:
     observability-demo-framework: 'rbac'
 subjects:
   - kind: ServiceAccount
-    name: obs-main-api-sa
+    name: obs-orchestrator-sa
     namespace: $CURRENT_NAMESPACE
 roleRef:
   kind: Role
-  name: obs-main-api-role
+  name: obs-orchestrator-role
   apiGroup: rbac.authorization.k8s.io
 EOF
   cat <<EOF | oc apply -f -
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: obs-main-api-clusterrolebinding
+  name: obs-orchestrator-clusterrolebinding
   labels:
     observability-demo-framework: 'rbac'
 subjects:
   - kind: ServiceAccount
-    name: obs-main-api-sa
+    name: obs-orchestrator-sa
     namespace: $CURRENT_NAMESPACE
 roleRef:
   kind: ClusterRole
-  name: obs-main-api-clusterrole
+  name: obs-orchestrator-clusterrole
   apiGroup: rbac.authorization.k8s.io
 EOF
   # Create deployment
@@ -188,31 +188,31 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: obs-main-api
+    app: obs-orchestrator
     observability-demo-framework: 'backend'
-  name: obs-main-api
+  name: obs-orchestrator
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: obs-main-api
+      app: obs-orchestrator
   strategy: {}
   template:
     metadata:
       creationTimestamp: null
       labels:
-        app: obs-main-api
+        app: obs-orchestrator
         observability-demo-framework: 'backend'
     spec:
-      serviceAccountName: obs-main-api-sa
+      serviceAccountName: obs-orchestrator-sa
       volumes:
       - name: keycloak-route-ca-secret
         secret:
           secretName: keycloak-route-ca-secret
           defaultMode: 420
       containers:
-      - image: obs-main-api:latest
-        name: obs-main-api
+      - image: obs-orchestrator:latest
+        name: obs-orchestrator
         volumeMounts:
         - name: keycloak-route-ca-secret
           readOnly: true
@@ -224,22 +224,22 @@ spec:
           value: /etc/ssl/keycloak/ca.crt
 EOF
   # Create service
-  oc expose deploy/obs-main-api --port 8000
+  oc expose deploy/obs-orchestrator --port 8000
   # Create route
   cat <<EOF | oc apply -f - 
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   labels:
-    app: obs-main-api
+    app: obs-orchestrator
     observability-demo-framework: 'backend'
-  name: obs-main-api
+  name: obs-orchestrator
 spec:
   port:
     targetPort: 8000
   to:
     kind: Service
-    name: obs-main-api
+    name: obs-orchestrator
   tls: 
     termination: edge
 EOF

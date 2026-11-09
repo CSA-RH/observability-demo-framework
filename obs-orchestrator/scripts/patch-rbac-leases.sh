@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Patch obs-main-api Role to allow Kubernetes Lease locks for user sync serialization.
+# Patch obs-orchestrator Role to allow Kubernetes Lease locks for user sync serialization.
 set -euo pipefail
 
 NAMESPACE="${1:-obs-demo}"
 
-echo "Patching obs-main-api-role in namespace ${NAMESPACE}..."
+echo "Patching obs-orchestrator-role in namespace ${NAMESPACE}..."
 
 oc apply -f - <<EOF
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: obs-main-api-role
+  name: obs-orchestrator-role
   namespace: ${NAMESPACE}
   labels:
     observability-demo-framework: rbac
@@ -32,10 +32,10 @@ rules:
     verbs: ["create", "get", "list", "watch", "delete", "patch", "update"]
 EOF
 
-echo "Verifying lease permission for obs-main-api-sa..."
+echo "Verifying lease permission for obs-orchestrator-sa..."
 oc auth can-i get leases \
-  --as="system:serviceaccount:${NAMESPACE}:obs-main-api-sa" \
+  --as="system:serviceaccount:${NAMESPACE}:obs-orchestrator-sa" \
   -n "${NAMESPACE}"
 
-echo "Done. Restart obs-main-api pod if it was already running:"
-echo "  oc rollout restart deployment/obs-main-api -n ${NAMESPACE}"
+echo "Done. Restart obs-orchestrator pod if it was already running:"
+echo "  oc rollout restart deployment/obs-orchestrator -n ${NAMESPACE}"

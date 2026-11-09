@@ -11,8 +11,8 @@ telemetry.
 
 | Folder | Description |
 |---|---|
-| [`obs-front`](obs-front) | React + Vite UI. Graph editor (Cytoscape), simulation, metrics and alert management. Authenticates users against Keycloak. |
-| [`obs-main-api`](obs-main-api) | Python FastAPI control plane. Validates Keycloak JWTs, manages users/namespaces and simulations on OpenShift through the Kubernetes Python client. |
+| [`obs-console`](obs-console) | React + Vite UI. Graph editor (Cytoscape), simulation, metrics and alert management. Authenticates users against Keycloak. |
+| [`obs-orchestrator`](obs-orchestrator) | Python FastAPI control plane. Validates Keycloak JWTs, manages users/namespaces and simulations on OpenShift through the Kubernetes Python client. |
 | [`obs-clients`](obs-clients) | Agent microservices deployed as simulation pods: **Node.js** and **.NET** (Go and Java are stubs). Expose custom Prometheus metrics and forward "kick" requests to their next hops. |
 | [`obs-sync-users`](obs-sync-users) | Ansible execution image used by the job that syncs app users to Keycloak. |
 | [`install`](install) | Installation: Helm chart (`install/helm`) and Argo CD applications (`install/gitops`). |
@@ -62,17 +62,17 @@ Main chart values (`install/helm/values.yaml`):
 
 ## Local development
 
-See [`obs-main-api/scripts/DEVELOPMENT.md`](obs-main-api/scripts/DEVELOPMENT.md) to run the UI and API
+See [`obs-orchestrator/scripts/DEVELOPMENT.md`](obs-orchestrator/scripts/DEVELOPMENT.md) to run the UI and API
 locally against a CRC cluster with a local Keycloak.
 
 Tests:
 
 ```bash
 # Backend (Python 3.12+): unit + API tests against the mock connectors, no cluster needed
-cd obs-main-api && pip install -r requirements-dev.txt && python -m pytest --cov=app
+cd obs-orchestrator && pip install -r requirements-dev.txt && python -m pytest --cov=app
 
 # Frontend (Vitest + React Testing Library)
-cd obs-front && npm ci && npm test
+cd obs-console && npm ci && npm test
 
 # Node.js client
 cd obs-clients/obs-client-api-node && npm install && npm test
@@ -93,11 +93,11 @@ expected-failure tests; see [ROADMAP.md](ROADMAP.md).
 Agents are named after historic players of **Málaga CF** and **CD Málaga**, a very important
 requirement of the system.
 
-![Communication model](img/obs-front-main.png)
+![Communication model](img/obs-console-main.png)
 
 Agent metrics in the UI and in the cluster:
 
-![Frontend metrics](img/obs-front-metrics.png)
+![Frontend metrics](img/obs-console-metrics.png)
 ![Cluster metrics](img/cluster-metrics.png)
 
 Pod logs after a kick, and the resulting trace:
