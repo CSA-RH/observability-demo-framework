@@ -31,22 +31,64 @@ Long-running operations (user and simulation creation/deletion) are asynchronous
 
 ## Installation (OpenShift)
 
-The supported installation is GitOps-based. It requires the **OpenShift GitOps** operator.
+The supported installation is GitOps-based, as three Argo CD Applications. Validated end to end on
+a fresh CRC (8 CPUs, 24 GB RAM, 120 GB disk, cluster monitoring enabled).
 
-1. **Foundations and application.** The Helm chart in `install/helm` installs the operators (Red Hat
-   build of Keycloak, Cluster Observability Operator), Keycloak with its realm and generated
-   secrets, builds the images in-cluster and deploys the app, in Argo CD sync waves 0-4:
+0. **Prerequisite: OpenShift GitOps operator.**
+
+   ```bash
+   cat <<EOF | oc apply -f -
+   apiVersion: v1
+   kind: Namespace
+   metadata: {name: openshift-gitops-operator}
+   ---
+   apiVersion: operators.coreos.com/v1
+   kind: OperatorGroup
+   metadata: {name: openshift-gitops-operator, namespace: openshift-gitops-operator}
+   spec: {upgradeStrategy: Default}
+   ---
+   apiVersion: operators.coreos.com/v1alpha1
+   kind: Subscription
+   metadata: {name: openshift-gitops-operator, namespace: openshift-gitops-operator}
+   spec: {channel: latest, name: openshift-gitops-operator, source: redhat-operators, sourceNamespace: openshift-marketplace}
+   EOF
+   ```
+
+1. **Foundations and application** (`observability-lab-base`). The Helm chart in `install/helm`
+   installs the Red Hat build of Keycloak and Cluster Observability operators, Keycloak with its
+   realm and generated secrets, builds the images in-cluster and deploys the app, in Argo CD sync
+   waves 0-4 (5-10 minutes):
 
    ```bash
    oc apply -f install/gitops/base/observability-lab-base.yaml
    ```
 
-2. **Logging and tracing stack (optional).** MinIO, LokiStack, TempoStack, OpenTelemetry Collector
-   and the console UI plugins:
+   Log in at `https://obs-console-obs-demo.<apps-domain>` as `admin` (password in Secret
+   `obs-demo-admin-creds`, namespace `obs-demo`).
+
+2. **Operators for logging and tracing** (`observability-lab-operators`, cluster admin). Loki, Tempo
+   and Red Hat build of OpenTelemetry operators, plus the RBAC that lets the Argo CD controller
+   manage their custom resources:
+
+   ```bash
+   oc apply -f install/gitops/operators/observability-lab-operators.yaml
+   ```
+
+3. **Logging and tracing stack** (`observability-lab-otel`). MinIO, LokiStack, TempoStack,
+   OpenTelemetry Collector and Instrumentation, console UI plugins. Can be applied right after step
+   2; it retries until the operator CRDs exist:
 
    ```bash
    oc apply -f install/gitops/opentelemetry/observability-lab-otel.yaml
    ```
+
+   Argo CD has no health check for LokiStack, so check its `Ready` condition directly:
+   `oc get lokistack loki -n obs-loki -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'`.
+
+> **Known limitations.** The LokiStack StorageClass is hardcoded for CRC
+> (`crc-csi-hostpath-provisioner`); per-platform overlays are on the roadmap. User workload
+> monitoring is not enabled by the installation, so `user-workload` simulations show no metrics
+> unless it is enabled in `cluster-monitoring-config`.
 
 Main chart values (`install/helm/values.yaml`):
 
