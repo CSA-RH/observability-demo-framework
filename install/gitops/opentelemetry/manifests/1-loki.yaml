@@ -107,9 +107,8 @@ spec:
         queryTimeout: 3m
   storageClassName: crc-csi-hostpath-provisioner
   storage:
+    # Loki operator 6.7+ marks the stack Degraded if deprecated schemas (v12) are listed.
     schemas:
-      - effectiveDate: '2022-06-01'
-        version: v12
       - effectiveDate: "2024-04-02"
         version: v13
     secret:
