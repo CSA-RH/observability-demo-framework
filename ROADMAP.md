@@ -48,12 +48,18 @@ moves to each **simulation**, so one user can run different kinds of simulations
 
 ### Platform differences (storage)
 
-`LokiStack.spec.storageClassName` is mandatory in the CRD schema (and `""` means "no class", not
-"default"), so it must be set explicitly. Helm `lookup` does not work under Argo CD. Approach:
+**Object storage: MinIO on every platform.** MinIO runs on a PVC of the cluster's default
+StorageClass, and Loki/Tempo use it via S3. Good enough for demo purposes, so no Azure Storage
+Accounts, ODF ObjectBucketClaims or AWS S3 credentials are needed.
 
-- Each module chart has a default `values.yaml` plus one overlay per platform:
-  `values-crc.yaml`, `values-rosa.yaml`, `values-aro.yaml`, `values-odf.yaml` (block StorageClass
-  and object-store backend: MinIO, S3, Azure Blob, ODF ObjectBucketClaim).
+**Block storage:** `LokiStack.spec.storageClassName` is mandatory in the CRD schema (and `""`
+means "no class", not "default"), so it must be set explicitly. Helm `lookup` does not work under
+Argo CD. Approach:
+
+- Each module chart has a default `values.yaml` plus a one-line overlay per platform with the
+  StorageClass name: `values-crc.yaml` (`crc-csi-hostpath-provisioner`), `values-rosa.yaml`
+  (`gp3-csi`), `values-aro.yaml` (`managed-csi`), `values-odf.yaml`
+  (`ocs-storagecluster-ceph-rbd`).
 - The module `Application` lists `valueFiles: [values.yaml, values-<platform>.yaml]`.
 - The platform is chosen once at bootstrap (root app value) and published in a ConfigMap that the
   orchestrator reads when it creates module Applications.
@@ -165,8 +171,9 @@ See "Target model" above for the decided installation story.
       (`minio`, `loki`, `tempo`, `otel`, later `service-mesh`). Each chart bundles the operator
       Subscription and its operand (e.g. LokiStack) with sync waves, so one module = one
       Application (operand CRs need `SkipDryRunOnMissingResource=true`).
-- [ ] Per-platform overlays `values-<platform>.yaml` in each module chart; remove the hardcoded
-      `crc-csi-hostpath-provisioner` from the LokiStack; `required` check on `storageClassName`.
+- [ ] Per-platform overlays `values-<platform>.yaml` (StorageClass name only) in each module
+      chart; remove the hardcoded `crc-csi-hostpath-provisioner` from the LokiStack; `required`
+      check on `storageClassName`. MinIO stays the only object store on all platforms.
 - [ ] Restricted `AppProject` (`obs-lab-modules`): source repo limited to this repository,
       allowed destinations/namespaces and resource kinds whitelisted. Without it, creating
       Applications in `default` is effectively cluster-admin.
