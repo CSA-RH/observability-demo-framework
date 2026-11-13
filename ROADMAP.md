@@ -23,9 +23,10 @@ Observe > Traces and logs in Observe > Logs.
    `main.py` into routers and the connector into domain services.
 2. Phase 3: namespace split (`obs-idp`, then `obs-lab` + `obs-usr-<name>`, then `obs-images`);
    operands-only module charts (`minio`, `loki`, `tempo`, `otel`) with per-platform
-   StorageClass overlays; operators chart with one flag per operator; root app-of-apps.
-3. Phase 4: capability detection, including real health of LokiStack/TempoStack (Argo CD cannot
-   see a Degraded LokiStack).
+   StorageClass overlays; one Application per operator; root app-of-apps.
+3. Phase 4: capability detection and admin actions (operators, user workload monitoring, real
+   health of LokiStack/TempoStack, which Argo CD cannot see as Degraded); user challenges verified
+   by outcome (see "Capabilities and challenges").
 
 ## Starting point (pre-Phase 0 snapshot, Nov 2026)
 
@@ -72,6 +73,52 @@ Application (`observability-lab-operators`), separate from the operands (MinIO, 
 TempoStack, OTel collector, UIPlugins). The lab's capability detection then tells the admin
 whether each operator is installed and healthy, regardless of who installed it.
 Users managing their own LokiStack/TempoStack (multi-tenant operands) is out of scope for now.
+
+### Capabilities and challenges (decided 2026-11-13)
+
+The console shows what the cluster can do and lets the administrator act on it. Installation is
+not a one-off install-time choice: the lab detects the current state, whoever set it up.
+
+**Lab-level capabilities (administrator).** Each one has a detected *status* and, where the lab is
+allowed to change it, an *action*:
+
+| Capability | Detected from | Admin action |
+|---|---|---|
+| Loki / Tempo / OTel / COO operators | Subscription + CSV phase | Create that operator's Argo CD Application |
+| User workload monitoring (UWM) | `enableUserWorkload` in `openshift-monitoring/cluster-monitoring-config`, `prometheus-user-workload` pods | Enable, only where the lab may own that setting |
+| Shared operands (MinIO, LokiStack, TempoStack, lab collector, UIPlugins) | CR status conditions (not Argo CD health) | Create the module Application |
+
+- **One Argo CD Application per operator** (today one Application holds all three), so the admin
+  can install Loki without Tempo. The manifests already work on any OpenShift flavour; the
+  orchestrator/`obs-capabilities` only creates the Application (RBAC to be designed with the
+  restricted `AppProject`).
+- **Status comes from the cluster, not from Argo CD.** An operator installed outside the lab shows
+  as present ("managed externally") and the console offers no Install button for it.
+- **UWM is cluster configuration, not an operator.** `cluster-monitoring-config` is shared: Argo CD
+  must not own the whole ConfigMap (it would overwrite other keys, e.g. the ones ARO sets), so the
+  enable action patches only `enableUserWorkload` (creating the ConfigMap if it is missing).
+  Who may change it depends on the platform:
+  - Self-managed OCP / CRC, **ARO**, **ROSA HCP**: the customer's cluster-admin (on ROSA HCP, UWM
+    is off by default on new clusters since early 2026 and is enabled through this ConfigMap):
+    the console offers the action.
+  - **ROSA Classic / OSD**: `cluster-monitoring-config` is SRE-managed and UWM is toggled in
+    OpenShift Cluster Manager (the toggle can overwrite related config): the console shows the
+    status plus a hint, no action.
+- Simulation options unlock from capabilities: `user-workload` simulations need UWM, the logs view
+  needs Loki ready, traces need Tempo + OTel ready.
+
+**User-level challenges (gamification).** Users work only in their own namespace, so challenges are
+namespace-scoped resources they create themselves (by hand with `oc` or guided from the console):
+
+- an `OpenTelemetryCollector` (deployment or sidecar) forwarding to the lab's TempoStack/LokiStack;
+- an `Instrumentation` CR plus annotation for auto-instrumentation of a simulated workload;
+- later: ServiceMonitors, PrometheusRules, AlertmanagerConfig receivers.
+
+A challenge is completed by **outcome, not object existence**: "your traces arrive in Tempo",
+"your logs show up in Loki", "your alert fired". `obs-capabilities` queries the backends for the
+user's tenant/namespace and records the achievement.
+
+Per-user LokiStack/TempoStack stays out of scope: users consume the shared, lab-level operands.
 
 **Argo CD RBAC.** The OpenShift GitOps controller is not cluster-admin. Namespaced workloads need
 the namespace label `argocd.argoproj.io/managed-by: openshift-gitops`; operand CRs (and the
@@ -242,10 +289,11 @@ See "Target model" above for the decided installation story.
       for operand CRs); `managed-by` label on operand namespaces; `SkipDryRunOnMissingResource`
       and retry on the operands Application. StorageClass still hardcoded for CRC.
 - [ ] Split `install/gitops/opentelemetry` raw manifests into one Helm chart per module
-      (`minio`, `loki`, `tempo`, `otel`, later `service-mesh`), operands only. Operators stay in
-      `observability-lab-operators` (one chart, one flag per operator, so a cluster that already
-      has an operator can skip it). Module Applications keep `SkipDryRunOnMissingResource=true`
-      and retry.
+      (`minio`, `loki`, `tempo`, `otel`, later `service-mesh`), operands only. Module
+      Applications keep `SkipDryRunOnMissingResource=true` and retry.
+- [ ] Split `observability-lab-operators` into one Application per operator (Loki, Tempo, OTel),
+      each carrying the Argo CD RBAC for its operand CRs, so the admin installs them independently
+      and a cluster that already has an operator skips it.
 - [ ] Per-platform overlays `values-<platform>.yaml` (StorageClass name only) in each module
       chart; remove the hardcoded `crc-csi-hostpath-provisioner` from the LokiStack; `required`
       check on `storageClassName`. MinIO stays the only object store on all platforms.
@@ -257,9 +305,9 @@ See "Target model" above for the decided installation story.
       `applications.argoproj.io` in `openshift-gitops`.
 - [ ] Admin panel "Modules" section: install / uninstall / status per module.
 - [ ] Move the hardcoded MinIO credentials out of the manifests (generated Secret).
-- [ ] Enable user workload monitoring as part of the install (`enableUserWorkload: true` in
-      `openshift-monitoring/cluster-monitoring-config`), behind a value: today `user-workload`
-      simulations show no metrics on a fresh cluster.
+- [ ] ~~Enable user workload monitoring at install time~~: replaced by the UWM capability
+      (Phase 4), detected and enabled from the console. Until then, `user-workload` simulations
+      show no metrics on a fresh cluster unless UWM is enabled by hand.
 - [ ] Runtime configuration for the frontend (serve `config.json`/env at container start instead of
       Vite build args) so images become cluster-independent.
 - [ ] Build images in CI and publish to Quay; chart defaults switch from in-cluster builds to
@@ -281,10 +329,19 @@ See "Target model" above for the decided installation story.
 
 ## Phase 4 - First extracted microservice: capabilities / gamification
 
+See "Capabilities and challenges" in the target model.
+
 - [ ] `obs-capabilities`: detects installed operators/CSVs and options (UWM, COO, Loki, Tempo,
-      OTel, Service Mesh, Grafana/Perses) and exposes them as "achievements"/checklist. Reports
-      *who* manages each module (lab-managed Argo CD Application vs. installed outside the lab)
-      so the Admin panel does not offer "Install" on something already present.
+      OTel, Service Mesh, Grafana/Perses) and the real health of shared operands (CR conditions).
+      Reports *who* manages each module (lab-managed Argo CD Application vs. installed outside
+      the lab) so the Admin panel does not offer "Install" on something already present.
+- [ ] Admin actions: install an operator or module (create its Argo CD Application); enable UWM
+      by patching only `enableUserWorkload` (not offered on ROSA Classic/OSD, where the console
+      shows an OpenShift Cluster Manager hint). Needs the `platform` value to tell ROSA Classic
+      from ROSA HCP.
+- [ ] User challenges verified by outcome (traces in Tempo, logs in Loki, alert fired) for
+      namespace-scoped resources the user creates (`OpenTelemetryCollector`, `Instrumentation`,
+      ServiceMonitor, PrometheusRule); progress shown as achievements per user.
 - [ ] Simulation options in the console are enabled/disabled based on detected capabilities
       (e.g. logs view only when Loki is ready, traces only when Tempo + OTel are ready).
 - [ ] Establish the template for future services: shared auth library, Helm sub-chart, CI
