@@ -421,9 +421,13 @@ metadata:
     {{- if .Values.annotationsWave3 }}
     {{- toYaml .Values.annotationsWave3 | nindent 4 }}
     {{- end }}
-spec:  
-  backoffLimit: 0 
-  ttlSecondsAfterFinished: 300
+    # Sync hook instead of a tracked resource: with ttlSecondsAfterFinished, Kubernetes deleted the
+    # finished Job and Argo CD selfHeal recreated it, re-running the bootstrap every ~5 minutes.
+    # BeforeHookCreation keeps the last run (for its logs) until the next sync replaces it.
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 0
   template:
     spec:
       serviceAccountName: keycloak-bootstrap-sa
