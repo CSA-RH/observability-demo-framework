@@ -95,9 +95,15 @@ allowed to change it, an *action*:
 - **Status comes from the cluster, not from Argo CD.** An operator installed outside the lab shows
   as present ("managed externally") and the console offers no Install button for it.
 - **UWM is cluster configuration, not an operator.** `cluster-monitoring-config` is shared: Argo CD
-  must not own the whole ConfigMap (it would overwrite other keys), so the enable action patches
-  only `enableUserWorkload`. On ROSA/ARO the ConfigMap is SRE-managed and UWM is set through the
-  platform: there the console shows the status plus a hint, no action.
+  must not own the whole ConfigMap (it would overwrite other keys, e.g. the ones ARO sets), so the
+  enable action patches only `enableUserWorkload` (creating the ConfigMap if it is missing).
+  Who may change it depends on the platform:
+  - Self-managed OCP / CRC, **ARO**, **ROSA HCP**: the customer's cluster-admin (on ROSA HCP, UWM
+    is off by default on new clusters since early 2026 and is enabled through this ConfigMap):
+    the console offers the action.
+  - **ROSA Classic / OSD**: `cluster-monitoring-config` is SRE-managed and UWM is toggled in
+    OpenShift Cluster Manager (the toggle can overwrite related config): the console shows the
+    status plus a hint, no action.
 - Simulation options unlock from capabilities: `user-workload` simulations need UWM, the logs view
   needs Loki ready, traces need Tempo + OTel ready.
 
@@ -327,7 +333,9 @@ See "Capabilities and challenges" in the target model.
       Reports *who* manages each module (lab-managed Argo CD Application vs. installed outside
       the lab) so the Admin panel does not offer "Install" on something already present.
 - [ ] Admin actions: install an operator or module (create its Argo CD Application); enable UWM
-      by patching only `enableUserWorkload` (disabled on ROSA/ARO, where the console shows a hint).
+      by patching only `enableUserWorkload` (not offered on ROSA Classic/OSD, where the console
+      shows an OpenShift Cluster Manager hint). Needs the `platform` value to tell ROSA Classic
+      from ROSA HCP.
 - [ ] User challenges verified by outcome (traces in Tempo, logs in Loki, alert fired) for
       namespace-scoped resources the user creates (`OpenTelemetryCollector`, `Instrumentation`,
       ServiceMonitor, PrometheusRule); progress shown as achievements per user.
