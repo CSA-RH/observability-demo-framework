@@ -265,10 +265,13 @@ See "Target model" above for the decided installation story.
 - [ ] Build images in CI and publish to Quay; chart defaults switch from in-cluster builds to
       `quay.io/...` (in-cluster BuildConfigs kept as an optional value).
 - [ ] Consolidate duplicated wave hooks (e.g. operator-check jobs).
-- [ ] Bootstrap Jobs with `ttlSecondsAfterFinished` (e.g. `bootstrap-keycloak-realm`, 300s) are
-      deleted by Kubernetes and recreated by Argo CD selfHeal, so they re-run every ~5 minutes.
-      Turn them into Argo CD hooks (`hook: Sync`, `hook-delete-policy: BeforeHookCreation`) or
-      drop the TTL.
+- [x] Bootstrap Jobs with `ttlSecondsAfterFinished` (`bootstrap-keycloak-realm`,
+      `minio-buckets-creation-job`) were deleted by Kubernetes and recreated by Argo CD selfHeal,
+      so they re-ran every few minutes. Now Argo CD Sync hooks (`BeforeHookCreation`): they run
+      once per sync and the last run is kept for its logs.
+  - [ ] The other bootstrap Jobs (`bootstrap-keycloak-idp`, `bootstrap-build-*`,
+        `operator-waiter-job`) are still tracked resources with immutable pod templates (see the
+        rename note in Phase 2); consider the same hook treatment.
 - [x] RHBK 26.6+: Admin REST API rejects tokens without the `kc-admin-api` scope audience (bare
       401). `bootstrap-keycloak-realm` now attaches the scope to `automation-client`.
   - [ ] Local dev (`dev-start.sh`, `quay.io/keycloak/keycloak:latest` + exported
