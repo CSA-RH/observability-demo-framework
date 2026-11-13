@@ -219,7 +219,7 @@ Still open:
 - [ ] Explicit roles: `admin` vs `user` Keycloak realm roles enforced in the API (admin-only:
       user management, modules, profiles). Admin can target any user's namespace; users only
       their own.
-- [ ] Remove `--reload` from the production container command.
+- [x] Remove `--reload` from the production container command (local dev keeps it in `dev-start.sh`).
 - [ ] Define a common client API contract (OpenAPI) for `obs-clients` (discovery, capabilities).
 
 ## Phase 3 - Installation experience
