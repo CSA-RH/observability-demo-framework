@@ -50,6 +50,8 @@ optional). Defaults in local mode:
 | `USER_NAMESPACE_PREFIX` | unset (`<APP_NAMESPACE>-`, i.e. `obs-demo-<user>`) |
 | `IMAGE_REGISTRY` | `image-registry.openshift-image-registry.svc:5000` |
 | `IMAGE_NAMESPACE` | unset (`APP_NAMESPACE`); registry namespace of the agent and sync-users images |
+| `LOG_FORMAT` | `text` (`dev-start.sh`); the default, used on the cluster, is `json` (one object per line) |
+| `LOG_LEVEL` | `INFO` (`DEBUG` adds payload dumps) |
 
 ## Frontend
 

@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     image_namespace: Optional[str] = None
     """Registry namespace/organisation of the agent and sync-users images. Unset: app_namespace."""
 
+    # --- Logging
+    log_level: str = "INFO"
+    log_format: str = "json"
+    """`json` (one object per line, for OpenShift Logging/Loki) or `text` (local development)."""
+
     # --- Pod identity (set by Kubernetes)
     hostname: str = ""
 

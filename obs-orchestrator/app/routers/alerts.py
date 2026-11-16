@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException  # type: ignore
 from fastapi.responses import JSONResponse  # type: ignore
 
@@ -7,26 +9,27 @@ from auth import get_current_user
 from models import AlertCreate
 from utils import print_exception
 
+log = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/v1/users/{user_id}/simulation/alerts", tags=["alerts"])
 
 
 @router.post("")
 async def create_alert(user_id: str, alert: AlertCreate, current_user: dict = Depends(get_current_user)):
     payload = alert.to_dict()
-    print("Creating alert: ")   
+    log.info("Creating alert: ")   
     
     #Create the alert in the cluster
     scope = payload['scope']
     severity = payload['severity']
     definition= payload['definition']
     stack = payload['observabilityStack']
-    print("Alert information: ")
-    print(f" - Stack: {stack}")
-    print(f" - Alert scope: {scope}.")
-    print(f" - Severity: {severity}")
-    print(" - Alert Definition:")
-    print(definition)
-    print(" ****** ")
+    log.info("Alert information: ")
+    log.info(f" - Stack: {stack}")
+    log.info(f" - Alert scope: {scope}.")
+    log.info(f" - Severity: {severity}")
+    log.info(" - Alert Definition:")
+    log.debug(definition)
     
     alert_id = alert_rules.get_alert_id(payload)             
     alert_name = alert_rules.get_alert_name(payload)  
@@ -37,9 +40,7 @@ async def create_alert(user_id: str, alert: AlertCreate, current_user: dict = De
     result = deps.cluster_connector.create_alert_resource(user_id, stack, alert_id, alert_name, severity, group, expression, summary)
     if result is None: 
         raise HTTPException(status_code=400, detail="Error creating resource in the cluster. See logs for more information.")
-    print("-----")
-    print(result)
-    print("-----")
+    log.debug(result)
 
     #Persist alert definition 
     #TODO: Error handling (HTTP 400, 409, 422)
@@ -56,7 +57,7 @@ async def create_alert(user_id: str, alert: AlertCreate, current_user: dict = De
 @router.delete("/{alert_id}")
 def delete_alert(user_id, alert_id: str, current_user: dict = Depends(get_current_user)):
     alert_name=alert_id
-    print(f"Delete alert: {alert_name}")
+    log.info(f"Delete alert: {alert_name}")
     
     #Delete alert from the cluster
     #TODO: Error handling (HTTP 400, 404)

@@ -5,6 +5,9 @@ import socket
 
 from agent_manager.AgentManagerInterface import AgentManagerInterface
 from typing import Any
+import logging
+
+log = logging.getLogger(__name__)
 
 
 class AgentRequestError(Exception):
@@ -17,10 +20,10 @@ class AgentRequestError(Exception):
 class OpenShiftAgentManager(AgentManagerInterface):
 
     def __init__(self):
-        print("... Starting OpenShift Agent Manager")
+        log.info("Starting OpenShift Agent Manager")
     
     def get_agent_metrics(self, user_id, id):
-        print(f"Agent {id}. Getting metrics")
+        log.info(f"Agent {id}. Getting metrics")
         
         json_result = []
         try:
@@ -33,22 +36,22 @@ class OpenShiftAgentManager(AgentManagerInterface):
                 # Try to decode the response content
                 result = data.decode("utf-8")
                 json_result = json.loads(result)
-                print("Response received successfully:")
-                print(result)
+                log.info("Response received successfully:")
+                log.debug(result)
             except UnicodeDecodeError:
                 raise Exception("Failed to decode response content.")
                     
         except http.client.HTTPException as e:
             # Handle HTTP related errors
-            print(f"HTTP error occurred: {e}")
+            log.error(f"HTTP error occurred: {e}")
             raise
         except (ConnectionError, TimeoutError) as e:
             # Handle connection errors
-            print(f"Connection error occurred: {e}")
+            log.error(f"Connection error occurred: {e}")
             raise
         except Exception as e:
             # General exception handler for other potential errors
-            print(f"An error occurred: {e}")
+            log.error(f"An error occurred: {e}")
             raise
         finally:
             # Ensure the connection is closed
@@ -56,9 +59,8 @@ class OpenShiftAgentManager(AgentManagerInterface):
         return json_result
 
     def set_agent_metrics(self, method: str, user_id:str, payload: dict[str, Any]):
-        print("set_agent_metric")
-        print(payload)
-        print("----------------")
+        log.info("set_agent_metric")
+        log.debug(payload)
         
         full_path = ""
         try:
@@ -77,16 +79,14 @@ class OpenShiftAgentManager(AgentManagerInterface):
             full_path = f"{path}?{query_string}"        
         except Exception as e:
             # General exception handler for other potential errors
-            print(f"An error occurred: {e}")
+            log.error(f"An error occurred: {e}")
             raise
             
-        print(f"Agent {agent_id}. Setting metric {metricInfo['name']}[{method}]")
+        log.info(f"Agent {agent_id}. Setting metric {metricInfo['name']}[{method}]")
 
         result = self.__request_agent_metric(agent_dns, method, full_path)
         if method == "PUT" and result["status"] == 404:
-            print(
-                f"Metric {metricInfo['name']} not found on agent; creating with POST instead."
-            )
+            log.warning(f"Metric {metricInfo['name']} not found on agent; creating with POST instead.")
             result = self.__request_agent_metric(agent_dns, "POST", full_path)
 
         if result["status"] >= 400:
@@ -98,7 +98,7 @@ class OpenShiftAgentManager(AgentManagerInterface):
         conn = http.client.HTTPConnection(host=agent_dns, port=8080, timeout=1)
         try:
             conn.request(method, full_path)
-            print(f"Requested: {method} {full_path}")
+            log.info(f"Requested: {method} {full_path}")
 
             response = conn.getresponse()
             data = response.read()
@@ -108,17 +108,17 @@ class OpenShiftAgentManager(AgentManagerInterface):
             except UnicodeDecodeError:
                 raise Exception("Failed to decode response content.")
 
-            print("Response received successfully:")
-            print(body)
+            log.info("Response received successfully:")
+            log.debug(body)
             return {"status": response.status, "body": body}
         except http.client.HTTPException as e:
-            print(f"HTTP error occurred: {e}")
+            log.error(f"HTTP error occurred: {e}")
             raise
         except (ConnectionError, TimeoutError) as e:
-            print(f"Connection error occurred: {e}")
+            log.error(f"Connection error occurred: {e}")
             raise
         except Exception as e:
-            print(f"An error occurred: {e}")
+            log.error(f"An error occurred: {e}")
             raise
         finally:
             conn.close()
@@ -138,21 +138,21 @@ class OpenShiftAgentManager(AgentManagerInterface):
                 'Content-Type': 'application/json'
             }
             # Make the POST request, attaching the JSON body
-            print(f"Agent {agent_id}[{agent_dns}] kicking (count={kick_initial_count})...")
+            log.info(f"Agent {agent_id}[{agent_dns}] kicking (count={kick_initial_count})...")
             conn.request("POST", "/operations/order", body=json_agent_kick_payload, headers=headers)
             # Get the response
             response = conn.getresponse()
             data = response.read()
 
             # Print the response data
-            print(data.decode("utf-8"))
+            log.debug(data.decode("utf-8"))
         except socket.timeout:
-            print("The request timed out.")
+            log.error("The request timed out.")
             raise
 
         except Exception as e:
             # Handle other possible exceptions
-            print(f"Request failed: {e}")
+            log.error(f"Request failed: {e}")
             raise
 
         finally:
@@ -161,8 +161,8 @@ class OpenShiftAgentManager(AgentManagerInterface):
         return True
     
     def set_agent_communication_path(self, user_id, sourceAgent, targetAgent):
-        print(f"Calling POST http://{sourceAgent}:8080/agents/{targetAgent}")
-        print(targetAgent)
+        log.info(f"Calling POST http://{sourceAgent}:8080/agents/{targetAgent}")
+        log.debug(targetAgent)
         next_hop_address = {
             "ip": targetAgent,
             "port": 8080
@@ -180,14 +180,14 @@ class OpenShiftAgentManager(AgentManagerInterface):
             data = response.read()
 
             # Print the response data
-            print(data.decode("utf-8"))
+            log.debug(data.decode("utf-8"))
         except socket.timeout:
-            print("The request timed out.")
+            log.error("The request timed out.")
             raise
 
         except Exception as e:
             # Handle other possible exceptions
-            print(f"Request failed: {e}")
+            log.error(f"Request failed: {e}")
             raise
 
         finally:
