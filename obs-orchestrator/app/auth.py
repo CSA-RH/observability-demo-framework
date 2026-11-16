@@ -3,6 +3,7 @@
 Tokens are RS256 JWTs issued by the Keycloak realm. Their signing keys come from the realm JWKS
 endpoint and are cached in memory (see `JWKSCache`), so Keycloak is not called on every request.
 """
+import logging
 import threading
 import time
 from typing import Callable, Dict, Optional
@@ -15,10 +16,12 @@ from jose.exceptions import JWTError                                # type: igno
 
 from settings import settings
 
+log = logging.getLogger(__name__)
+
 KEYCLOAK_ISSUER = settings.issuer
 KEYCLOAK_AUDIENCE = settings.keycloak_audience
 KEYCLOAK_CERTS_URL = settings.certs_url
-print(f"... IdP issuer endpoint: {KEYCLOAK_ISSUER}")
+log.info(f"IdP issuer: {KEYCLOAK_ISSUER}")
 
 
 class JWKSCache:
@@ -66,7 +69,7 @@ class JWKSCache:
                 except requests.RequestException as e:
                     if kid not in self._keys:
                         raise HTTPException(status_code=500, detail=f"Error fetching public keys: {e}")
-                    print(f"WARNING[auth]: JWKS refresh failed, using cached keys: {e}")
+                    log.warning(f"JWKS refresh failed, using cached keys: {e}")
             key = self._keys.get(kid)
         if key is None:
             raise HTTPException(status_code=401, detail="Public key not found")
@@ -105,8 +108,8 @@ def get_current_user(authorization=Depends(security)) -> str:
     try:
         return decode_token(authorization.credentials)["preferred_username"]
     except HTTPException as e:
-        print(f"WARNING[auth]: rejected token ({e.status_code}): {e.detail}")
+        log.warning(f"rejected token ({e.status_code}): {e.detail}")
         raise HTTPException(status_code=401, detail=f"Unauthorized: {e.detail}")
     except Exception as e:
-        print(f"WARNING[auth]: rejected token: {e}")
+        log.warning(f"rejected token: {e}")
         raise HTTPException(status_code=401, detail=f"Unauthorized: {e}")

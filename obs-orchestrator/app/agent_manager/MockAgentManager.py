@@ -5,6 +5,9 @@ from utils import JSONUtils
 import fcntl
 import json
 import random
+import logging
+
+log = logging.getLogger(__name__)
 
 class MockAgentManager(AgentManagerInterface):
 
@@ -13,7 +16,7 @@ class MockAgentManager(AgentManagerInterface):
     COMMS_FILE_SUFFIX="obs-demo-fw-comms.json"
 
     def __init__(self):
-        print("... Starting Mock Agent Manager")
+        log.info("Starting Mock Agent Manager")
     
     def __get_metrics_fullpath_file(self, user_id):
         return f"{self.ROOT_METRICS_DIR}/{user_id}-{self.METRICS_FILE_SUFFIX}"
@@ -26,15 +29,13 @@ class MockAgentManager(AgentManagerInterface):
         agent_metrics = {}
         for item in metrics_json: 
             agent_metrics[item["name"]] = item["data"]
-        print(agent_metrics)
+        log.debug(agent_metrics)
         return agent_metrics
     
     def get_agent_metrics(self, user_id, id):
         agent_metrics = self.__load_metrics(user_id)
-        print(f"AGENT METRICS FOR USER {user_id} - AGENT {id}")
-        print("-----------------------------------------------")
-        print(agent_metrics)
-        print("-----------------------------------------------")
+        log.info(f"AGENT METRICS FOR USER {user_id} - AGENT {id}")
+        log.debug(agent_metrics)
         agent_id = id.split('.')[0]
         if agent_id in agent_metrics:             
             return agent_metrics[agent_id]['metrics']
@@ -51,10 +52,9 @@ class MockAgentManager(AgentManagerInterface):
         JSONUtils.save_json_to_file(agent_list, self.__get_metrics_fullpath_file(user_id))
     
     def set_agent_metrics(self, method: str, user: str, payload: dict[str, Any]):
-        print(f"Method: {method}")
-        print(f"User:   {user}")
-        print(payload)
-        print("-------")
+        log.info(f"Method: {method}")
+        log.info(f"User:   {user}")
+        log.debug(payload)
     
         full_path = ""
         try:
@@ -73,9 +73,9 @@ class MockAgentManager(AgentManagerInterface):
             full_path = f"{path}?{query_string}"        
         except Exception as e:
             # General exception handler for other potential errors
-            print(f"An error occurred: {e}")
+            log.error(f"An error occurred: {e}")
             
-        print(f"Agent {agent_id}. Setting metric {metricInfo['name']}[{method}]")
+        log.info(f"Agent {agent_id}. Setting metric {metricInfo['name']}[{method}]")
         agent_metrics = self.__load_metrics(user)
         if agent_id not in agent_metrics:
             agent_metrics[agent_id] = {
@@ -108,10 +108,9 @@ class MockAgentManager(AgentManagerInterface):
         file_path = self._get_comms_fullpath_file(user_id)
         
         source_agent = source_agent_dns.split('.')[0]
-        print(f"Reading/Writing communications for {user_id} at {file_path}")
-        print(f"Source: {source_agent}")
-        print(f"Target: {target_agent}")
-        print("-------")
+        log.info(f"Reading/Writing communications for {user_id} at {file_path}")
+        log.info(f"Source: {source_agent}")
+        log.info(f"Target: {target_agent}")
 
         user_comms = {}
 
@@ -135,7 +134,7 @@ class MockAgentManager(AgentManagerInterface):
                     user_comms = json.load(f)
                 except json.JSONDecodeError:
                     # File was empty or corrupt, start with a new dict
-                    print(f"File was empty or corrupt. Starting fresh for {user_id}.")
+                    log.info(f"File was empty or corrupt. Starting fresh for {user_id}.")
                     user_comms = {}
 
                 # --- 3. Modify Data ---
@@ -149,7 +148,7 @@ class MockAgentManager(AgentManagerInterface):
                 if target_agent not in user_comms[source_agent]:
                     user_comms[source_agent].append(target_agent)
                 else:
-                    print(f"Target {target_agent} already exists for {source_agent}.")
+                    log.warning(f"Target {target_agent} already exists for {source_agent}.")
 
                 # --- 4. Write Data ---
                 # Go back to the beginning to overwrite the entire file
@@ -163,11 +162,11 @@ class MockAgentManager(AgentManagerInterface):
                 # The lock is automatically released when the 'with' block ends,
                 # but fcntl.flock(f, fcntl.LOCK_UN) could also be called.
         except (IOError, PermissionError) as e:
-            print(f"CRITICAL ERROR: Could not read or write to file {file_path}. Error: {e}")
+            log.error(f"CRITICAL ERROR: Could not read or write to file {file_path}. Error: {e}")
             # You might want to re-raise the exception to stop the operation
             raise
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            log.error(f"An unexpected error occurred: {e}")
             raise
         return
     
@@ -176,9 +175,8 @@ class MockAgentManager(AgentManagerInterface):
         Performs a random traversal of the communication graph for a user.
         It loads the graph from /tmp/{user_id}-obs-demo-fw-comms.json.
         """
-        print("Kick")
-        print(f"From user: {user_id} - Starting at agent: {agent_id}. DNS: {agent_dns}. Max steps={kick_initial_count}")
-        print("-------")
+        log.info("Kick")
+        log.info(f"From user: {user_id} - Starting at agent: {agent_id}. DNS: {agent_dns}. Max steps={kick_initial_count}")
 
         # --- 1. Load the communication graph from the file ---
         file_path = self._get_comms_fullpath_file(user_id)
@@ -191,17 +189,17 @@ class MockAgentManager(AgentManagerInterface):
                 try:
                     user_comms = json.load(f)
                 except json.JSONDecodeError:
-                    print(f"Could not parse JSON from {file_path}. Assuming no comms.")
+                    log.warning(f"Could not parse JSON from {file_path}. Assuming no comms.")
                     user_comms = {}
                 # Lock is released automatically when 'with' block ends
         except FileNotFoundError:
-            print(f"Communication file {file_path} not found. No next hops available.")
+            log.warning(f"Communication file {file_path} not found. No next hops available.")
             user_comms = {}
         except (IOError, PermissionError) as e:
-            print(f"CRITICAL ERROR: Could not read file {file_path}. Error: {e}")
+            log.error(f"CRITICAL ERROR: Could not read file {file_path}. Error: {e}")
             raise # Re-raise to stop execution
         except Exception as e:
-            print(f"An unexpected error occurred while reading file: {e}")
+            log.error(f"An unexpected error occurred while reading file: {e}")
             raise
 
         # --- 2. Initialize traversal state ---
@@ -210,33 +208,32 @@ class MockAgentManager(AgentManagerInterface):
 
         # --- 3. Start the traversal loop ---
         while (count > 0):
-            print(f"--- Step (Remaining: {count}) ---")
+            log.info(f"--- Step (Remaining: {count}) ---")
             
             # Get the list of next hops for the current agent
             # .get() is safer than direct access, returns [] if current_agent has no entry
             next_hops_list = user_comms.get(current_agent, [])
             
-            print(f"  Current agent: {current_agent}")
-            print(f"  Next hops available: {next_hops_list}")
+            log.info(f"  Current agent: {current_agent}")
+            log.info(f"  Next hops available: {next_hops_list}")
 
             if next_hops_list:
                 # A. Hops are available: choose one and continue
                 chosen_next_agent = random.choice(next_hops_list)
-                print(f"  Decision: Randomly chose {chosen_next_agent}")
+                log.info(f"  Decision: Randomly chose {chosen_next_agent}")
                 
                 # Update the current agent for the *next* iteration
                 current_agent = chosen_next_agent
             
             else:
                 # B. No hops available: stop the traversal
-                print("  Decision: No next hops available from this agent. Traversal stops.")
+                log.info("  Decision: No next hops available from this agent. Traversal stops.")
                 break # Exit the while loop
             
             # Decrement the count for the next loop
             count = count - 1
 
-        print("-------")
-        print("Kick simulation finished.")
+        log.info("Kick simulation finished.")
         return
     
     def delete_metrics_definitions(self, user_id):

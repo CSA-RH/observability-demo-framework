@@ -6,9 +6,11 @@ from utils import JSONUtils
 from operations.operation_store import new_operation, utc_now_iso
 from operations.lease_lock import user_sync_lease, LeaseLockError
 from settings import NamespaceLayout, settings
-import sys
 
 import os, time, json, http.client, socket, base64
+import logging
+
+log = logging.getLogger(__name__)
 
 class OpenShiftClusterConnector(ClusterConnectorInterface):
 
@@ -21,11 +23,11 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         try:
             # Try to load the in-cluster configuration
             config.load_incluster_config()
-            print("... Running in-cluster. Service account loaded.")
+            log.info("Running in-cluster. Service account loaded.")
         except config.ConfigException:
             # Fallback to local kubeconfig if running outside the cluster
             config.load_kube_config()
-            print("... Running out-of-cluster. Local kubeconfig loaded.")
+            log.info("Running out-of-cluster. Local kubeconfig loaded.")
         
         self.__core_v1_api = client.CoreV1Api()
         self.__apps_v1_api = client.AppsV1Api()
@@ -76,7 +78,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             # Build the full URL
             url = f"{scheme}://{host}"
             
-            print(f"Route Name: {route_name}, URL: {url}")
+            log.info(f"Route Name: {route_name}, URL: {url}")
             return url
 
         # If no route matches the selector
@@ -84,7 +86,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
     
     def __get_users(self):
         label_selector = "observability-demo-framework=users"
-        print(f"Searching for namespaces with label: {label_selector}")
+        log.info(f"Searching for namespaces with label: {label_selector}")
 
         try:
             # The list_namespace call accepts the label_selector parameter
@@ -94,19 +96,19 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             
             # The response contains the list of found objects under the 'items' attribute
             if api_response.items:
-                print(f"Found {len(api_response.items)} matching namespace(s).")
+                log.info(f"Found {len(api_response.items)} matching namespace(s).")
                 return [ns.metadata.name for ns in api_response.items]
             else:
-                print("No namespaces found matching the label selector.")
+                log.info("No namespaces found matching the label selector.")
                 return []
 
         except ApiException as e:
             # Handle potential API errors (like 403 Forbidden, 404 Not Found, etc.)
-            print(f"Error retrieving namespaces (Code {e.status}): {e.reason}")
-            print("Check RBAC permissions for the active user/service account.")
+            log.error(f"Error retrieving namespaces (Code {e.status}): {e.reason}")
+            log.info("Check RBAC permissions for the active user/service account.")
             return []
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            log.error(f"An unexpected error occurred: {e}")
             return []
 
     def __remove_password_in_place(self, user_list):
@@ -189,7 +191,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
 
 
     def __create_deployment(self, user_namespace, item):
-        print("DEPLOYMENT TYPE: " + item['type'])
+        log.info("DEPLOYMENT TYPE: " + item['type'])
         targets = ",".join(item.get('nextHop', []))
         deployment_manifest = {
             'apiVersion': 'apps/v1',
@@ -246,7 +248,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         deployment_name = item["id"]
         try:
             self.__apps_v1_api.create_namespaced_deployment(namespace=user_namespace, body=deployment_manifest)
-            print(f"Deployment {deployment_name} successfully created.")
+            log.info(f"Deployment {deployment_name} successfully created.")
         except client.ApiException as e:
             if e.status == 409:
                 self.__apps_v1_api.replace_namespaced_deployment(
@@ -254,11 +256,9 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                     namespace=user_namespace,
                     body=deployment_manifest,
                 )
-                print(f"Deployment {deployment_name} replaced successfully.")
+                log.info(f"Deployment {deployment_name} replaced successfully.")
             else:
-                print(f"Error creating Deployment {deployment_name}. Exception: ")
-                print(e)
-                print("-------")
+                log.error(f"Error creating Deployment {deployment_name}: {e}")
                 raise
     
     def __create_service(self, namespace, item):
@@ -293,7 +293,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         service_name = item["id"]
         try:
             self.__core_v1_api.create_namespaced_service(namespace=namespace, body=service_manifest)
-            print(f"Service {service_name} created successfully.")
+            log.info(f"Service {service_name} created successfully.")
         except client.ApiException as e:
             if e.status == 409:
                 self.__core_v1_api.replace_namespaced_service(
@@ -301,11 +301,9 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                     namespace=namespace,
                     body=service_manifest,
                 )
-                print(f"Service {service_name} replaced successfully.")
+                log.info(f"Service {service_name} replaced successfully.")
             else:
-                print(f"Error creating Service {service_name}. Exception: ")
-                print(e)
-                print("-------")
+                log.error(f"Error creating Service {service_name}: {e}")
                 raise
         
     async def __get_agent_pods_dictionary(self, namespace):
@@ -314,7 +312,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 namespace, 
                 label_selector = 'observability-demo-framework=agent')
         except Exception as e: 
-            print(f"Exception when retrieving pods: {e}")
+            log.error(f"Exception when retrieving pods: {e}")
             raise
         
         pods_dict = {}
@@ -335,19 +333,19 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                     timeout_seconds=timeout):
                 service = event['object']
                 if service.metadata.name == service_name:
-                    print(f"Service {service_name} status: Available")
+                    log.info(f"Service {service_name} status: Available")
                     service_ip = service.spec.cluster_ip
                     if service_ip:
-                        print(f"Service {service_name} IP: {service_ip}")
+                        log.info(f"Service {service_name} IP: {service_ip}")
                         w.stop()
                         return service_ip
 
                 if time.time() - start_time > timeout:
-                    print(f"Timeout waiting for Service {service_name} to be ready.")
+                    log.info(f"Timeout waiting for Service {service_name} to be ready.")
                     w.stop()
 
         except ApiException as e:
-            print(f"Exception when waiting for Service: {e}")
+            log.error(f"Exception when waiting for Service: {e}")
             raise
 
         return None
@@ -363,16 +361,16 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             
             # Check if the number of ready replicas matches the desired replicas
             if deployment.status.ready_replicas == deployment.spec.replicas:
-                print(f"All pods for deployment '{deployment_name}' are ready.")
+                log.info(f"All pods for deployment '{deployment_name}' are ready.")
                 return True
             else:
-                print(f"Waiting for pods of deployment {deployment_name} to become ready. Ready pods: {deployment.status.ready_replicas}/{deployment.spec.replicas}")
+                log.info(f"Waiting for pods of deployment {deployment_name} to become ready. Ready pods: {deployment.status.ready_replicas}/{deployment.spec.replicas}")
             
             # Sleep for the defined interval before checking again
             time.sleep(interval)
 
         # If we exceed the timeout and not all pods are ready
-        print(f"Timeout: Not all pods for deployment '{deployment_name}' are ready after {timeout} seconds.")
+        log.info(f"Timeout: Not all pods for deployment '{deployment_name}' are ready after {timeout} seconds.")
         return False
     
     def __create_openshift_route(self, namespace, route_body):
@@ -385,7 +383,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         name = route_body.get("metadata", {}).get("name", "unknown")
 
         try:
-            print(f"Attempting to create Route '{name}' in namespace '{namespace}'...")
+            log.info(f"Attempting to create Route '{name}' in namespace '{namespace}'...")
             
             # Create the namespaced custom object
             self.__custom_v1_api.create_namespaced_custom_object(
@@ -395,16 +393,16 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 plural=plural,
                 body=route_body
             )
-            print(f"✅ Successfully created Route '{name}'.")
+            log.info(f"Successfully created Route '{name}'.")
 
         except ApiException as e:
             if e.status == 409:  # 409 Conflict == Already Exists
-                print(f"⚠️  Route '{name}' already exists. Skipping.")
+                log.warning(f"Route '{name}' already exists. Skipping.")
             else:
-                print(f"❌ Error creating Route '{name}': {e.reason}", file=sys.stderr)
-                print(f"   Details: {e.body}", file=sys.stderr)
+                log.error(f"Error creating Route '{name}': {e.reason}")
+                log.error(f"   Details: {e.body}")
         except Exception as e:
-            print(f"❌ An unexpected error occurred for Route '{name}': {e}", file=sys.stderr)
+            log.error(f"An unexpected error occurred for Route '{name}': {e}")
         
     def __create_monitoring_stack_coo(self, namespace, user):
         # Define the MonitoringStack 
@@ -445,11 +443,9 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 plural="monitoringstacks",
                 body=monitoring_stack_body
             )
-            print(f"MonitoringStack {monitoring_stack_name} created successfully.")
+            log.info(f"MonitoringStack {monitoring_stack_name} created successfully.")
         except client.exceptions.ApiException as e:
-            print(f"Exception when creating MonitoringStack {monitoring_stack_name}")
-            print(e)
-            print("--------")
+            log.error(f"Exception when creating MonitoringStack {monitoring_stack_name}: {e}")
             raise
         
         # Create Routes for Prometheus and Alertmanager
@@ -488,7 +484,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 }
             }
         }
-        print("Creating Routes")
+        log.info("Creating Routes")
         self.__create_openshift_route(namespace, alertmanager_route)
         self.__create_openshift_route(namespace, prometheus_route)
         
@@ -532,11 +528,9 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 plural="servicemonitors",
                 body=service_monitor_body
             )
-            print(f"ServiceMonitor {service_monitor_name}[COO] created successfully.")
+            log.info(f"ServiceMonitor {service_monitor_name}[COO] created successfully.")
         except client.exceptions.ApiException as e:
-            print(f"Exception when creating ServiceMonitor {service_monitor_name}[COO]")
-            print(e)
-            print("--------")
+            log.error(f"Exception when creating ServiceMonitor {service_monitor_name}[COO]: {e}")
             raise
         
     def __create_service_monitor(self, namespace, item):
@@ -576,11 +570,9 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 plural="servicemonitors",
                 body=service_monitor_body
             )
-            print(f"ServiceMonitor {service_monitor_name} created successfully.")
+            log.info(f"ServiceMonitor {service_monitor_name} created successfully.")
         except client.exceptions.ApiException as e:
-            print(f"Exception when creating ServiceMonitor {service_monitor_name}")
-            print(e)
-            print("--------")
+            log.error(f"Exception when creating ServiceMonitor {service_monitor_name}: {e}")
             raise
        
     def save_simulation(self, user, json_data):
@@ -594,13 +586,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         secret_name = "obs-demo-fw-state"
         try:
             self.__core_v1_api.create_namespaced_secret(namespace, secret)
-            print(f"Simulation saved successfully in the cluster as secret {secret_name}.")
+            log.info(f"Simulation saved successfully in the cluster as secret {secret_name}.")
         except client.ApiException as e:
             if e.status == 409:
                 self.__core_v1_api.replace_namespaced_secret(secret_name, namespace, secret)
-                print(f"Simulation secret {secret_name} updated successfully.")
+                log.info(f"Simulation secret {secret_name} updated successfully.")
             else:
-                print(f"Exception when saving simulation as a secret[{secret_name}]: {e}")
+                log.error(f"Exception when saving simulation as a secret[{secret_name}]: {e}")
                 raise
     
     def create_simulation_resources(self, user, agents: List[Dict[str, Any]], stack):
@@ -612,23 +604,23 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         # Create all deployment and services. 
         for item in agents:
             
-            print(f'Agent: {item["id"]}')
+            log.info(f'Agent: {item["id"]}')
                 
             # Create Deployment
             self.__create_deployment(namespace, item)
-            print(f"Deployment for {item['id']} created.")
+            log.info(f"Deployment for {item['id']} created.")
             
             # Create Service
             self.__create_service(namespace, item)
-            print(f"Service for {item['id']} created.")
+            log.info(f"Service for {item['id']} created.")
             
             # Create service monitor
             if stack == "user-workload":
                 self.__create_service_monitor(namespace, item)            
-                print(f"ServiceMonitor[UW] for {item['id']} created.")
+                log.info(f"ServiceMonitor[UW] for {item['id']} created.")
             else:
                 self.__create_service_monitor_coo(namespace, item, user)
-                print(f"ServiceMonitor[COO] for {item['id']} created.")
+                log.info(f"ServiceMonitor[COO] for {item['id']} created.")
             
 
         # Make sure that all pods have started before adding associations
@@ -637,17 +629,17 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         for item in agents:            
             service_ip = self.__wait_for_service_ready_and_get_ip(namespace, item["id"])
             if service_ip:
-                print(f"The Service IP address of {item['id']} is: {service_ip}")                
+                log.info(f"The Service IP address of {item['id']} is: {service_ip}")                
                 item["dns"] = f"{item['id']}.{namespace}.svc"
                 item["port"] = 8080
             else:
-                print(f"Failed to retrieve the Service IP address for {item['id']}.")
+                log.error(f"Failed to retrieve the Service IP address for {item['id']}.")
                 continue
             
             self.__wait_for_deployment_ready(item['id'], namespace)
         
         # Show result
-        print(agents)
+        log.debug(agents)
         return agents
     
     def __get_agent_pods_dictionary(self, namespace):
@@ -657,7 +649,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 label_selector='observability-demo-framework=agent')
             pods_dict = {}
         except Exception as e:             
-            print(f"Error retrieving pods: {e}")
+            log.error(f"Error retrieving pods: {e}")
             raise
 
         for item in pods.items:
@@ -676,21 +668,21 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             if 'simulation' in secret.data:
                 encoded_json_data = secret.data['simulation']
                 decoded_json_data = base64.b64decode(encoded_json_data).decode('utf-8')
-                print(decoded_json_data)
+                log.debug(decoded_json_data)
                 
                 # Convert the decoded string back into a JSON object
                 simulation = json.loads(decoded_json_data)
             else:
                 message = f"Secret '{secret_name}' does not contain 'json-file' key."
-                print(message)
+                log.debug(message)
                 raise RuntimeError(message)
                 
         except client.exceptions.ApiException as e:
             if e.status == 404:
-                print(f"Secret '{secret_name}' not found in namespace '{self.__layout.app_namespace}'.")
+                log.warning(f"Secret '{secret_name}' not found in namespace '{self.__layout.app_namespace}'.")
             else:
                 message = f"Failed to read Secret '{secret_name}': {e}"
-                print(message)
+                log.debug(message)
                 raise RuntimeError(message)
             return {}
         # Update agent pod name
@@ -710,13 +702,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             return json.loads(json_str)
         except client.exceptions.ApiException as e:
             if e.status == 404:
-                print(f"ConfigMap '{configmap_name}' not found in namespace '{namespace}'.")
+                log.warning(f"ConfigMap '{configmap_name}' not found in namespace '{namespace}'.")
                 return []
             else:
                 raise
  
     def __save_json_to_configmap(self, json_data, configmap_name, key, namespace):
-        print(f"CONFIG MAP: '{configmap_name}'. NAMESPACE: '{namespace}'")
+        log.info(f"CONFIG MAP: '{configmap_name}'. NAMESPACE: '{namespace}'")
         json_str = json.dumps(json_data)
         configmap_data = {
             "metadata": {
@@ -735,12 +727,12 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             self.__core_v1_api.read_namespaced_config_map(configmap_name, namespace)
             # If it exists, update it
             self.__core_v1_api.patch_namespaced_config_map(configmap_name, namespace, configmap_data)
-            print(f"Updated ConfigMap '{configmap_name}' in namespace '{namespace}'.")
+            log.info(f"Updated ConfigMap '{configmap_name}' in namespace '{namespace}'.")
         except client.exceptions.ApiException as e:
             if e.status == 404:
                 # If it doesn't exist, create it
                 self.__core_v1_api.create_namespaced_config_map(namespace, configmap_data)
-                print(f"Created ConfigMap '{configmap_name}' in namespace '{namespace}'.")
+                log.info(f"Created ConfigMap '{configmap_name}' in namespace '{namespace}'.")
             else:
                 raise
 
@@ -803,10 +795,10 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 plural="prometheusrules",
                 body=prometheus_rule_body,
             )
-            print(f"PrometheusRule '{id}' created successfully.")
+            log.info(f"PrometheusRule '{id}' created successfully.")
             return {"success": True}
         except client.exceptions.ApiException as e:
-            print(f"Exception when creating PrometheusRule: {e}")
+            log.error(f"Exception when creating PrometheusRule: {e}")
             return None
 
     def __get_namespace_label_value(self, namespace_name: str, label_key: str) -> str | None:
@@ -835,9 +827,9 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
 
         except client.ApiException as e:
             if e.status == 404:
-                print(f"Error: Namespace '{namespace_name}' not found (Status 404).")
+                log.error(f"Error: Namespace '{namespace_name}' not found (Status 404).")
             else:
-                print(f"Error retrieving namespace: {e}")
+                log.error(f"Error retrieving namespace: {e}")
             return None
         
     def __delete_openshift_route(self, namespace, route_name):
@@ -848,7 +840,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         plural = "routes"
 
         try:
-            print(f"Attempting to delete Route '{route_name}' in namespace '{namespace}'...")
+            log.info(f"Attempting to delete Route '{route_name}' in namespace '{namespace}'...")
             
             # Delete the namespaced custom object
             self.__custom_v1_api.delete_namespaced_custom_object(
@@ -859,16 +851,16 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 name=route_name,
                 body=client.V1DeleteOptions()
             )
-            print(f"✅ Successfully deleted Route '{route_name}'.")
+            log.info(f"Successfully deleted Route '{route_name}'.")
 
         except ApiException as e:
             if e.status == 404:  # 404 Not Found == Already Deleted
-                print(f"⚠️  Route '{route_name}' does not exist. Skipping.")
+                log.warning(f"Route '{route_name}' does not exist. Skipping.")
             else:
-                print(f"❌ Error deleting Route '{route_name}': {e.reason}", file=sys.stderr)
-                print(f"   Details: {e.body}", file=sys.stderr)
+                log.error(f"Error deleting Route '{route_name}': {e.reason}")
+                log.error(f"   Details: {e.body}")
         except Exception as e:
-            print(f"❌ An unexpected error occurred for Route '{route_name}': {e}", file=sys.stderr)
+            log.error(f"An unexpected error occurred for Route '{route_name}': {e}")
     
     def delete_simulation(self, user):        
         label_selector = "observability-demo-framework=agent"
@@ -877,37 +869,37 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         # Delete Deployments matching the selector
         deployments = self.__apps_v1_api.list_namespaced_deployment(namespace=namespace, label_selector=label_selector)
         for deployment in deployments.items:
-            print(f"Deleting Deployment: {deployment.metadata.name}")
+            log.info(f"Deleting Deployment: {deployment.metadata.name}")
             self.__apps_v1_api.delete_namespaced_deployment(name=deployment.metadata.name, namespace=deployment.metadata.namespace)
 
         # Delete Services matching the selector
         services = self.__core_v1_api.list_namespaced_service(namespace=namespace, label_selector=label_selector)
         for service in services.items:
-            print(f"Deleting Service: {service.metadata.name}")
+            log.info(f"Deleting Service: {service.metadata.name}")
             self.__core_v1_api.delete_namespaced_service(name=service.metadata.name, namespace=service.metadata.namespace)
 
         # User Workload monitoring
         observability_stack = self.__get_namespace_label_value(namespace, "observability-stack")
-        print (f"Observability stack: {observability_stack}")
+        log.info(f"Observability stack: {observability_stack}")
         api_group_name = "monitoring.coreos.com"
         match observability_stack:                
             case "coo":
                 api_group_name = "monitoring.rhobs"
                 # Delete MonitoringStack
                 monitoring_stack_name = f"monitoring-stack-{user}"
-                print (f"Deleting MonitoringStack {monitoring_stack_name}")
+                log.info(f"Deleting MonitoringStack {monitoring_stack_name}")
                 self.__custom_v1_api.delete_namespaced_custom_object(
                     group=api_group_name,
                     version="v1alpha1",
                     namespace=namespace,
                     plural="monitoringstacks",
                     name=monitoring_stack_name)                
-                print ("Deleting routes")
+                log.info("Deleting routes")
                 self.__delete_openshift_route(namespace, f"prometheus-{user}")
                 self.__delete_openshift_route(namespace, f"alertmanager-{user}")
             case "mesh":
                 #TODO
-                print("Service Mesh handling not implemented.")
+                log.info("Service Mesh handling not implemented.")
             
         # Delete ServiceMonitors matching the selector
         # Assuming ServiceMonitors are custom resources from the Prometheus operator
@@ -919,7 +911,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             label_selector=label_selector
         )
         for sm in service_monitors.get("items", []):
-            print(f"Deleting ServiceMonitor: {sm['metadata']['name']}")
+            log.info(f"Deleting ServiceMonitor: {sm['metadata']['name']}")
             self.__custom_v1_api.delete_namespaced_custom_object(
                 group=api_group_name,
                 version="v1",
@@ -936,7 +928,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             label_selector=label_selector
         )
         for pm in prometheus_rules.get("items", []):
-            print(f"Deleting PrometheusRule: {pm['metadata']['name']}")
+            log.info(f"Deleting PrometheusRule: {pm['metadata']['name']}")
             self.__custom_v1_api.delete_namespaced_custom_object(
                 group=api_group_name,
                 version="v1",
@@ -949,27 +941,27 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         secret_name="obs-demo-fw-state"
         try:
             self.__core_v1_api.delete_namespaced_secret(secret_name, namespace)
-            print(f"Secret '{secret_name}' deleted successfully.")
+            log.info(f"Secret '{secret_name}' deleted successfully.")
         except client.exceptions.ApiException as e:
             if e.status == 404:
-                print(f"Secret '{secret_name}' not found in namespace '{namespace}'. Skipping.")
+                log.warning(f"Secret '{secret_name}' not found in namespace '{namespace}'. Skipping.")
             else:
-                print(f"Failed to delete Secret '{secret_name}': {e}")
+                log.error(f"Failed to delete Secret '{secret_name}': {e}")
                 raise
         
         # Delete config map
         config_map = self.ALERTS_CONFIGMAP
         try:
             self.__core_v1_api.delete_namespaced_config_map(config_map, namespace)
-            print(f"ConfigMap '{config_map}' deleted successfully.")
+            log.info(f"ConfigMap '{config_map}' deleted successfully.")
         except client.exceptions.ApiException as e:
             if e.status == 404:
-                print(f"ConfigMap '{config_map}' not found in namespace '{namespace}'. Skipping.")
+                log.warning(f"ConfigMap '{config_map}' not found in namespace '{namespace}'. Skipping.")
             else:
-                print(f"Failed to delete ConfigMap '{config_map}': {e}")
+                log.error(f"Failed to delete ConfigMap '{config_map}': {e}")
                 raise
 
-        print("All matching resources deleted successfully.")
+        log.info("All matching resources deleted successfully.")
 
     def delete_alert(self, user, alert_name):
         namespace = self.__layout.user_namespace(user)
@@ -983,9 +975,9 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             return {"success": True}
         except client.exceptions.ApiException as e:
             if e.status == 404:
-                print(f"PrometheusRule '{alert_name}' not found in namespace '{self.__layout.app_namespace}'.")                
+                log.warning(f"PrometheusRule '{alert_name}' not found in namespace '{self.__layout.app_namespace}'.")                
             else:
-                print(f"Failed to delete PrometheusRule '{alert_name}': {e}")
+                log.error(f"Failed to delete PrometheusRule '{alert_name}': {e}")
             return {"success": False, "error": e}            
 
     def delete_alert_definition(self, user, alert_id):
@@ -1014,7 +1006,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
     
     def update_users_json(self, users):
         namespace = self.__layout.app_namespace
-        print(users)
+        log.debug(users)
         self.__save_json_to_configmap(users, self.USERS_CONFIGMAP, "users", namespace)
 
     def __load_operations(self) -> Dict[str, Any]:
@@ -1064,7 +1056,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         
     def __wait_for_job_completion(self, batch_v1, job_name, timeout=300, interval=5):
         """Waits for the specified Job to either Complete or Fail."""
-        print(f"Polling for Job '{job_name}' status (Interval: {interval}s, Timeout: {timeout}s)...")
+        log.info(f"Polling for Job '{job_name}' status (Interval: {interval}s, Timeout: {timeout}s)...")
         start_time = time.time()        
         
         while (time.time() - start_time) < timeout:
@@ -1073,29 +1065,27 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             try:
                 job = batch_v1.read_namespaced_job_status(name=job_name, namespace=self.__layout.app_namespace)
             except ApiException as e:
-                print(f"Error reading Job status: {e}")
+                log.error(f"Error reading Job status: {e}")
                 return False
 
             # Check for completion condition
             if job.status.conditions:
                 for condition in job.status.conditions:
                     if condition.type == "Complete" and condition.status == "True":
-                        print(f"✅ Job {job_name} completed successfully.")
+                        log.info(f"Job {job_name} completed successfully.")
                         return True
                     
                     if condition.type == "Failed" and condition.status == "True":
-                        print(f"❌ Job {job_name} failed. Reason: {condition.reason}, Message: {condition.message}")
+                        log.error(f"Job {job_name} failed. Reason: {condition.reason}, Message: {condition.message}")
                         return False
 
-        print(f"❌ Job {job_name} timed out after {timeout} seconds.")
+        log.error(f"Job {job_name} timed out after {timeout} seconds.")
         return False
     
     def sync_users(self):
         if settings.is_local_keycloak:
-            print(
-                "Local development mode: user registry updated in ConfigMap only. "
-                "Cluster Keycloak sync job skipped."
-            )
+            log.info("Local development mode: user registry updated in ConfigMap only. "
+                "Cluster Keycloak sync job skipped.")
             return True
 
         namespace = self.__layout.app_namespace
@@ -1104,19 +1094,17 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 return self.__run_sync_users_job()
         except ApiException as exc:
             if exc.status == 403:
-                print(
-                    "WARNING: obs-orchestrator-sa cannot manage leases.coordination.k8s.io. "
+                log.warning("obs-orchestrator-sa cannot manage leases.coordination.k8s.io. "
                     "Running user sync without lock. "
-                    "Apply obs-orchestrator/scripts/patch-rbac-leases.sh to fix RBAC."
-                )
+                    "Apply obs-orchestrator/scripts/patch-rbac-leases.sh to fix RBAC.")
                 return self.__run_sync_users_job()
             raise
         except LeaseLockError as exc:
-            print(f"WARNING: Could not acquire user-sync lease ({exc}). Running sync without lock.")
+            log.warning(f"Could not acquire user-sync lease ({exc}). Running sync without lock.")
             return self.__run_sync_users_job()
 
     def __run_sync_users_job(self):
-        print("Users")
+        log.info("Users")
         sync_users_service_account = "obs-sync-users"
         job_manifest_body = {
             "apiVersion": "batch/v1",
@@ -1214,8 +1202,8 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         # Wait for job completion
         job_succeeded = self.__wait_for_job_completion(self.__batch_v1_api, job_name)
         if not job_succeeded:
-            print("JOB FAILED: Review logs above for error details.")
+            log.error("JOB FAILED: Review logs above for error details.")
             return False
         else:
-            print("Execution complete and successful.")
+            log.info("Execution complete and successful.")
             return True

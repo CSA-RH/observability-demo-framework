@@ -4,6 +4,9 @@ from utils import JSONUtils
 from operations.operation_store import new_operation, utc_now_iso
 
 import secrets, os, json 
+import logging
+
+log = logging.getLogger(__name__)
 
 class MockClusterConnector(ClusterConnectorInterface):
     
@@ -13,7 +16,7 @@ class MockClusterConnector(ClusterConnectorInterface):
     PATH_OPERATIONS_DEF="/tmp/obs-demo-fw-operations.json"
 
     def __init__(self): 
-        print("... Starting Mock Cluster connector.")
+        log.info("Starting Mock Cluster connector.")
         if not os.path.exists(self.PATH_USERS_DEF):
             JSONUtils.save_json_to_file([], self.PATH_USERS_DEF)
         if not os.path.exists(self.PATH_OPERATIONS_DEF):
@@ -45,20 +48,20 @@ class MockClusterConnector(ClusterConnectorInterface):
         return pod_suffix
     
     def create_simulation_resources(self, user, payload: List[Dict[str, Any]], stack):
-        print("create simulation resources")
+        log.info("create simulation resources")
         for item in payload:            
                 item["ip"] = "1.2.3.4"
                 item["pod"] = item["id"] + "-" + self.__generate_pod_suffix()                
         return payload
 
     def save_simulation(self, user, json_simulation):
-        print("save simulation")
+        log.info("save simulation")
         JSONUtils.save_json_to_file(json_simulation, self.PATH_SIMULATION_DEF)    
     
     def retrieve_simulation(self, user):
-        print("retrieve simulation")
+        log.info("retrieve simulation")
         json_data = JSONUtils.load_json_from_file(self.PATH_SIMULATION_DEF)
-        print(json_data)
+        log.debug(json_data)
 
         if not json_data:
             return {}
@@ -69,20 +72,20 @@ class MockClusterConnector(ClusterConnectorInterface):
         return json_data
     
     def delete_simulation(self, user):
-        print("Delete simulation")
+        log.info("Delete simulation")
         JSONUtils.delete_json_file(self.PATH_ALERTS_DEF)
         JSONUtils.delete_json_file(self.PATH_SIMULATION_DEF)
     
     def create_alert_resource(self, user, stack, id, name, severity, group, expression, summary):
-        print("Mocked alert:")
-        print(f"- user:       {user}")
-        print(f"- stack:      {stack}")
-        print(f"- id:         {id}")
-        print(f"- name:       {name}")
-        print(f"- severity    {severity}")
-        print(f"- group:      {group}")
-        print(f"- expression: {expression}")
-        print(f"- summary:    {summary}")
+        log.info("Mocked alert:")
+        log.info(f"- user:       {user}")
+        log.info(f"- stack:      {stack}")
+        log.info(f"- id:         {id}")
+        log.info(f"- name:       {name}")
+        log.info(f"- severity    {severity}")
+        log.info(f"- group:      {group}")
+        log.info(f"- expression: {expression}")
+        log.info(f"- summary:    {summary}")
         return id   
 
     
@@ -92,13 +95,13 @@ class MockClusterConnector(ClusterConnectorInterface):
         JSONUtils.save_json_to_file(alerts_definition, self.PATH_ALERTS_DEF)
     
     def delete_alert(self, user, alert_name):
-        print("Delete alert in Mock. Nothing to do")
+        log.info("Delete alert in Mock. Nothing to do")
         return {"success": True}
 
     def delete_alert_definition(self, user, alert_name):
         alerts = JSONUtils.load_json_from_file(self.PATH_ALERTS_DEF)   
         cleaned_alerts = [item for item in alerts if item.get("id") != alert_name]
-        print(cleaned_alerts)
+        log.debug(cleaned_alerts)
         JSONUtils.save_json_to_file(cleaned_alerts, self.PATH_ALERTS_DEF)
         return {"success": True}
 

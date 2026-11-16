@@ -261,7 +261,10 @@ Still open:
   - `CapabilityService` - cluster info, installed operators/features
 - [x] Settings via `pydantic-settings` (`app/settings.py`): every environment variable in one place,
       all optional, defaults reproduce the historical behaviour.
-- [ ] Replace `print` with structured logging (~230 calls, mostly in the connectors).
+- [x] Replace `print` with structured logging (~230 calls, mostly in the connectors): module
+      loggers, JSON lines by default (`ts`, `level`, `logger`, `message`, `exception`) so OpenShift
+      Logging/Loki can filter by level; `LOG_FORMAT=text` and `LOG_LEVEL` for local development.
+      4xx responses are logged at INFO, unhandled errors at ERROR with traceback.
 - [x] Remove "everything lives in my namespace" assumptions from the orchestrator (prerequisite for
       the namespace split): `APP_NAMESPACE`, `USER_NAMESPACE_PREFIX` (`obs-usr-` in step 2),
       `IMAGE_REGISTRY`, `IMAGE_NAMESPACE`. The connector builds every namespace and image through

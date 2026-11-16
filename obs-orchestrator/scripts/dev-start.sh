@@ -201,6 +201,7 @@ if [ "$MODE" = "local" ]; then
     export REQUESTS_CA_BUNDLE="${CERTS_DIR}/rootCA.crt"
     export SSL_CERT_FILE="${CERTS_DIR}/rootCA.crt"
     export AGENT_MANAGER=mock
+    export LOG_FORMAT="${LOG_FORMAT:-text}"
     export LEASE_HOLDER_IDENTITY="local-dev-${USER:-dev}-$$"
 
     # Execute uvicorn (replacing the bash process cleanly)
