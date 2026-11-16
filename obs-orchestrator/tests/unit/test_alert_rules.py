@@ -1,11 +1,11 @@
-"""Pure alert helpers in main.py (module-level, double-underscore names)."""
+"""Pure alert helpers in alert_rules.py."""
 import pytest
 
-import main
+import alert_rules
 
 
 def helper(name):
-    return getattr(main, f"__{name}")
+    return getattr(alert_rules, name)
 
 
 def metric_alert(expression=">", value=10):
