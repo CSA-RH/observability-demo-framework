@@ -252,7 +252,8 @@ Still open:
   - CORS: `CORS_ALLOWED_ORIGINS` from the new `frontend-url` key of `keycloak-route-ca-secret`
     (optional: unset falls back to any origin with a warning). No credentials (Bearer header).
   - Existing installs: same as the rename, delete Job `bootstrap-keycloak-idp` before syncing so
-    the secret gets `frontend-url`. Fresh installs need nothing.
+    the secret gets `frontend-url`. Fresh installs need nothing. No longer needed once `bootstrap-keycloak-idp`
+    is a Sync hook (Phase 3): the next sync adds the key.
 - [ ] Split `OpenShiftClusterConnector` into domain services:
   - `TenantService` - users, namespaces, Keycloak sync job
   - `SimulationService` - deployments, services, routes, kick
@@ -337,14 +338,18 @@ See "Target model" above for the decided installation story.
       `minio-buckets-creation-job`) were deleted by Kubernetes and recreated by Argo CD selfHeal,
       so they re-ran every few minutes. Now Argo CD Sync hooks (`BeforeHookCreation`): they run
       once per sync and the last run is kept for its logs.
-  - [ ] The other bootstrap Jobs (`bootstrap-keycloak-idp`, `bootstrap-build-*`,
-        `operator-waiter-job`) are still tracked resources with immutable pod templates (see the
-        rename note in Phase 2); consider the same hook treatment.
+  - [x] The other bootstrap Jobs: `operator-waiter-job` and `bootstrap-keycloak-idp` are now Sync
+        hooks too. `bootstrap-keycloak-idp` reuses the existing CA/certificate while it is valid
+        for the Keycloak host (not expiring within 30 days), so re-running it never rotates the CA,
+        and it re-applies `keycloak-route-ca-secret`, so new keys (`frontend-url`, renamed hosts)
+        reach existing installs without deleting the Job by hand.
+  - [ ] `bootstrap-build-*` stay tracked Jobs on purpose: as hooks every sync would rebuild all
+        images and block the sync on them. They go away with Quay publishing.
 - [x] RHBK 26.6+: Admin REST API rejects tokens without the `kc-admin-api` scope audience (bare
       401). `bootstrap-keycloak-realm` now attaches the scope to `automation-client`.
-  - [ ] Local dev (`dev-start.sh`, `quay.io/keycloak/keycloak:latest` + exported
-        `realm-definition.json`) likely has the same issue; verify and add `kc-admin-api` to
-        `automation-client` there.
+  - [x] Local dev (`dev-start.sh`): not affected. Only the sync Job uses `automation-client`
+        against the Admin REST API, and the orchestrator skips that Job when the issuer is the
+        local Keycloak, so the realm export is left unchanged.
 - [ ] Document install / uninstall / upgrade; add an uninstall cleanup job.
 
 ## Phase 4 - First extracted microservice: capabilities / gamification

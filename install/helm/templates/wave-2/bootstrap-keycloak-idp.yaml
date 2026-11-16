@@ -115,10 +115,14 @@ kind: Job
 metadata:
   name: bootstrap-keycloak-idp
   namespace: {{ .Values.applicationNamespace }}
-  annotations:    
+  annotations:
     {{- if .Values.annotationsWave2 }}
     {{- toYaml .Values.annotationsWave2 | nindent 4 }}
     {{- end }}
+    # Sync hook: the pod template of a tracked Job is immutable, so changing this script (e.g. new
+    # secret keys) used to require deleting the Job by hand. Safe to re-run: see REUSE_CERTS below.
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
   backoffLimit: 0 
   template:
@@ -153,28 +157,51 @@ spec:
           PRIVATE_CA_KEY="${OUTPUT_DIR}/privateCA.key"
           PRIVATE_CA_PEM="${OUTPUT_DIR}/privateCA.pem"
           
-          echo "Creating Private CA..."
-          openssl genrsa -out ${PRIVATE_CA_KEY} 2048
-          openssl req -x509 -new -nodes -key ${PRIVATE_CA_KEY} -sha256 -days 1825 -out ${PRIVATE_CA_PEM} \
-              -subj "/C=ES/ST=Caribe/L=Macondo/O=ACME/OU=CSA/CN=PrivateCA for custom Certificates (Keycloak Demo)"
-          
-          echo "Creating Keycloak server certificate..."
-          CERT_KEY="${OUTPUT_DIR}/cert.key"
-          CERT_CSR="${OUTPUT_DIR}/cert.csr"
-          CERT_CRT="${OUTPUT_DIR}/cert.crt"
-          
-          openssl genrsa -out ${CERT_KEY} 2048
-          openssl req -new -key ${CERT_KEY} -out ${CERT_CSR} \
-            -subj "/C=ES/ST=Caribe/L=Macondo/O=ACME/OU=CSA/CN=Keycloak Demo certificate"
-          
           echo "Getting cluster wildcard address..."
           WILDCARD_ADDRESS=."$(oc get ingress.config/cluster -o 'jsonpath={.spec.domain}')"
           export OAUTH_ENDPOINT="oauth-${PROJECT_NAME}${WILDCARD_ADDRESS//\*}"
           echo "...    OAUTH_ENDPOINT=${OAUTH_ENDPOINT}"
           
-          ## Create the cert.ext file on-the-fly
-          CERT_EXT="${OUTPUT_DIR}/cert.ext"
-          cat <<EOF > ${CERT_EXT}
+          CERT_KEY="${OUTPUT_DIR}/cert.key"
+          CERT_CSR="${OUTPUT_DIR}/cert.csr"
+          CERT_CRT="${OUTPUT_DIR}/cert.crt"
+          TLS_SECRET_NAME="keycloak-route-tls-secret"
+          SSL_BUNDLE_NAME="keycloak-route-ca-secret"
+
+          # This Job is an Argo CD Sync hook and runs on every sync. Reuse the existing CA and
+          # certificate while they are valid for this host (rotating them would break the trust of
+          # the console, the orchestrator and the sync Job); the secrets below are still re-applied
+          # so new keys (e.g. frontend-url) reach existing installs.
+          REUSE_CERTS=false
+          if oc get secret "$TLS_SECRET_NAME" "$SSL_BUNDLE_NAME" >/dev/null 2>&1; then
+            oc get secret "$TLS_SECRET_NAME" -o 'jsonpath={.data.tls\.crt}' | base64 -d > "$CERT_CRT"
+            oc get secret "$TLS_SECRET_NAME" -o 'jsonpath={.data.tls\.key}' | base64 -d > "$CERT_KEY"
+            oc get secret "$SSL_BUNDLE_NAME" -o 'jsonpath={.data.ca\.crt}' | base64 -d > "$PRIVATE_CA_PEM"
+            if openssl x509 -in "$CERT_CRT" -noout -ext subjectAltName 2>/dev/null | grep -q "DNS:${OAUTH_ENDPOINT}" \
+              && openssl x509 -in "$CERT_CRT" -noout -checkend 2592000 >/dev/null \
+              && openssl verify -CAfile "$PRIVATE_CA_PEM" "$CERT_CRT" >/dev/null 2>&1; then
+              REUSE_CERTS=true
+            fi
+          fi
+
+          if [ "$REUSE_CERTS" = true ]; then
+            echo "Existing Keycloak certificate is valid for ${OAUTH_ENDPOINT}: reusing CA and certificate."
+          else
+            echo "No valid Keycloak certificate for ${OAUTH_ENDPOINT} (missing, other host or expiring): generating."
+            echo "Creating Private CA..."
+            openssl genrsa -out ${PRIVATE_CA_KEY} 2048
+            openssl req -x509 -new -nodes -key ${PRIVATE_CA_KEY} -sha256 -days 1825 -out ${PRIVATE_CA_PEM} \
+                -subj "/C=ES/ST=Caribe/L=Macondo/O=ACME/OU=CSA/CN=PrivateCA for custom Certificates (Keycloak Demo)"
+          
+            echo "Creating Keycloak server certificate..."
+          
+            openssl genrsa -out ${CERT_KEY} 2048
+            openssl req -new -key ${CERT_KEY} -out ${CERT_CSR} \
+              -subj "/C=ES/ST=Caribe/L=Macondo/O=ACME/OU=CSA/CN=Keycloak Demo certificate"
+          
+            ## Create the cert.ext file on-the-fly
+            CERT_EXT="${OUTPUT_DIR}/cert.ext"
+            cat <<EOF > ${CERT_EXT}
           authorityKeyIdentifier=keyid,issuer
           basicConstraints=CA:FALSE
           keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
@@ -183,15 +210,13 @@ spec:
           DNS.1 = $OAUTH_ENDPOINT
           EOF
           
-          echo "Signing the certificate..."
-          openssl x509 -req -in ${CERT_CSR} \
-            -CA ${PRIVATE_CA_PEM} -CAkey ${PRIVATE_CA_KEY} -CAcreateserial \
-            -out ${CERT_CRT} -days 825 -sha256 -extfile ${CERT_EXT}
+            echo "Signing the certificate..."
+            openssl x509 -req -in ${CERT_CSR} \
+              -CA ${PRIVATE_CA_PEM} -CAkey ${PRIVATE_CA_KEY} -CAcreateserial \
+              -out ${CERT_CRT} -days 825 -sha256 -extfile ${CERT_EXT}
+          fi
             
           echo "Creating/Updating secrets in namespace ${PROJECT_NAME}..."
-          TLS_SECRET_NAME="keycloak-route-tls-secret"
-          SSL_BUNDLE_NAME="keycloak-route-ca-secret"
-          
           # Use 'oc apply' to make this idempotent.
           oc create secret tls $TLS_SECRET_NAME \
             --cert=$CERT_CRT \

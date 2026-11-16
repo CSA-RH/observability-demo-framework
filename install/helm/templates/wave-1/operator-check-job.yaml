@@ -5,6 +5,10 @@ metadata:
   namespace: {{ .Values.applicationNamespace }}
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    # Sync hook: only waits for the operators, so re-running it on every sync is harmless, and
+    # changes to its pod template no longer need the tracked Job to be deleted by hand.
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
   backoffLimit: 2
   activeDeadlineSeconds: 600
