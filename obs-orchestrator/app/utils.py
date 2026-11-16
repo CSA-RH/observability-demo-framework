@@ -64,3 +64,36 @@ class JSONUtils:
     def print_pretty_obj(obj):
         pretty_json_data = json.dumps(obj, indent=4)
         print(pretty_json_data)
+
+
+def print_red(str):
+    print(f"\033[91m{str}\033[0m")
+
+def print_exception(e):    
+    print_red("ERROR INFORMATION:")
+    
+    # Print the exception's type and standard message, which always exist
+    print(f"- Type: {type(e).__name__}")
+    print(f"- Message: {e}")
+
+    # Safely get HTTP attributes using getattr(object, attribute_name, default_value)
+    status = getattr(e, 'status', 'N/A')
+    reason = getattr(e, 'reason', 'N/A')
+    body = getattr(e, 'body', None)  # Default to None if 'body' doesn't exist
+
+    print(f"- HTTP status: {status}")
+    print(f"- Reason: {reason}")
+    print("- Body: -->>>")
+
+    try:
+        if body is not None:
+            JSONUtils.print_pretty_json(body)
+        else:
+            print("(No body attribute or body is None)")
+    except Exception as body_print_error:
+        # Added this in case JSONUtils fails (e.g., body isn't JSON)
+        print(f"(Could not print body details: {body_print_error})")
+        print(f"Raw body: {body}") # Try to print the raw body as a fallback
+
+    print("<<<--")
+    print_red("-------------")

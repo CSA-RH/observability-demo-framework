@@ -1,6 +1,6 @@
 import pytest
 
-import main
+import dependencies as deps
 from conftest import TEST_USER, wait_for_operation
 
 USER = TEST_USER
@@ -56,7 +56,7 @@ def test_create_simulation_failure_from_cluster_is_reported(client, monkeypatch)
     def boom(user, agents, stack):
         raise RuntimeError("quota exceeded")
 
-    monkeypatch.setattr(main.cluster_connector, "create_simulation_resources", boom)
+    monkeypatch.setattr(deps.cluster_connector, "create_simulation_resources", boom)
     operation = create_simulation(client)
     assert operation["status"] == "failed"
     assert operation["error"] == "quota exceeded"
@@ -108,7 +108,7 @@ def test_get_simulation_merges_metrics_and_their_alerts(client):
 
 def test_kick_forwards_to_agent_manager(client, monkeypatch):
     calls = []
-    monkeypatch.setattr(main.agent_manager, "kick", lambda *args: calls.append(args) or {"ok": True})
+    monkeypatch.setattr(deps.agent_manager, "kick", lambda *args: calls.append(args) or {"ok": True})
     response = client.post(
         f"/api/v1/users/{USER}/simulation/kick/customer-1",
         json={"dns": "customer-1.ns.svc", "count": 4},
