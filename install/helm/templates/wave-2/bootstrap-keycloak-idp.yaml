@@ -203,6 +203,7 @@ spec:
             --from-literal=idp-issuer=https://${OAUTH_ENDPOINT}/realms/csa \
             --from-literal=idp-url=https://${OAUTH_ENDPOINT} \
             --from-literal=backend-url=https://obs-orchestrator-${PROJECT_NAME}${WILDCARD_ADDRESS//\*} \
+            --from-literal=frontend-url=https://obs-console-${PROJECT_NAME}${WILDCARD_ADDRESS//\*} \
             --dry-run=client -o yaml | oc apply -f -
             
           echo "Labeling secrets..."

@@ -69,3 +69,11 @@ spec:
               key: idp-issuer
         - name: REQUESTS_CA_BUNDLE
           value: /etc/ssl/keycloak/ca.crt
+        # Only the console may call the API from a browser. Optional: secrets created before
+        # frontend-url existed leave it unset and the API falls back to any origin.
+        - name: CORS_ALLOWED_ORIGINS
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-route-ca-secret
+              key: frontend-url
+              optional: true

@@ -14,6 +14,7 @@ os.environ.setdefault("AGENT_MANAGER", "mock")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+import auth  # noqa: E402
 import main  # noqa: E402
 from agent_manager.MockAgentManager import MockAgentManager  # noqa: E402
 from cluster_connector.MockClusterConnector import MockClusterConnector  # noqa: E402
@@ -41,7 +42,7 @@ def isolated_storage(tmp_path, monkeypatch):
 @pytest.fixture
 def client():
     """Authenticated client. Server errors are returned as HTTP 500 instead of raised."""
-    main.app.dependency_overrides[main.get_current_user] = lambda: TEST_USER
+    main.app.dependency_overrides[auth.get_current_user] = lambda: TEST_USER
     with TestClient(main.app, raise_server_exceptions=False) as c:
         yield c
     main.app.dependency_overrides.clear()

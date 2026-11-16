@@ -44,6 +44,7 @@ Environment defaults in local mode:
 | `KEYCLOAK_ISSUER` | `https://localhost:8443/realms/csa` |
 | `AGENT_MANAGER` | `mock` |
 | `CLUSTER_CONNECTOR` | unset (uses real cluster via kubeconfig) |
+| `CORS_ALLOWED_ORIGINS` | unset (any origin; on the cluster it is the obs-console URL) |
 
 ## Frontend
 
