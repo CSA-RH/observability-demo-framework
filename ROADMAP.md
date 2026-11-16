@@ -352,6 +352,22 @@ See "Target model" above for the decided installation story.
         local Keycloak, so the realm export is left unchanged.
 - [ ] Document install / uninstall / upgrade; add an uninstall cleanup job.
 
+### Security maintenance (Nov 2026)
+
+- [x] `python-jose` (critical, unpatched) replaced by PyJWT.
+- [x] Node client: `axios` pinned to `^1.21.1` (36 alerts; the `>=1.15.0` range and missing lockfile
+      left nothing for Dependabot to bump); `package-lock.json` committed, `npm ci` in the image
+      and CI; unused `@opentelemetry/sdk-logs` / `exporter-logs-otlp-http` removed (tracing comes
+      from operator auto-instrumentation); `overrides` for `glob`/`minimatch` in Jest's tree.
+      CI fails on moderate+ vulnerabilities in runtime dependencies.
+  - [ ] `deepmerge` (Jest config merging, dev-only, trusted input) has no patched release: dismiss
+        the Dependabot alerts as "risk is tolerable" until Jest drops or patches it.
+- [ ] Node 20 is EOL (2026-04-30): move the Node client image and CI to Node 22/24 LTS; the
+      client base images are pinned to 2024 builds (`ubi9/nodejs-20:1-59...`,
+      `ubi8/nodejs-20-minimal:1-62...`), refresh them and let Dependabot track them.
+- [ ] `.github/dependabot.yml`: version updates for pip, npm (console, Node client), Go, .NET,
+      Docker base images and GitHub Actions, so security fixes arrive as PRs.
+
 ## Phase 4 - First extracted microservice: capabilities / gamification
 
 See "Capabilities and challenges" in the target model.

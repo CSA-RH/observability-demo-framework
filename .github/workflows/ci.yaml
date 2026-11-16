@@ -69,8 +69,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - run: npm install
+      - run: npm ci
       - run: npm test
+      # Fail on vulnerabilities in what ships in the image (dev tooling is reported by Dependabot).
+      - run: npm audit --omit=dev --audit-level=moderate
 
   client-dotnet:
     name: Client (.NET)
