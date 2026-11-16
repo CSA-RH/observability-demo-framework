@@ -11,8 +11,7 @@ from typing import Callable, Dict, Optional
 import requests                                                     # type: ignore
 from fastapi import Depends, HTTPException                          # type: ignore
 from fastapi.security import HTTPBearer                             # type: ignore
-from jose import jwt                                                # type: ignore
-from jose.exceptions import JWTError                                # type: ignore
+import jwt                                                          # type: ignore  (PyJWT)
 
 from settings import settings
 
@@ -21,6 +20,7 @@ log = logging.getLogger(__name__)
 KEYCLOAK_ISSUER = settings.issuer
 KEYCLOAK_AUDIENCE = settings.keycloak_audience
 KEYCLOAK_CERTS_URL = settings.certs_url
+ALGORITHM = "RS256"
 log.info(f"IdP issuer: {KEYCLOAK_ISSUER}")
 
 
@@ -55,7 +55,11 @@ class JWKSCache:
         self._fetched_at = self._clock()
         response = requests.get(self.url, timeout=self.fetch_timeout)
         response.raise_for_status()
-        self._keys = {key["kid"]: key for key in response.json()["keys"] if "kid" in key}
+        # Keycloak also publishes encryption keys ("use": "enc"); only signing keys verify tokens.
+        self._keys = {
+            key["kid"]: key for key in response.json()["keys"]
+            if "kid" in key and key.get("use", "sig") == "sig"
+        }
 
     def get_key(self, kid: str) -> dict:
         """Return the JWK for `kid`. 401 if Keycloak does not know it, 500 if unreachable."""
@@ -85,16 +89,19 @@ def decode_token(token: str) -> Dict:
         kid = jwt.get_unverified_header(token).get("kid")
         if not kid:
             raise HTTPException(status_code=401, detail="Token header missing 'kid'")
+        # The key is built for RS256 explicitly, never from the token header (algorithm confusion).
+        key = jwt.PyJWK(jwks_cache.get_key(kid), algorithm=ALGORITHM).key
         return jwt.decode(
             token,
-            jwks_cache.get_key(kid),
-            algorithms=["RS256"],
+            key,
+            algorithms=[ALGORITHM],
             audience=KEYCLOAK_AUDIENCE,
             issuer=KEYCLOAK_ISSUER,
+            options={"require": ["exp", "iss", "aud"]},
         )
     except HTTPException:
         raise
-    except JWTError as e:
+    except (jwt.PyJWTError, jwt.PyJWKError) as e:
         raise HTTPException(status_code=401, detail=f"Token validation error: {e}")
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Error decoding token: {e}")
