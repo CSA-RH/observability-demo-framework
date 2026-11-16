@@ -6,7 +6,9 @@
     client_id: "{{ lookup('env', 'KC_API_CLIENT_ID') }}"
     client_secret: "{{ lookup('env', 'KC_API_CLIENT_SECRET') }}"
     users_configmap: obs-demo-fwk-users
-    root_namespace: obs-demo
+    # Namespace layout, passed by the orchestrator when it creates the Job (defaults: historical layout).
+    app_namespace: "{{ lookup('env', 'APP_NAMESPACE') | default('obs-demo', true) }}"
+    user_namespace_prefix: "{{ lookup('env', 'USER_NAMESPACE_PREFIX') | default(app_namespace ~ '-', true) }}"
     keycloak_url: "{{ lookup('env', 'KC_API_URL') }}"
     keycloak_realm: "{{ lookup('env', 'KC_API_REALM') }}"
 
@@ -16,7 +18,7 @@
       kubernetes.core.k8s_info:
         kind: ConfigMap
         name: "{{ users_configmap }}"
-        namespace: "{{ root_namespace }}"
+        namespace: "{{ app_namespace }}"
       register: configmap_check_status
 
     - name: Display ConfigMap check status (for debugging)
@@ -231,7 +233,7 @@
               apiVersion: v1
               kind: Namespace
               metadata:
-                name: "{{ root_namespace }}-{{ user_item.username }}" 
+                name: "{{ user_namespace_prefix }}{{ user_item.username }}" 
                 labels:
                   observability-demo-framework: "users"
                   observability-stack: "{{ user_item.monitoringType }}"
@@ -255,7 +257,7 @@
               kind: ClusterRoleBinding
               metadata:
                 name: "image-puller-{{ user_item.username }}-sa" # This name is in user's namespace, so can be static
-                namespace: "{{ root_namespace }}-{{ user_item.username }}"
+                namespace: "{{ user_namespace_prefix }}{{ user_item.username }}"
               roleRef:
                 apiGroup: rbac.authorization.k8s.io
                 kind: ClusterRole
@@ -263,7 +265,7 @@
               subjects:
               - kind: ServiceAccount
                 name: default
-                namespace: "{{ root_namespace }}-{{ user_item.username }}" # SA from user's namespace
+                namespace: "{{ user_namespace_prefix }}{{ user_item.username }}" # SA from user's namespace
           loop: "{{ generated_users }}"
           loop_control:
             loop_var: user_item
@@ -313,7 +315,7 @@
         - name: 1.4. Define all desired namespace names
           ansible.builtin.set_fact:
             # Defines the desired_namespace_names list
-            desired_namespace_names: "{{ desired_usernames | map('regex_replace', '^(.*)$', root_namespace + '-\\1') | list }}"
+            desired_namespace_names: "{{ desired_usernames | map('regex_replace', '^(.*)$', user_namespace_prefix + '\\1') | list }}"
 
         - name: 1.4 (DEBUG) display desired_namespace_names
           ansible.builtin.debug:

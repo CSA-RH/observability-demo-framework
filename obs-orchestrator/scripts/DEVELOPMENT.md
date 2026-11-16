@@ -37,7 +37,8 @@ Useful flags:
 - `--mode cluster` — only checks OpenShift context (for frontend-only work against cluster routes)
 - `--force-certs` — regenerate certificates
 
-Environment defaults in local mode:
+All settings are environment variables read once at startup by `app/settings.py` (every one is
+optional). Defaults in local mode:
 
 | Variable | Value |
 |----------|--------|
@@ -45,6 +46,10 @@ Environment defaults in local mode:
 | `AGENT_MANAGER` | `mock` |
 | `CLUSTER_CONNECTOR` | unset (uses real cluster via kubeconfig) |
 | `CORS_ALLOWED_ORIGINS` | unset (any origin; on the cluster it is the obs-console URL) |
+| `APP_NAMESPACE` | unset (namespace of the current kube context; in-cluster, the pod's namespace) |
+| `USER_NAMESPACE_PREFIX` | unset (`<APP_NAMESPACE>-`, i.e. `obs-demo-<user>`) |
+| `IMAGE_REGISTRY` | `image-registry.openshift-image-registry.svc:5000` |
+| `IMAGE_NAMESPACE` | unset (`APP_NAMESPACE`); registry namespace of the agent and sync-users images |
 
 ## Frontend
 
