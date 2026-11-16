@@ -113,8 +113,9 @@ const AdminPage = () => {
         let errorDetail = `Error creating user ${user.username}[${postUserResponse.status}]`;
         try {
           const result = await postUserResponse.json();
-          if (result?.detail) {
-            errorDetail = result.detail;
+          // The API returns {"message": ...} (e.g. 409 "User abc already exists").
+          if (result?.message || result?.detail) {
+            errorDetail = result.message || result.detail;
           }
         } catch (_) {
           // Keep default message when response body is not JSON.

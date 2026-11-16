@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status  # type: ignore
 
 import dependencies as deps
 from auth import get_current_user
+from models import AgentKick, SimulationCreate
 from operations.operation_tasks import run_simulation_create, run_simulation_delete
 
 router = APIRouter(prefix="/api/v1/users/{user_id}/simulation", tags=["simulation"])
@@ -57,9 +58,10 @@ async def get_simulation(user_id: str, current_user: dict = Depends(get_current_
 @router.post("", status_code=status.HTTP_202_ACCEPTED)
 async def create_simulation(
     user_id: str,
-    payload: Dict[str, Any],
+    simulation: SimulationCreate,
     current_user: dict = Depends(get_current_user),
 ):
+    payload = simulation.to_dict()
     operation_id = deps.cluster_connector.create_operation(
         "simulation-create",
         {"userId": user_id},
@@ -80,8 +82,6 @@ async def delete_simulation(
     return {"operationId": operation_id, "status": "pending"}
 
 @router.post("/kick/{agent_id}")
-async def agent_kick(user_id, agent_id: str, payload: dict[str, Any], current_user: dict = Depends(get_current_user)):    
-    agent_dns = payload['dns']
-    print(f"DNS: {agent_dns}")
-    kick_initial_count = payload['count']    
-    return deps.agent_manager.kick(user_id, agent_id, agent_dns, kick_initial_count)
+async def agent_kick(user_id: str, agent_id: str, kick: AgentKick, current_user: dict = Depends(get_current_user)):
+    print(f"DNS: {kick.dns}")
+    return deps.agent_manager.kick(user_id, agent_id, kick.dns, kick.count)

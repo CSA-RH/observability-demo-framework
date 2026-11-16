@@ -1,14 +1,18 @@
 import asyncio
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status  # type: ignore
 
 import dependencies as deps
 from auth import get_current_user
+from models import UserCreate
 from operations.operation_tasks import run_user_create, run_user_delete
 from validators import validate_username
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
+
+
+def _find_user(username: str):
+    return next((u for u in deps.cluster_connector.get_users_json() if u.get("username") == username), None)
 
 
 @router.get("")
@@ -18,16 +22,19 @@ def get_users(current_user: dict = Depends(get_current_user)):
 
 @router.post("", status_code=status.HTTP_202_ACCEPTED)
 async def post_user(
-    user_payload: dict[str, Any],
+    user: UserCreate,
     current_user: dict = Depends(get_current_user),
 ):
-    username_error = validate_username(user_payload.get("username"))
+    username_error = validate_username(user.username)
     if username_error:
         raise HTTPException(status_code=400, detail=username_error)
+    if _find_user(user.username) is not None:
+        raise HTTPException(status_code=409, detail=f"User {user.username} already exists")
+    user_payload = user.to_dict()
 
     operation_id = deps.cluster_connector.create_operation(
         "user-create",
-        {"username": user_payload.get("username")},
+        {"username": user.username},
     )
     asyncio.create_task(run_user_create(deps.cluster_connector, operation_id, user_payload))
     return {"operationId": operation_id, "status": "pending"}
@@ -38,7 +45,7 @@ async def delete_user(
     user_id: str,
     current_user: dict = Depends(get_current_user),
 ):
-    if not user_id:
+    if _find_user(user_id) is None:
         raise HTTPException(status_code=404, detail=f"User {user_id} not found")
 
     operation_id = deps.cluster_connector.create_operation(

@@ -1,3 +1,5 @@
+import pytest
+
 import dependencies as deps
 from conftest import TEST_USER
 
@@ -95,3 +97,23 @@ def test_delete_alert_reports_cluster_errors(client, monkeypatch):
     response = client.delete(f"{URL}/{alert_id}")
     assert response.status_code == 400
     assert "Error deleting OpenShift alert resource" in response.json()["message"]
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        pytest.param({**METRIC_ALERT, "scope": "nope"}, id="unknown-scope"),
+        pytest.param({k: v for k, v in METRIC_ALERT.items() if k != "observabilityStack"}, id="missing-stack"),
+        pytest.param({**METRIC_ALERT, "definition": {"agent": "a", "metric": "m"}}, id="metric-definition-incomplete"),
+        pytest.param({k: v for k, v in CUSTOM_ALERT.items() if k != "name"}, id="custom-without-name"),
+        pytest.param({**CUSTOM_ALERT, "definition": {"expression": "up == 0"}}, id="custom-without-summary"),
+    ],
+)
+def test_invalid_alert_is_rejected_before_touching_the_cluster(client, monkeypatch, payload):
+    calls = []
+    monkeypatch.setattr(deps.cluster_connector, "create_alert_resource", lambda *args: calls.append(args) or "ok")
+    response = client.post(URL, json=payload)
+    assert response.status_code == 422
+    assert response.json()["message"].startswith("Invalid request:")
+    assert calls == []
+    assert client.get(URL).json() == []
