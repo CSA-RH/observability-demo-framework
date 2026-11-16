@@ -6,7 +6,8 @@ import requests
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import HTTPException
-from jose import jwk, jwt
+import jwt
+from jwt.algorithms import RSAAlgorithm
 
 import auth
 
@@ -22,10 +23,11 @@ def _rsa_pem():
 
 PRIVATE_PEM = _rsa_pem()
 OTHER_PRIVATE_PEM = _rsa_pem()
-PUBLIC_JWK = {**jwk.construct(PRIVATE_PEM, "RS256").public_key().to_dict(), "kid": KID}
+PUBLIC_KEY = serialization.load_pem_private_key(PRIVATE_PEM, password=None).public_key()
+PUBLIC_JWK = {**RSAAlgorithm.to_jwk(PUBLIC_KEY, as_dict=True), "kid": KID, "use": "sig", "alg": "RS256"}
 
 
-def make_token(private_pem=PRIVATE_PEM, kid=KID, **claim_overrides):
+def make_token(private_pem=PRIVATE_PEM, kid=KID, algorithm="RS256", **claim_overrides):
     claims = {
         "preferred_username": "alice",
         "iss": auth.KEYCLOAK_ISSUER,
@@ -33,8 +35,9 @@ def make_token(private_pem=PRIVATE_PEM, kid=KID, **claim_overrides):
         "exp": int(time.time()) + 300,
     }
     claims.update(claim_overrides)
+    claims = {k: v for k, v in claims.items() if v is not None}  # None removes a claim
     headers = {"kid": kid} if kid else {}
-    return jwt.encode(claims, private_pem, algorithm="RS256", headers=headers)
+    return jwt.encode(claims, private_pem, algorithm=algorithm, headers=headers)
 
 
 class FakeResponse:
@@ -204,3 +207,54 @@ def test_jwks_fetch_has_timeout(monkeypatch):
     monkeypatch.setattr(auth.requests, "get", fake_get)
     auth.jwks_cache.get_key(KID)
     assert seen.get("timeout")
+
+
+def _public_pem():
+    return PUBLIC_KEY.public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo)
+
+
+def _unsigned_token(claims, kid=KID):
+    """alg=none token, built by hand (PyJWT refuses to verify these, which is what we test)."""
+    import base64
+    import json
+
+    def b64(data):
+        return base64.urlsafe_b64encode(json.dumps(data).encode()).rstrip(b"=").decode()
+
+    return f"{b64({'alg': 'none', 'typ': 'JWT', 'kid': kid})}.{b64(claims)}."
+
+
+def _valid_claims():
+    return {"preferred_username": "mallory", "iss": auth.KEYCLOAK_ISSUER, "aud": auth.KEYCLOAK_AUDIENCE,
+            "exp": int(time.time()) + 300}
+
+
+def test_algorithm_confusion_hs256_with_public_key_is_rejected(anonymous_client, jwks_requests):
+    """CVE-2026-85394 class: HS256 token whose HMAC secret is the realm's public key."""
+    import hashlib
+    import hmac
+    import base64
+    import json
+
+    def b64(raw):
+        return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+    header = b64(json.dumps({"alg": "HS256", "typ": "JWT", "kid": KID}).encode())
+    payload = b64(json.dumps(_valid_claims()).encode())
+    signature = b64(hmac.new(_public_pem(), f"{header}.{payload}".encode(), hashlib.sha256).digest())
+    assert get_info(anonymous_client, f"{header}.{payload}.{signature}").status_code == 401
+
+
+def test_unsigned_token_is_rejected(anonymous_client, jwks_requests):
+    assert get_info(anonymous_client, _unsigned_token(_valid_claims())).status_code == 401
+
+
+@pytest.mark.parametrize("claim", ["exp", "iss", "aud"])
+def test_tokens_without_required_claims_are_rejected(anonymous_client, jwks_requests, claim):
+    assert get_info(anonymous_client, make_token(**{claim: None})).status_code == 401
+
+
+def test_encryption_keys_are_not_used_for_signatures(anonymous_client, monkeypatch):
+    enc_key = {**PUBLIC_JWK, "use": "enc"}
+    monkeypatch.setattr(auth.requests, "get", lambda *a, **k: FakeResponse({"keys": [enc_key]}))
+    assert get_info(anonymous_client, make_token()).status_code == 401
