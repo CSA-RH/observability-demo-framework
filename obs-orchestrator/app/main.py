@@ -7,10 +7,6 @@ from cluster_connector.MockClusterConnector      import MockClusterConnector
 from fastapi                 import FastAPI, HTTPException, Request, Depends, status, Response  # type: ignore
 from fastapi.responses       import JSONResponse                                                # type: ignore
 from fastapi.middleware.cors import CORSMiddleware                                              # type: ignore
-from fastapi.security        import HTTPBearer                                                  # type: ignore
-
-from jose                 import jwt                                                            # type: ignore
-from jose.exceptions      import JWTError                                                       # type: ignore
 
 from typing import Dict, Any
 from utils  import JSONUtils
@@ -19,10 +15,10 @@ from pprint import pprint
 import os
 import asyncio
 import inspect
-import requests                                                                                 # type: ignore
 
 from agent_manager.OpenShiftAgentManager import AgentRequestError
 
+from auth import get_current_user
 from validators import validate_username
 from operations.operation_tasks import (
     run_user_create,
@@ -47,36 +43,21 @@ def is_using_fake_agent_manager():
     else:
         return value == 'mock'
     
-def get_keycloak_issuer():
-    value = os.environ.get('KEYCLOAK_ISSUER')
-    if value is None: 
-        return "https://localhost:8443/realms/csa"
-    else:
-        return value
+def get_cors_allowed_origins():
+    """Comma-separated `CORS_ALLOWED_ORIGINS` (the obs-console URL). Unset: any origin, with a warning."""
+    value = os.environ.get('CORS_ALLOWED_ORIGINS', '')
+    origins = [origin.strip().rstrip('/') for origin in value.split(',') if origin.strip()]
+    if not origins:
+        print("WARNING[cors]: CORS_ALLOWED_ORIGINS is not set; allowing any origin")
+        return ["*"]
+    return origins
 
-def get_keycloak_certificates_url():
-    value = os.environ.get('KEYCLOAK_CERTS_URL')
-    if value is None: 
-        return f"{KEYCLOAK_ISSUER}/protocol/openid-connect/certs"
-    else:
-        return value
-
-# Keycloak Configuration
-KEYCLOAK_ISSUER = get_keycloak_issuer()
-KEYCLOAK_AUDIENCE = "account"
-KEYCLOAK_CERTS_URL = get_keycloak_certificates_url()
-print(f"... IdP issuer endpoint: {KEYCLOAK_ISSUER}")
-
-#TODO: Improve security. CORS 
 app = FastAPI()
-origins = [
-#    "http://localhost:3000",
-    "*"
-]
+# The console sends the token in the Authorization header, not in cookies: no credentials needed.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=get_cors_allowed_origins(),
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -100,62 +81,6 @@ async def generic_exception_handler(request: Request, exc: Exception):
 async def http_exception_handler(request: Request, exc: HTTPException):
     print(f"Handling HTTP exception for request: {request} ")
     return JSONResponse(status_code=exc.status_code, content={"message": exc.detail})
-
-# Security Dependency
-security = HTTPBearer()
-
-# Fetch Keycloak Public Keys
-def get_public_key(kid: str):
-    try:
-        #TODO: Needs to improve certificate handling. 
-        response = requests.get(KEYCLOAK_CERTS_URL)
-        response.raise_for_status()
-        jwks = response.json()
-        for key in jwks["keys"]:
-            if key["kid"] == kid:
-                # Return the key directly (RSA public key in JSON Web Key format)
-                return key
-    except requests.RequestException as e:
-        __print_exception(e)
-        raise HTTPException(status_code=500, detail=f"Error fetching public keys: {e}")
-    raise HTTPException(status_code=401, detail="Public key not found")
-
-# Decode and Verify JWT
-def decode_token(token: str) -> Dict:
-    try:
-        # Get the unverified header to extract 'kid'
-        unverified_header = jwt.get_unverified_header(token)
-        kid = unverified_header.get("kid")
-        if not kid:
-            raise HTTPException(status_code=401, detail="Token header missing 'kid'")
-        
-        # Fetch the public key from Keycloak using 'kid'
-        public_key = get_public_key(kid)
-
-        # Decode the token using the public key
-        payload = jwt.decode(
-            token,
-            public_key,  # This is now the public key directly, no need for from_jwk
-            algorithms=["RS256"],
-            audience=KEYCLOAK_AUDIENCE,
-            issuer=KEYCLOAK_ISSUER,
-        )        
-        return payload
-    except JWTError as e:
-        __print_exception(e)
-        raise HTTPException(status_code=401, detail=f"Token validation error: {e}")
-    except Exception as e:
-        __print_exception(e)
-        raise HTTPException(status_code=401, detail=f"Error decoding token: {e}")
-
-# Dependency for Secured Endpoints
-def get_current_user(authorization: str = Depends(security)):
-    try:
-        token = authorization.credentials
-        return decode_token(token)["preferred_username"]
-    except Exception as e:
-        __print_exception(e)
-        raise HTTPException(status_code=401, detail=f"Unauthorized: {e}")
 
 @app.get("/api/v1/escotilla")
 async def get_escotilla_info(current_user: dict = Depends(get_current_user)):

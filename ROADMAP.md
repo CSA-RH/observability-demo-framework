@@ -224,7 +224,7 @@ is the signal to turn it into a regular test:
 - [ ] Duplicate usernames accepted (expected 409).
 - [ ] Deleting an unknown user succeeds (expected 404).
 - [ ] Missing payload fields return 500 instead of 422 (no request models).
-- [ ] JWKS fetched from Keycloak on every request (no cache).
+- [x] JWKS fetched from Keycloak on every request (no cache). Fixed in Phase 2 (auth module).
 - [ ] UI username validation does not reject reserved names (`admin`, `cluster-admin`).
 
 Still open:
@@ -245,7 +245,13 @@ Still open:
     baked in at build time). Fresh installs need nothing.
 - [ ] Split `main.py` into FastAPI routers: `users`, `simulation`, `metrics`, `alerts`,
       `operations`, `cluster-info`.
-- [ ] Extract auth into its own module; cache JWKS; restrict CORS to the frontend route.
+- [x] Extract auth into its own module; cache JWKS; restrict CORS to the frontend route.
+  - `app/auth.py`: JWKS cached for 5 min; an unknown `kid` (key rotation) forces a re-fetch at
+    most every 10 s; cached keys keep working if Keycloak is briefly unreachable; fetch timeout.
+  - CORS: `CORS_ALLOWED_ORIGINS` from the new `frontend-url` key of `keycloak-route-ca-secret`
+    (optional: unset falls back to any origin with a warning). No credentials (Bearer header).
+  - Existing installs: same as the rename, delete Job `bootstrap-keycloak-idp` before syncing so
+    the secret gets `frontend-url`. Fresh installs need nothing.
 - [ ] Split `OpenShiftClusterConnector` into domain services:
   - `TenantService` - users, namespaces, Keycloak sync job
   - `SimulationService` - deployments, services, routes, kick

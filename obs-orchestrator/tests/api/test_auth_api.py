@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import HTTPException
 from jose import jwk, jwt
 
-import main
+import auth
 
 KID = "test-key"
 
@@ -28,8 +28,8 @@ PUBLIC_JWK = {**jwk.construct(PRIVATE_PEM, "RS256").public_key().to_dict(), "kid
 def make_token(private_pem=PRIVATE_PEM, kid=KID, **claim_overrides):
     claims = {
         "preferred_username": "alice",
-        "iss": main.KEYCLOAK_ISSUER,
-        "aud": main.KEYCLOAK_AUDIENCE,
+        "iss": auth.KEYCLOAK_ISSUER,
+        "aud": auth.KEYCLOAK_AUDIENCE,
         "exp": int(time.time()) + 300,
     }
     claims.update(claim_overrides)
@@ -48,6 +48,13 @@ class FakeResponse:
         return self._payload
 
 
+@pytest.fixture(autouse=True)
+def empty_jwks_cache():
+    auth.jwks_cache.clear()
+    yield
+    auth.jwks_cache.clear()
+
+
 @pytest.fixture
 def jwks_requests(monkeypatch):
     """Serve the test JWKS instead of calling Keycloak; records each fetch."""
@@ -57,7 +64,7 @@ def jwks_requests(monkeypatch):
         calls.append(url)
         return FakeResponse({"keys": [PUBLIC_JWK]})
 
-    monkeypatch.setattr(main.requests, "get", fake_get)
+    monkeypatch.setattr(auth.requests, "get", fake_get)
     return calls
 
 
@@ -73,7 +80,7 @@ def test_valid_token_resolves_preferred_username(anonymous_client, jwks_requests
     response = get_info(anonymous_client, make_token())
     assert response.status_code == 200
     assert response.json()["Namespace"] == "fake-namespace-alice"
-    assert jwks_requests == [main.KEYCLOAK_CERTS_URL]
+    assert jwks_requests == [auth.KEYCLOAK_CERTS_URL]
 
 
 @pytest.mark.parametrize(
@@ -100,28 +107,100 @@ def test_keycloak_unreachable_results_in_401(anonymous_client, monkeypatch):
     def unreachable(*args, **kwargs):
         raise requests.ConnectionError("down")
 
-    monkeypatch.setattr(main.requests, "get", unreachable)
+    monkeypatch.setattr(auth.requests, "get", unreachable)
     assert get_info(anonymous_client, make_token()).status_code == 401
 
 
-def test_get_public_key_errors(monkeypatch):
-    monkeypatch.setattr(main.requests, "get", lambda *a, **k: FakeResponse({"keys": [PUBLIC_JWK]}))
+def test_jwks_cache_errors(monkeypatch):
+    monkeypatch.setattr(auth.requests, "get", lambda *a, **k: FakeResponse({"keys": [PUBLIC_JWK]}))
     with pytest.raises(HTTPException) as exc:
-        main.get_public_key("unknown-kid")
+        auth.jwks_cache.get_key("unknown-kid")
     assert exc.value.status_code == 401
+
+    auth.jwks_cache.clear()
 
     def unreachable(*args, **kwargs):
         raise requests.ConnectionError("down")
 
-    monkeypatch.setattr(main.requests, "get", unreachable)
+    monkeypatch.setattr(auth.requests, "get", unreachable)
     with pytest.raises(HTTPException) as exc:
-        main.get_public_key(KID)
+        auth.jwks_cache.get_key(KID)
     assert exc.value.status_code == 500
 
 
-@pytest.mark.xfail(strict=True, reason="Known gap: JWKS is fetched from Keycloak on every request (should be cached)")
 def test_jwks_is_cached_between_requests(anonymous_client, jwks_requests):
     token = make_token()
-    get_info(anonymous_client, token)
-    get_info(anonymous_client, token)
+    assert get_info(anonymous_client, token).status_code == 200
+    assert get_info(anonymous_client, token).status_code == 200
     assert len(jwks_requests) == 1
+
+
+class FakeClock:
+    def __init__(self):
+        self.now = 1000.0
+
+    def __call__(self):
+        return self.now
+
+
+@pytest.fixture
+def clock_cache(jwks_requests):
+    clock = FakeClock()
+    return auth.JWKSCache("https://idp/certs", ttl=300, min_refresh_interval=10, clock=clock), clock
+
+
+def test_jwks_refetched_after_ttl(clock_cache, jwks_requests):
+    cache, clock = clock_cache
+    cache.get_key(KID)
+    clock.now += 299
+    cache.get_key(KID)
+    assert len(jwks_requests) == 1
+    clock.now += 1
+    cache.get_key(KID)
+    assert len(jwks_requests) == 2
+
+
+def test_unknown_kid_refetch_is_rate_limited(clock_cache, jwks_requests):
+    cache, clock = clock_cache
+    cache.get_key(KID)
+    for _ in range(5):
+        with pytest.raises(HTTPException):
+            cache.get_key("rotated-kid")
+    assert len(jwks_requests) == 1
+    clock.now += 10
+    with pytest.raises(HTTPException):
+        cache.get_key("rotated-kid")
+    assert len(jwks_requests) == 2
+
+
+def test_unknown_kid_found_after_key_rotation(clock_cache, monkeypatch):
+    cache, clock = clock_cache
+    cache.get_key(KID)
+    rotated = {**PUBLIC_JWK, "kid": "rotated-kid"}
+    monkeypatch.setattr(auth.requests, "get", lambda *a, **k: FakeResponse({"keys": [PUBLIC_JWK, rotated]}))
+    clock.now += 10
+    assert cache.get_key("rotated-kid")["kid"] == "rotated-kid"
+
+
+def test_cached_keys_survive_keycloak_outage(clock_cache, monkeypatch):
+    cache, clock = clock_cache
+    cache.get_key(KID)
+
+    def unreachable(*args, **kwargs):
+        raise requests.ConnectionError("down")
+
+    monkeypatch.setattr(auth.requests, "get", unreachable)
+    clock.now += 301
+    assert cache.get_key(KID)["kid"] == KID
+
+
+def test_jwks_fetch_has_timeout(monkeypatch):
+    seen = {}
+
+    def fake_get(url, *args, **kwargs):
+        seen.update(kwargs)
+        return FakeResponse({"keys": [PUBLIC_JWK]})
+
+    monkeypatch.setattr(auth.requests, "get", fake_get)
+    auth.jwks_cache.get_key(KID)
+    assert seen.get("timeout")
