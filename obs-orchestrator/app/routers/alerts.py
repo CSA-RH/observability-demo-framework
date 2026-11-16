@@ -1,18 +1,18 @@
-from typing import Any
-
 from fastapi import APIRouter, Depends, HTTPException  # type: ignore
 from fastapi.responses import JSONResponse  # type: ignore
 
 import alert_rules
 import dependencies as deps
 from auth import get_current_user
+from models import AlertCreate
 from utils import print_exception
 
 router = APIRouter(prefix="/api/v1/users/{user_id}/simulation/alerts", tags=["alerts"])
 
 
 @router.post("")
-async def create_alert(user_id: str, payload: dict[str, Any], current_user: dict = Depends(get_current_user)):
+async def create_alert(user_id: str, alert: AlertCreate, current_user: dict = Depends(get_current_user)):
+    payload = alert.to_dict()
     print("Creating alert: ")   
     
     #Create the alert in the cluster

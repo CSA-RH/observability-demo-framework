@@ -3,6 +3,8 @@ backend singletons (cluster connector, agent manager) in `dependencies.py`."""
 import os
 
 from fastapi import FastAPI, HTTPException, Request                 # type: ignore
+from fastapi.encoders import jsonable_encoder                      # type: ignore
+from fastapi.exceptions import RequestValidationError              # type: ignore
 from fastapi.middleware.cors import CORSMiddleware                  # type: ignore
 from fastapi.responses import JSONResponse                          # type: ignore
 
@@ -43,6 +45,19 @@ async def generic_exception_handler(request: Request, exc: Exception):
 async def http_exception_handler(request: Request, exc: HTTPException):
     print(f"Handling HTTP exception for request: {request} ")
     return JSONResponse(status_code=exc.status_code, content={"message": exc.detail})
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # Same shape as the other errors ({"message": ...}), which is what the console displays.
+    errors = exc.errors()
+    summary = "; ".join(
+        f"{'.'.join(str(p) for p in error['loc'] if p != 'body') or 'body'}: {error['msg']}" for error in errors
+    )
+    return JSONResponse(
+        status_code=422,
+        content={"message": f"Invalid request: {summary}", "details": jsonable_encoder(errors)},
+    )
 
 
 for router_module in (cluster_info, users, operations, simulation, metrics, alerts):

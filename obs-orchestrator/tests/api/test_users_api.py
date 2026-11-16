@@ -27,7 +27,7 @@ def test_create_user_is_async_and_persists(client):
     assert client.get("/api/v1/users").json() == [{"username": "abc", "monitoringType": "coo"}]
 
 
-@pytest.mark.parametrize("payload", [{}, {"username": "ab"}, {"username": "Bad_Name"}, {"username": "admin"}])
+@pytest.mark.parametrize("payload", [{"username": "ab"}, {"username": "Bad_Name"}, {"username": "admin"}])
 def test_create_user_rejects_invalid_username(client, payload):
     response = client.post("/api/v1/users", json=payload)
     assert response.status_code == 400
@@ -43,11 +43,21 @@ def test_create_user_rolls_back_when_keycloak_sync_fails(client, monkeypatch):
     assert client.get("/api/v1/users").json() == []
 
 
-@pytest.mark.xfail(strict=True, reason="Known gap: duplicate usernames are accepted (expected 409)")
 def test_create_duplicate_user_is_rejected(client):
     wait_for_operation(client, create_user(client)["operationId"])
     response = client.post("/api/v1/users", json={"username": "abc"})
     assert response.status_code == 409
+    assert response.json() == {"message": "User abc already exists"}
+    assert len(client.get("/api/v1/users").json()) == 1
+
+
+@pytest.mark.parametrize("payload", [{}, {"username": 42}, {"monitoringType": "coo"}])
+def test_create_user_with_missing_or_mistyped_username_is_422(client, payload):
+    response = client.post("/api/v1/users", json=payload)
+    assert response.status_code == 422
+    body = response.json()
+    assert body["message"].startswith("Invalid request: username:")
+    assert body["details"][0]["loc"] == ["body", "username"]
 
 
 def test_delete_user(client):
@@ -69,9 +79,10 @@ def test_delete_user_restores_list_when_sync_fails(client, monkeypatch):
     assert [u["username"] for u in client.get("/api/v1/users").json()] == ["abc"]
 
 
-@pytest.mark.xfail(strict=True, reason="Known gap: deleting an unknown user succeeds (expected 404)")
 def test_delete_unknown_user_returns_404(client):
-    assert client.delete("/api/v1/users/ghost").status_code == 404
+    response = client.delete("/api/v1/users/ghost")
+    assert response.status_code == 404
+    assert response.json() == {"message": "User ghost not found"}
 
 
 def test_unknown_operation_returns_404(client):

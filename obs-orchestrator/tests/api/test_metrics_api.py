@@ -1,3 +1,5 @@
+import pytest
+
 import dependencies as deps
 from agent_manager.OpenShiftAgentManager import AgentRequestError
 from conftest import TEST_USER
@@ -44,3 +46,10 @@ def test_agent_errors_are_mapped_to_http_status(client, monkeypatch):
     response = client.post(URL, json=METRIC)
     assert response.status_code == 409
     assert response.json() == {"message": "Metric already exists"}
+
+
+@pytest.mark.parametrize("method", ["post", "put"])
+@pytest.mark.parametrize("payload", [{"ip": "1.2.3.4", "metric": {}}, {"id": "cook-1"}, {"id": "cook-1", "metric": "x"}])
+def test_metric_with_missing_or_mistyped_fields_is_422(client, method, payload):
+    response = getattr(client, method)(URL, json=payload)
+    assert response.status_code == 422

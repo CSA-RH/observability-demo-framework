@@ -221,9 +221,9 @@ and blast radius.
 Known gaps recorded as strict `xfail` / `it.fails` tests. Fixing one makes its test fail, which
 is the signal to turn it into a regular test:
 
-- [ ] Duplicate usernames accepted (expected 409).
-- [ ] Deleting an unknown user succeeds (expected 404).
-- [ ] Missing payload fields return 500 instead of 422 (no request models).
+- [x] Duplicate usernames accepted (expected 409). Fixed in Phase 2 (request models).
+- [x] Deleting an unknown user succeeds (expected 404). Fixed in Phase 2 (request models).
+- [x] Missing payload fields return 500 instead of 422 (no request models). Fixed in Phase 2.
 - [x] JWKS fetched from Keycloak on every request (no cache). Fixed in Phase 2 (auth module).
 - [ ] UI username validation does not reject reserved names (`admin`, `cluster-admin`).
 
@@ -265,7 +265,11 @@ Still open:
       (sync image, agent images) and user-namespace prefix (`obs-usr-`). Today: the `obs-demo-`
       prefix in `main.py`, `root_namespace: obs-demo` in the sync playbook, and the sync Job image,
       `idp-data` and Job namespace all derived from the orchestrator's own namespace.
-- [ ] Pydantic request/response models for every endpoint (fixes the 500-vs-422 gap).
+- [x] Pydantic request models for every endpoint with a body (`app/models.py`; fixes the
+      500-vs-422 gap). Only fields the backend reads are declared; extra fields are kept because
+      user and simulation payloads are stored as sent. 422s use the `{"message": ...}` shape.
+  - [ ] Response models (typed responses in the OpenAPI spec); useful for the client contract.
+  - [ ] Agent managers disagree on the metric payload (`dns` in OpenShift, `ip` in the mock).
 - [ ] Move the monitoring stack choice (`user-workload` / `coo`) from user creation to
       simulation creation. Today `monitoringType` lives on the user (`AdminPage.jsx`,
       `operation_tasks.py`, `ApiHelper.js`, `AgentInfo.jsx`, `AlertManagement.jsx`,

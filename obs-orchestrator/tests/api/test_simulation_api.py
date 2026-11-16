@@ -46,10 +46,19 @@ def test_get_simulation_after_create(client):
     assert all(a["metrics"] == [] for a in body["agents"])
 
 
-def test_create_simulation_with_malformed_payload_fails_operation(client):
-    operation = create_simulation(client, {"agents": []})
-    assert operation["status"] == "failed"
-    assert operation["error"]
+@pytest.mark.parametrize(
+    "payload",
+    [
+        pytest.param({"agents": []}, id="missing-user"),
+        pytest.param({"agents": [], "user": {"username": USER}}, id="missing-monitoring-type"),
+        pytest.param({"agents": "nope", "user": {"monitoringType": "coo"}}, id="agents-not-a-list"),
+    ],
+)
+def test_create_simulation_with_malformed_payload_is_rejected(client, payload):
+    response = client.post(f"/api/v1/users/{USER}/simulation", json=payload)
+    assert response.status_code == 422
+    assert response.json()["message"].startswith("Invalid request:")
+    assert client.get(f"/api/v1/users/{USER}/simulation").status_code == 404
 
 
 def test_create_simulation_failure_from_cluster_is_reported(client, monkeypatch):
@@ -118,7 +127,15 @@ def test_kick_forwards_to_agent_manager(client, monkeypatch):
     assert calls == [(USER, "customer-1", "customer-1.ns.svc", 4)]
 
 
-@pytest.mark.xfail(strict=True, reason="Known gap: missing payload fields cause 500 (expected 422 validation)")
 def test_kick_with_missing_fields_is_a_validation_error(client):
     response = client.post(f"/api/v1/users/{USER}/simulation/kick/customer-1", json={})
     assert response.status_code == 422
+
+
+def test_simulation_payload_is_stored_as_sent(client):
+    """Extra fields (layout, user.username, agent details) are not dropped by the request model."""
+    create_simulation(client)
+    stored = deps.cluster_connector.retrieve_simulation(USER)
+    assert stored["layout"] == SIMULATION["layout"]
+    assert stored["user"] == SIMULATION["user"]
+    assert stored["agents"][0]["nextHop"] == ["waiter-duda"]
