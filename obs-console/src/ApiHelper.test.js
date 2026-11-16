@@ -8,6 +8,7 @@ import {
     getOperationStatusLabel,
     getOperationUrl,
     getPodAddress,
+    getPodsFromDeployment,
     getPrometheusRoute,
     getSimulationUrl,
     getUsernameValidationError,
@@ -15,6 +16,7 @@ import {
     isValidUsername,
     pollOperation,
     setGlobalRootConsole,
+    setGlobalUserNamespacePrefix,
     setglobalCurrentNamespace,
 } from './ApiHelper';
 
@@ -38,6 +40,7 @@ describe('console links', () => {
     beforeEach(() => {
         setGlobalRootConsole('https://console.example.com');
         setglobalCurrentNamespace('obs-demo');
+        setGlobalUserNamespacePrefix('obs-demo-');
     });
 
     it('builds pod address in the user namespace', () => {
@@ -56,6 +59,23 @@ describe('console links', () => {
 
     it('derives the Prometheus route from the API cluster suffix', () => {
         expect(getPrometheusRoute('abc')).toBe('https://prometheus-abc-obs-demo-abc.apps.example.com');
+    });
+
+    it('uses the user namespace prefix published by the API', () => {
+        setGlobalUserNamespacePrefix('obs-usr-');
+        expect(getPodsFromDeployment('cook-1', 'abc')).toBe(
+            'https://console.example.com/k8s/ns/obs-usr-abc/deployments/cook-1/pods',
+        );
+        expect(getPrometheusRoute('abc')).toBe('https://prometheus-abc-obs-usr-abc.apps.example.com');
+    });
+
+    it('builds the same links for a regular user as for the admin', () => {
+        // For a regular user /escotilla returns their own namespace, not the app namespace.
+        setglobalCurrentNamespace('obs-demo-abc');
+        expect(getPodAddress('pod-1', 'abc')).toBe('https://console.example.com/k8s/ns/obs-demo-abc/pods/pod-1');
+        expect(getPodsFromDeployment('cook-1', 'abc')).toBe(
+            'https://console.example.com/k8s/ns/obs-demo-abc/deployments/cook-1/pods',
+        );
     });
 });
 

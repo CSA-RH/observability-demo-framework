@@ -1,6 +1,6 @@
 """obs-orchestrator API: app setup only. Endpoints live in `routers/`, auth in `auth.py`,
-backend singletons (cluster connector, agent manager) in `dependencies.py`."""
-import os
+backend singletons (cluster connector, agent manager) in `dependencies.py`, configuration in
+`settings.py`."""
 
 from fastapi import FastAPI, HTTPException, Request                 # type: ignore
 from fastapi.encoders import jsonable_encoder                      # type: ignore
@@ -10,14 +10,14 @@ from fastapi.responses import JSONResponse                          # type: igno
 
 import dependencies  # noqa: F401  (instantiates the backends at startup)
 from routers import alerts, cluster_info, metrics, operations, simulation, users
+from settings import Settings, settings
 
 #RESPONSE CODES HERE: https://github.com/Kludex/starlette/blob/main/starlette/status.py
 
 
-def get_cors_allowed_origins():
-    """Comma-separated `CORS_ALLOWED_ORIGINS` (the obs-console URL). Unset: any origin, with a warning."""
-    value = os.environ.get('CORS_ALLOWED_ORIGINS', '')
-    origins = [origin.strip().rstrip('/') for origin in value.split(',') if origin.strip()]
+def get_cors_allowed_origins(config: Settings = settings):
+    """`CORS_ALLOWED_ORIGINS` (the obs-console URL). Unset: any origin, with a warning."""
+    origins = config.cors_origins
     if not origins:
         print("WARNING[cors]: CORS_ALLOWED_ORIGINS is not set; allowing any origin")
         return ["*"]

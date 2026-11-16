@@ -5,6 +5,7 @@ from kubernetes.client.rest import ApiException    # type: ignore
 from utils import JSONUtils
 from operations.operation_store import new_operation, utc_now_iso
 from operations.lease_lock import user_sync_lease, LeaseLockError
+from settings import NamespaceLayout, settings
 import sys
 
 import os, time, json, http.client, socket, base64
@@ -31,6 +32,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         self.__custom_v1_api = client.CustomObjectsApi()
         self.__batch_v1_api = client.BatchV1Api()
         self.__coordination_v1_api = client.CoordinationV1Api()
+        self.__layout = NamespaceLayout(settings, self.__get_current_namespace)
     
     def __get_current_namespace(self, context: str = None) -> str | None:
         ns_path = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
@@ -118,13 +120,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
 
     def get_cluster_info(self, user) -> Dict[str, str]: 
         # Get namespace
-        api_namespace = self.__get_current_namespace()
+        api_namespace = self.__layout.app_namespace
         allUsers = self.__remove_password_in_place(self.get_users_json())
         if user=="admin":
             user_namespace = api_namespace
             users = allUsers
         else:
-            user_namespace = f"{api_namespace}-{user}"
+            user_namespace = self.__layout.user_namespace(user)
             users = [next(
                         (user_item for user_item in allUsers if user_item.get("username") == user),
                         None
@@ -163,8 +165,10 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             "Connected": True,
             "Name": cluster_name,
             "Namespace": user_namespace,
+            "AppNamespace": api_namespace,
+            "UserNamespacePrefix": self.__layout.user_namespace_prefix,
             "ConsoleURL": console_url, 
-            "apiLogsURL": f"{console_url}/k8s/ns/{api_namespace}/pods/{os.getenv('HOSTNAME')}/logs", 
+            "apiLogsURL": f"{console_url}/k8s/ns/{api_namespace}/pods/{settings.hostname}/logs", 
             "JaegerUI": jaegerui_route, 
             "GrafanaURL": grafana_url_route, 
             "Users": users
@@ -184,7 +188,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         return 'instrumentation.opentelemetry.io/inject-nodejs'
 
 
-    def __create_deployment(self, user_namespace, image_namespace, item):
+    def __create_deployment(self, user_namespace, item):
         print("DEPLOYMENT TYPE: " + item['type'])
         targets = ",".join(item.get('nextHop', []))
         deployment_manifest = {
@@ -217,7 +221,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                     'spec': {
                         'containers': [{
                             'name': 'core',
-                            'image': f"image-registry.openshift-image-registry.svc:5000/{image_namespace}/{self.__get_image(item['type'])}",
+                            'image': self.__layout.image(self.__get_image(item['type'])),
                             'ports': [{
                                 'containerPort': 8080
                             }],
@@ -580,7 +584,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             raise
        
     def save_simulation(self, user, json_data):
-        namespace=f"{self.__get_current_namespace()}-{user}"
+        namespace=self.__layout.user_namespace(user)
         encoded_data = base64.b64encode(json.dumps(json_data).encode('utf-8')).decode('utf-8')
 
         secret = client.V1Secret(
@@ -601,8 +605,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
     
     def create_simulation_resources(self, user, agents: List[Dict[str, Any]], stack):
         
-        image_namespace=self.__get_current_namespace()
-        namespace = f"{image_namespace}-{user}"
+        namespace = self.__layout.user_namespace(user)
 
         if stack == "coo":
             self.__create_monitoring_stack_coo(namespace, user)
@@ -612,7 +615,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             print(f'Agent: {item["id"]}')
                 
             # Create Deployment
-            self.__create_deployment(namespace, image_namespace, item)
+            self.__create_deployment(namespace, item)
             print(f"Deployment for {item['id']} created.")
             
             # Create Service
@@ -666,7 +669,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
     def retrieve_simulation(self, user):
         # Get the secret
         secret_name="obs-demo-fw-state"
-        user_namespace=f"{self.__get_current_namespace()}-{user}"
+        user_namespace=self.__layout.user_namespace(user)
         simulation = []
         try:
             secret = self.__core_v1_api.read_namespaced_secret(secret_name, user_namespace)
@@ -684,7 +687,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 
         except client.exceptions.ApiException as e:
             if e.status == 404:
-                print(f"Secret '{secret_name}' not found in namespace '{self.__get_current_namespace()}'.")
+                print(f"Secret '{secret_name}' not found in namespace '{self.__layout.app_namespace}'.")
             else:
                 message = f"Failed to read Secret '{secret_name}': {e}"
                 print(message)
@@ -742,14 +745,14 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                 raise
 
     def save_alert_definition(self, user, alert):
-        namespace = f"{self.__get_current_namespace()}-{user}"
+        namespace = self.__layout.user_namespace(user)
         alerts_definition=self.__load_json_from_configmap(self.ALERTS_CONFIGMAP, "alerts", namespace)
         alerts_definition.append(alert)
         self.__save_json_to_configmap(alerts_definition, self.ALERTS_CONFIGMAP, "alerts", namespace)
 
     def create_alert_resource(self, user, stack, id, name, severity, group, expression, summary):
         # Define the PrometheusRule resource
-        namespace = f"{self.__get_current_namespace()}-{user}"
+        namespace = self.__layout.user_namespace(user)
         if stack == "coo":
             api_group = "monitoring.rhobs"
         else:
@@ -870,7 +873,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
     def delete_simulation(self, user):        
         label_selector = "observability-demo-framework=agent"
 
-        namespace = f"{self.__get_current_namespace()}-{user}"
+        namespace = self.__layout.user_namespace(user)
         # Delete Deployments matching the selector
         deployments = self.__apps_v1_api.list_namespaced_deployment(namespace=namespace, label_selector=label_selector)
         for deployment in deployments.items:
@@ -969,7 +972,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         print("All matching resources deleted successfully.")
 
     def delete_alert(self, user, alert_name):
-        namespace = f"{self.__get_current_namespace()}-{user}"
+        namespace = self.__layout.user_namespace(user)
         try:
             self.__custom_v1_api.delete_namespaced_custom_object(
                 group="monitoring.coreos.com",
@@ -980,13 +983,13 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             return {"success": True}
         except client.exceptions.ApiException as e:
             if e.status == 404:
-                print(f"PrometheusRule '{alert_name}' not found in namespace '{self.__get_current_namespace()}'.")                
+                print(f"PrometheusRule '{alert_name}' not found in namespace '{self.__layout.app_namespace}'.")                
             else:
                 print(f"Failed to delete PrometheusRule '{alert_name}': {e}")
             return {"success": False, "error": e}            
 
     def delete_alert_definition(self, user, alert_id):
-        namespace = f"{self.__get_current_namespace()}-{user}"
+        namespace = self.__layout.user_namespace(user)
         try:            
             alerts = self.__load_json_from_configmap(self.ALERTS_CONFIGMAP, "alerts", namespace)            
             cleaned_alerts = [item for item in alerts if item.get("id") != alert_id]
@@ -996,33 +999,33 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             return {"success": False, "error": e}
 
     def get_alert_definitions(self, user):
-        namespace = f"{self.__get_current_namespace()}-{user}"
+        namespace = self.__layout.user_namespace(user)
         alerts = self.__load_json_from_configmap(self.ALERTS_CONFIGMAP, "alerts", namespace)
         return alerts
     
     def retrieve_hostname_from_service_id(self, user, id):
-        namespace = f"{self.__get_current_namespace()}-{user}"
+        namespace = self.__layout.user_namespace(user)
         return f"{id}.{namespace}.svc"
 
     def get_users_json(self):
-        namespace = self.__get_current_namespace()
+        namespace = self.__layout.app_namespace
         users = self.__load_json_from_configmap(self.USERS_CONFIGMAP, "users", namespace)
         return users
     
     def update_users_json(self, users):
-        namespace = self.__get_current_namespace()
+        namespace = self.__layout.app_namespace
         print(users)
         self.__save_json_to_configmap(users, self.USERS_CONFIGMAP, "users", namespace)
 
     def __load_operations(self) -> Dict[str, Any]:
-        namespace = self.__get_current_namespace()
+        namespace = self.__layout.app_namespace
         operations = self.__load_json_from_configmap(self.OPERATIONS_CONFIGMAP, "operations", namespace)
         if isinstance(operations, dict):
             return operations
         return {}
 
     def __save_operations(self, operations: Dict[str, Any]):
-        namespace = self.__get_current_namespace()
+        namespace = self.__layout.app_namespace
         self.__save_json_to_configmap(operations, self.OPERATIONS_CONFIGMAP, "operations", namespace)
 
     def create_operation(self, operation_type: str, metadata: Dict[str, Any] | None = None) -> str:
@@ -1068,7 +1071,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             time.sleep(interval)
             
             try:
-                job = batch_v1.read_namespaced_job_status(name=job_name, namespace=self.__get_current_namespace())
+                job = batch_v1.read_namespaced_job_status(name=job_name, namespace=self.__layout.app_namespace)
             except ApiException as e:
                 print(f"Error reading Job status: {e}")
                 return False
@@ -1088,15 +1091,14 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
         return False
     
     def sync_users(self):
-        issuer = os.getenv("KEYCLOAK_ISSUER", "")
-        if "localhost" in issuer or "127.0.0.1" in issuer:
+        if settings.is_local_keycloak:
             print(
                 "Local development mode: user registry updated in ConfigMap only. "
                 "Cluster Keycloak sync job skipped."
             )
             return True
 
-        namespace = self.__get_current_namespace()
+        namespace = self.__layout.app_namespace
         try:
             with user_sync_lease(self.__coordination_v1_api, namespace):
                 return self.__run_sync_users_job()
@@ -1132,9 +1134,11 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
                         "containers": [
                         {
                             "name": "ansible",
-                            "image": f"image-registry.openshift-image-registry.svc:5000/{self.__get_current_namespace()}/obs-sync-users",
+                            "image": self.__layout.image("obs-sync-users"),
                             "command": ["ansible-playbook",  "/runner/playbook-sync-users.yml"],
                             "env": [
+                            {"name": "APP_NAMESPACE", "value": self.__layout.app_namespace},
+                            {"name": "USER_NAMESPACE_PREFIX", "value": self.__layout.user_namespace_prefix},
                             {
                                 "name": "KC_API_URL",
                                 "valueFrom": 
@@ -1204,7 +1208,7 @@ class OpenShiftClusterConnector(ClusterConnectorInterface):
             }
         }
         
-        api_response = self.__batch_v1_api.create_namespaced_job(namespace=self.__get_current_namespace(), body=job_manifest_body)
+        api_response = self.__batch_v1_api.create_namespaced_job(namespace=self.__layout.app_namespace, body=job_manifest_body)
         job_name = api_response.metadata.name
         
         # Wait for job completion

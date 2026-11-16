@@ -216,7 +216,7 @@ and blast radius.
 - [x] Frontend: Vitest + React Testing Library (`ApiHelper`, `pollOperation`, `ConfirmationModal`,
       `PasswordCell`); `npm test` works. Upgraded `@vitejs/plugin-react` 1.x -> 6.x (required by Vite 8).
 - [x] Pin backend runtime and dev dependencies.
-- [x] Coverage reporting in CI with a ratchet (`--cov-fail-under`, currently 50%).
+- [x] Coverage reporting in CI with a ratchet (`--cov-fail-under`, currently 58%).
 
 Known gaps recorded as strict `xfail` / `it.fails` tests. Fixing one makes its test fail, which
 is the signal to turn it into a regular test:
@@ -259,12 +259,18 @@ Still open:
   - `MonitoringService` - COO MonitoringStack, ServiceMonitors, alerts
   - `OperationStore` - async operations persistence
   - `CapabilityService` - cluster info, installed operators/features
-- [ ] Settings via `pydantic-settings`; replace `print` with structured logging.
-- [ ] Remove "everything lives in my namespace" assumptions from the orchestrator (prerequisite for
-      the namespace split): settings for the IdP connection namespace, image registry/namespace
-      (sync image, agent images) and user-namespace prefix (`obs-usr-`). Today: the `obs-demo-`
-      prefix in `main.py`, `root_namespace: obs-demo` in the sync playbook, and the sync Job image,
-      `idp-data` and Job namespace all derived from the orchestrator's own namespace.
+- [x] Settings via `pydantic-settings` (`app/settings.py`): every environment variable in one place,
+      all optional, defaults reproduce the historical behaviour.
+- [ ] Replace `print` with structured logging (~230 calls, mostly in the connectors).
+- [x] Remove "everything lives in my namespace" assumptions from the orchestrator (prerequisite for
+      the namespace split): `APP_NAMESPACE`, `USER_NAMESPACE_PREFIX` (`obs-usr-` in step 2),
+      `IMAGE_REGISTRY`, `IMAGE_NAMESPACE`. The connector builds every namespace and image through
+      `NamespaceLayout`; the sync Job passes `APP_NAMESPACE`/`USER_NAMESPACE_PREFIX` to the playbook
+      (no more `root_namespace: obs-demo`); `/escotilla` publishes `AppNamespace` and
+      `UserNamespacePrefix` and the console builds user namespaces from them (fixes pod links for
+      non-admin users, which pointed to `obs-demo-<user>-<user>`). The sync Job, its `idp-data`
+      ConfigMap and the users ConfigMap stay in `APP_NAMESPACE`.
+  - [ ] Keycloak group naming (`obs-demo-users`) is still fixed; rename with namespace split step 2.
 - [x] Pydantic request models for every endpoint with a body (`app/models.py`; fixes the
       500-vs-422 gap). Only fields the backend reads are declared; extra fields are kept because
       user and simulation payloads are stored as sent. 422s use the `{"message": ...}` shape.

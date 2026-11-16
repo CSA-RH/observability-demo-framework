@@ -3,7 +3,6 @@
 Tokens are RS256 JWTs issued by the Keycloak realm. Their signing keys come from the realm JWKS
 endpoint and are cached in memory (see `JWKSCache`), so Keycloak is not called on every request.
 """
-import os
 import threading
 import time
 from typing import Callable, Dict, Optional
@@ -14,13 +13,11 @@ from fastapi.security import HTTPBearer                             # type: igno
 from jose import jwt                                                # type: ignore
 from jose.exceptions import JWTError                                # type: ignore
 
-DEFAULT_ISSUER = "https://localhost:8443/realms/csa"
+from settings import settings
 
-KEYCLOAK_ISSUER = os.environ.get("KEYCLOAK_ISSUER") or DEFAULT_ISSUER
-KEYCLOAK_AUDIENCE = "account"
-KEYCLOAK_CERTS_URL = (
-    os.environ.get("KEYCLOAK_CERTS_URL") or f"{KEYCLOAK_ISSUER}/protocol/openid-connect/certs"
-)
+KEYCLOAK_ISSUER = settings.issuer
+KEYCLOAK_AUDIENCE = settings.keycloak_audience
+KEYCLOAK_CERTS_URL = settings.certs_url
 print(f"... IdP issuer endpoint: {KEYCLOAK_ISSUER}")
 
 

@@ -52,6 +52,7 @@ const ClusterInfo = ({ selectedUser, setSelectedUser }) => {
         }
         ApiHelper.setGlobalRootConsole(data.ConsoleURL);
         ApiHelper.setglobalCurrentNamespace(data.Namespace);
+        ApiHelper.setGlobalUserNamespacePrefix(data.UserNamespacePrefix);
     }, [keycloak.token, keycloak.authenticated, setSelectedUser, selectedUser?.username]);
 
     useEffect(() => {

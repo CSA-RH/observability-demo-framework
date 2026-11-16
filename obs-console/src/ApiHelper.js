@@ -112,15 +112,23 @@ export const setglobalCurrentNamespace = (newValue) => {
     globalCurrentNamespace = newValue;
 };
 
+//User namespaces are `<prefix><username>`; the prefix comes from the API (/escotilla).
+export let globalUserNamespacePrefix = "";
+
+export const setGlobalUserNamespacePrefix = (newValue) => {
+    globalUserNamespacePrefix = newValue ?? "";
+};
+
+export function getUserNamespace(userId) {
+    return `${globalUserNamespacePrefix}${userId}`;
+}
+
 export function getPodAddress(podName, userId) {
-    return `${globalRootConsole}/k8s/ns/${globalCurrentNamespace}-${userId}/pods/${podName}`;
+    return `${globalRootConsole}/k8s/ns/${getUserNamespace(userId)}/pods/${podName}`;
 }
 
 export function getPodsFromDeployment(deploymentName, userId){
-    const namespace = globalCurrentNamespace == "obs-demo" ?
-                        `${globalCurrentNamespace}-${userId}` :
-                        globalCurrentNamespace;
-    return `${globalRootConsole}/k8s/ns/${namespace}/deployments/${deploymentName}/pods`;
+    return `${globalRootConsole}/k8s/ns/${getUserNamespace(userId)}/deployments/${deploymentName}/pods`;
 }
 
 export function getPodLogsAddress(podName, userId) {
@@ -136,7 +144,7 @@ export function getObserveLinkForMetric(metric, job, user) {
         return `${globalRootConsole}/monitoring/query-browser?query0=${metric}%7Bjob%3D"${job}"%7D`
     }
     if (user.monitoringType == "coo") {
-        return `https://prometheus-${user.username}-obs-demo-${user.username}${getClusterSuffix()}/query?g0.expr=${metric}%7Bjob%3D"${job}"%7D&g0.tab=graph`
+        return `https://prometheus-${user.username}-${getUserNamespace(user.username)}${getClusterSuffix()}/query?g0.expr=${metric}%7Bjob%3D"${job}"%7D&g0.tab=graph`
     }
     return "#"
 }
@@ -164,9 +172,9 @@ export function getRoleMappings() {
 export function getPrometheusRoute(username) {
     const clusterSuffixOpenShift = getClusterSuffix();
     if (!clusterSuffixOpenShift) {
-        return `https://prometheus-${username}-obs-demo-${username}.apps-crc.testing`
+        return `https://prometheus-${username}-${getUserNamespace(username)}.apps-crc.testing`
     }
-    return `https://prometheus-${username}-obs-demo-${username}${getClusterSuffix()}`
+    return `https://prometheus-${username}-${getUserNamespace(username)}${getClusterSuffix()}`
 }
 
 export function getNamesPool() {

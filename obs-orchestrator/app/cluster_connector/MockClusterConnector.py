@@ -24,6 +24,8 @@ class MockClusterConnector(ClusterConnectorInterface):
             "Connected": True,
             "Name": "Fake Cluster",
             "Namespace": f"fake-namespace-{user}",
+            "AppNamespace": "fake-namespace",
+            "UserNamespacePrefix": "fake-namespace-",
             "ConsoleURL": "https://redhat.com", 
             "apiLogsURL": "https://redhat.com", 
             "JaegerUI": "https://redhat.com", 

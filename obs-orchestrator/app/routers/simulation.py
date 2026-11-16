@@ -15,8 +15,7 @@ router = APIRouter(prefix="/api/v1/users/{user_id}/simulation", tags=["simulatio
 async def get_simulation(user_id: str, current_user: dict = Depends(get_current_user)
 ):
     print(f"Received user from path: {user_id}")
-    #TODO: REMOVE GNAPA: 
-    user = user_id.removeprefix("obs-demo-")
+    user = user_id  # the console always sends the username, never the namespace
     # Get the simulation definition from storage    
     simulation = deps.cluster_connector.retrieve_simulation(user)    
     if simulation == {}:        
