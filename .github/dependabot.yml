@@ -19,6 +19,10 @@ updates:
     schedule:
       interval: weekly
     groups:
+      # react and react-dom must move together (react-dom peers on the exact react version), majors
+      # included: separate PRs can never pass `npm ci`. Listed first: the first matching group wins.
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
       console-minor-patch:
         update-types: [minor, patch]
 

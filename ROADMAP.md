@@ -386,6 +386,8 @@ See "Target model" above for the decided installation story.
       grouped per ecosystem (weekly; Go, .NET and Actions monthly). Docker updates only touch
       pinned references, so floating tags (`ubi9/nginx-124`, `dotnet-100`, AAP EE `latest`) stay
       as they are until they are pinned.
+  - [x] React 19 (`react` + `react-dom` 19.3.1 together; Dependabot had split them into #95/#97,
+        which could never pass `npm ci`). New `react` Dependabot group keeps them in one PR.
 
 ## Phase 4 - First extracted microservice: capabilities / gamification
 
