@@ -365,9 +365,11 @@ See "Target model" above for the decided installation story.
       CI fails on moderate+ vulnerabilities in runtime dependencies.
   - [ ] `deepmerge` (Jest config merging, dev-only, trusted input) has no patched release: dismiss
         the Dependabot alerts as "risk is tolerable" until Jest drops or patches it.
-- [ ] Node 20 is EOL (2026-04-30): move the Node client image and CI to Node 22/24 LTS; the
-      client base images are pinned to 2024 builds (`ubi9/nodejs-20:1-59...`,
-      `ubi8/nodejs-20-minimal:1-62...`), refresh them and let Dependabot track them.
+- [x] Node 20 is EOL (2026-04-30): Node client, console build stage and CI moved to Node 24
+      (active LTS). Client images moved from 2024 builds (`ubi9/nodejs-20`, `ubi8/nodejs-20-minimal`)
+      to `ubi9/nodejs-24` / `ubi9/nodejs-24-minimal`, pinned as `tag@digest` so Dependabot bumps them.
+  - [ ] Console still runs `npm install` in its image (not `npm ci`), and its nginx runtime
+        (`ubi9/nginx-124`) is a floating tag; pin it and switch to `npm ci`.
 - [x] `.github/dependabot.yml`: version updates for pip, npm (console, Node client), Go, .NET,
       Docker base images and GitHub Actions, so security fixes arrive as PRs. Minor/patch bumps
       grouped per ecosystem (weekly; Go, .NET and Actions monthly). Docker updates only touch
