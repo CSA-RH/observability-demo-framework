@@ -222,18 +222,10 @@ const AdminPage = () => {
     return !users.some(userObj => user === userObj.username);
   }
 
-  const isReservedName = (user) => {
-    return ["admin", "cluster-admin"].includes(user);
-  }
-
   const handleAddNewUser = (e) => {
     const usernameError = getUsernameValidationError(newUserData.username);
     if (usernameError) {
       setError(usernameError);
-      return;
-    }
-    if (isReservedName(newUserData.username)) {
-      setError(`Username ${newUserData.username} is reserved.`);
       return;
     }
     if (!isUserUnique(newUserData.username)) {
