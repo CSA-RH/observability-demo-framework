@@ -6,9 +6,13 @@ metadata:
   labels:
     app: obs-console
     observability-demo-framework: frontend  
-  {{- if .Values.annotationsWave4 }}
-  annotations: {{- toYaml .Values.annotationsWave4 | nindent 4 }}
-  {{- end }}
+  annotations:
+    {{- with .Values.annotationsWave4 }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if not .Values.images.registry }}
+    image.openshift.io/triggers: {{ include "obs.imageTrigger" (dict "image" .Values.images.frontend "container" "obs-console") | quote }}
+    {{- end }}
 spec:
   replicas: 1
   selector:
@@ -32,9 +36,13 @@ metadata:
   labels:
     app: obs-orchestrator
     observability-demo-framework: 'backend'
-  {{- if .Values.annotationsWave4 }}
-  annotations: {{- toYaml .Values.annotationsWave4 | nindent 4 }}
-  {{- end }}
+  annotations:
+    {{- with .Values.annotationsWave4 }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if not .Values.images.registry }}
+    image.openshift.io/triggers: {{ include "obs.imageTrigger" (dict "image" .Values.images.backend "container" "obs-orchestrator") | quote }}
+    {{- end }}
 spec:
   replicas: 1
   selector:

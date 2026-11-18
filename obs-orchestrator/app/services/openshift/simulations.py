@@ -23,6 +23,8 @@ AGENT_RUNTIMES = {
 }
 DEFAULT_RUNTIME = ("obs-client-node:latest", "instrumentation.opentelemetry.io/inject-nodejs")
 INSTRUMENTATION = "obs-otel/instrumentation"
+AGENT_CONTAINER = "core"
+IMAGE_TRIGGER_ANNOTATION = "image.openshift.io/triggers"
 
 
 class OpenShiftSimulationService(SimulationService):
@@ -40,13 +42,24 @@ class OpenShiftSimulationService(SimulationService):
 
     # --- manifests -----------------------------------------------------------------------------
 
+    def _image_trigger(self, image: str) -> Dict[str, str]:
+        """With in-cluster builds, a new image (or re-applying the Deployment) rolls the agent out
+        with the current digest of the ImageStreamTag. External registries: no trigger."""
+        if not self._layout.uses_internal_registry:
+            return {}
+        trigger = {
+            "from": {"kind": "ImageStreamTag", "name": image, "namespace": self._layout.image_namespace},
+            "fieldPath": f'spec.template.spec.containers[?(@.name=="{AGENT_CONTAINER}")].image',
+        }
+        return {IMAGE_TRIGGER_ANNOTATION: json.dumps([trigger])}
+
     def deployment_manifest(self, agent: Dict[str, Any]) -> Dict[str, Any]:
         image, inject_annotation = AGENT_RUNTIMES.get(agent["type"], DEFAULT_RUNTIME)
         labels = {"app": agent["id"], "observability-demo-framework": "agent"}
         return {
             "apiVersion": "apps/v1",
             "kind": "Deployment",
-            "metadata": {"name": agent["id"], "labels": labels},
+            "metadata": {"name": agent["id"], "labels": labels, "annotations": self._image_trigger(image)},
             "spec": {
                 "replicas": 1,
                 "selector": {"matchLabels": {"app": agent["id"]}},
@@ -54,7 +67,7 @@ class OpenShiftSimulationService(SimulationService):
                     "metadata": {"labels": labels, "annotations": {inject_annotation: INSTRUMENTATION}},
                     "spec": {
                         "containers": [{
-                            "name": "core",
+                            "name": AGENT_CONTAINER,
                             "image": self._layout.image(image),
                             "ports": [{"containerPort": AGENT_PORT}],
                             "env": [{"name": "TARGETS", "value": ",".join(agent.get("nextHop", []))}],

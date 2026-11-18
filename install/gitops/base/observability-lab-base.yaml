@@ -14,12 +14,27 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: obs-demo
+  # With in-cluster builds, a finished build rolls these Deployments out: the OpenShift image trigger
+  # replaces `:latest` with the new digest. That is not drift, so self-heal must not revert it.
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: obs-console
+      jqPathExpressions:
+        - .spec.template.spec.containers[].image
+    - group: apps
+      kind: Deployment
+      name: obs-orchestrator
+      jqPathExpressions:
+        - .spec.template.spec.containers[].image
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      # Keep the image digest set by the image triggers (see ignoreDifferences) on every sync.
+      - RespectIgnoreDifferences=true
     managedNamespaceMetadata:
       labels:
         argocd.argoproj.io/managed-by: openshift-gitops

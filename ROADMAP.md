@@ -195,6 +195,8 @@ UI validator).
 - Bootstrap Jobs are Argo CD Sync hooks; `bootstrap-keycloak-idp` keeps a valid CA and re-applies
   `keycloak-route-ca-secret`.
 - RHBK 26.6+: `kc-admin-api` scope attached to `automation-client`.
+- Image triggers: a finished in-cluster build rolls out the orchestrator, the console and every
+  user's agents (Argo CD ignores the triggered image field).
 
 **Security and dependencies (Nov 2026)** (PRs #86-#89, #101, #102).
 - `python-jose` -> PyJWT; Node client `axios` fixed, lockfile committed, CI audits runtime deps.
