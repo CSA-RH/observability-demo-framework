@@ -4,10 +4,10 @@
   "private": true,
   "dependencies": {
     "@react-keycloak/web": "^3.4.0",
-    "@vitejs/plugin-react": "^6.2.1",
-    "@vitejs/plugin-react-swc": "^4.3.1",
-    "cytoscape": "^3.30.2",
-    "keycloak-js": "^26.1.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "@vitejs/plugin-react-swc": "^4.3.3",
+    "cytoscape": "^3.35.0",
+    "keycloak-js": "^26.2.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.18.5",
@@ -45,7 +45,7 @@
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
-    "@testing-library/user-event": "^14.6.8",
+    "@testing-library/user-event": "^14.6.10",
     "env-cmd": "^10.1.0",
     "jsdom": "^29.1.1",
     "vitest": "^5.1.0"
