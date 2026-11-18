@@ -12,6 +12,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict  # type: ignore
 LOCAL_KEYCLOAK_ISSUER = "https://localhost:8443/realms/csa"
 
 
+INTERNAL_REGISTRY = "image-registry.openshift-image-registry.svc:5000"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
 
@@ -38,7 +41,7 @@ class Settings(BaseSettings):
     Unset: the namespace the orchestrator runs in (service account, or kube context locally)."""
     user_namespace_prefix: Optional[str] = None
     """User namespaces are `<prefix><username>`. Unset: `<app_namespace>-`."""
-    image_registry: str = "image-registry.openshift-image-registry.svc:5000"
+    image_registry: str = INTERNAL_REGISTRY
     image_namespace: Optional[str] = None
     """Registry namespace/organisation of the agent and sync-users images. Unset: app_namespace."""
 
@@ -96,10 +99,18 @@ class NamespaceLayout:
     def user_namespace(self, username: str) -> str:
         return f"{self.user_namespace_prefix}{username}"
 
+    @property
+    def image_namespace(self) -> str:
+        return self._settings.image_namespace or self.app_namespace
+
+    @property
+    def uses_internal_registry(self) -> bool:
+        """Images are built in-cluster into ImageStreams of `image_namespace`."""
+        return self._settings.image_registry.rstrip("/") == INTERNAL_REGISTRY
+
     def image(self, name: str) -> str:
         """Fully-qualified image reference, e.g. `<registry>/<namespace>/obs-sync-users`."""
-        namespace = self._settings.image_namespace or self.app_namespace
-        return f"{self._settings.image_registry}/{namespace}/{name}"
+        return f"{self._settings.image_registry}/{self.image_namespace}/{name}"
 
 
 settings = Settings()

@@ -352,3 +352,33 @@ def test_cluster_info_without_console(make_services):
     services, apis, _ = make_services()
     apis.custom.cluster_objects[("config.openshift.io", "consoles", "cluster")] = {"status": {}}
     assert services.capabilities.get_cluster_info(USER) == {"Connected": False}
+
+
+# --- image triggers -------------------------------------------------------------------------------
+
+def image_trigger(apis, namespace, name):
+    annotations = apis.apps.deployments.get(namespace, name)["metadata"].get("annotations") or {}
+    raw = annotations.get("image.openshift.io/triggers")
+    return json.loads(raw) if raw else None
+
+
+def test_agents_follow_their_imagestream_with_in_cluster_builds(make_services):
+    services, apis, ns = make_services()
+    services.simulations.create_resources(USER, agents(), "user-workload")
+    assert image_trigger(apis, ns, "customer-1") == [{
+        "from": {"kind": "ImageStreamTag", "name": "obs-client-node:latest", "namespace": "obs-demo"},
+        "fieldPath": 'spec.template.spec.containers[?(@.name=="core")].image',
+    }]
+    assert image_trigger(apis, ns, "waiter-1")[0]["from"]["name"] == "obs-client-dotnet:latest"
+
+
+def test_trigger_uses_the_image_namespace(make_services):
+    services, apis, ns = make_services(IMAGE_NAMESPACE="obs-images")
+    services.simulations.create_resources(USER, agents(), "user-workload")
+    assert image_trigger(apis, ns, "customer-1")[0]["from"]["namespace"] == "obs-images"
+
+
+def test_no_trigger_with_an_external_registry(make_services):
+    services, apis, ns = make_services(IMAGE_REGISTRY="quay.io", IMAGE_NAMESPACE="csa-rh")
+    services.simulations.create_resources(USER, agents(), "user-workload")
+    assert image_trigger(apis, ns, "customer-1") is None

@@ -135,7 +135,7 @@ backend coverage floor), builds the frontend and builds the .NET client. Open wo
 
 Images come from the chart's BuildConfigs in the app namespace (`obs-orchestrator`, `obs-console`,
 `obs-client-node`, `obs-client-dotnet`). They build `<name>:latest` from this repository's `main`
-branch, once at install time and then only when you start a build: no triggers.
+branch, once at install time and then only when you start a build (no build triggers).
 
 1. **Build** the new image (from the repository root):
 
@@ -148,21 +148,25 @@ branch, once at install time and then only when you start a build: no triggers.
    oc start-build obs-client-dotnet -n obs-demo --from-repo=. --commit=HEAD --follow
    ```
 
-2. **Restart** what runs the image. Pods use `:latest` and pull it again when they are recreated:
+2. **Rollout is automatic.** The Deployments carry `image.openshift.io/triggers` annotations on
+   their ImageStreamTag, so a finished build rolls out the new digest: `obs-orchestrator` and
+   `obs-console` (chart), and every agent of every user (`obs-client-node` / `obs-client-dotnet`,
+   set by the orchestrator). Recreating a simulation also lands on the current image.
+
+   The base Argo CD Application ignores the container `image` of the two chart Deployments
+   (`ignoreDifferences` + `RespectIgnoreDifferences`), so self-heal does not revert the digest.
+   Existing installs: re-apply `install/gitops/base/observability-lab-base.yaml` once; agents
+   created before the upgrade get their trigger when their simulation is recreated.
+
+   With an external registry (`images.registry` / `IMAGE_REGISTRY` set) there are no triggers;
+   restart by hand:
 
    ```bash
-   # obs-orchestrator / obs-console
    oc rollout restart deployment/obs-console -n obs-demo
-
-   # Agent clients (obs-client-node / obs-client-dotnet) run in each user's namespace
    for ns in $(oc get ns -l observability-demo-framework=users -o name | cut -d/ -f2); do
      oc rollout restart deployment -n "$ns" -l observability-demo-framework=agent
    done
    ```
-
-   Deleting and recreating a simulation from the console also recreates its agents.
-
-Argo CD does not interfere: builds and restarts do not change the manifests it tracks.
 
 ## Using the UI
 
