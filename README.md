@@ -19,12 +19,19 @@ telemetry.
 
 ### Backend bootstrap
 
-At startup the API instantiates two implementations, selected through environment variables:
+The routers call domain services (`obs-orchestrator/app/services`), each with an OpenShift and a
+mock implementation:
 
-- `ClusterConnectorInterface`: `CLUSTER_CONNECTOR=mock` for an in-memory fake, otherwise OpenShift.
-- `AgentManagerInterface`: `AGENT_MANAGER=mock` for a fake, otherwise calls to the agent pods.
+| Service | Owns |
+|---|---|
+| `TenantService` | User registry (ConfigMap) and the `sync-users` Job (Keycloak users, user namespaces) |
+| `SimulationService` | Agent Deployments/Services and the stored simulation definition |
+| `MonitoringService` | COO MonitoringStack, ServiceMonitors, PrometheusRules and alert definitions |
+| `CapabilityService` | Cluster info for the console (Phase 4: operator and UWM detection) |
+| `OperationStore` | Status of async operations |
 
-![Backend design](img/PythonAPI.png)
+`CLUSTER_CONNECTOR=mock` selects the mock services (JSON files, no cluster) and `AGENT_MANAGER=mock`
+a fake for the calls to the agent pods.
 
 Long-running operations (user and simulation creation/deletion) are asynchronous: the API returns
 `202 Accepted` with an operation id that the UI polls at `/api/v1/operations/{id}`.

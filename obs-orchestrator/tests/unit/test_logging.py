@@ -41,7 +41,7 @@ def test_unhandled_errors_are_logged_with_traceback(client, caplog, monkeypatch)
     def boom(user):
         raise RuntimeError("cluster unreachable")
 
-    monkeypatch.setattr(deps.cluster_connector, "get_cluster_info", boom)
+    monkeypatch.setattr(deps.capabilities, "get_cluster_info", boom)
     with caplog.at_level(logging.INFO, logger="main"):
         assert client.get("/api/v1/escotilla").status_code == 500
     [entry] = [r for r in caplog.records if r.name == "main"]

@@ -37,7 +37,7 @@ async def create_alert(user_id: str, alert: AlertCreate, current_user: dict = De
     summary = alert_rules.get_alert_summary(payload)  
     expression = alert_rules.get_alert_expression(payload)
         
-    result = deps.cluster_connector.create_alert_resource(user_id, stack, alert_id, alert_name, severity, group, expression, summary)
+    result = deps.monitoring.create_alert(user_id, stack, alert_id, alert_name, severity, group, expression, summary)
     if result is None: 
         raise HTTPException(status_code=400, detail="Error creating resource in the cluster. See logs for more information.")
     log.debug(result)
@@ -46,7 +46,7 @@ async def create_alert(user_id: str, alert: AlertCreate, current_user: dict = De
     #TODO: Error handling (HTTP 400, 409, 422)
     payload['id'] = alert_id
     payload['name'] = alert_name
-    deps.cluster_connector.save_alert_definition(user_id, payload)
+    deps.monitoring.save_alert_definition(user_id, payload)
 
     response_data = {
         "id": alert_id,
@@ -62,11 +62,11 @@ def delete_alert(user_id, alert_id: str, current_user: dict = Depends(get_curren
     #Delete alert from the cluster
     #TODO: Error handling (HTTP 400, 404)
     errors = ""
-    resource_deletion_result = deps.cluster_connector.delete_alert(user_id, alert_name)
+    resource_deletion_result = deps.monitoring.delete_alert(user_id, alert_name)
     if not resource_deletion_result['success']:
         errors += "Error deleting OpenShift alert resource. "                
         print_exception(resource_deletion_result['error'])
-    definition_deletion_result = deps.cluster_connector.delete_alert_definition(user_id, alert_name)
+    definition_deletion_result = deps.monitoring.delete_alert_definition(user_id, alert_name)
     if not definition_deletion_result['success']:
         errors += "Error deleting OpenShift alert definition. "        
         print_exception(definition_deletion_result["error"])
@@ -79,7 +79,7 @@ def delete_alert(user_id, alert_id: str, current_user: dict = Depends(get_curren
 @router.get("")
 def get_alerts(user_id: str, current_user: dict = Depends(get_current_user)):
     alerts = []
-    alert_data=deps.cluster_connector.get_alert_definitions(user_id)
+    alert_data=deps.monitoring.get_alert_definitions(user_id)
     for alert in alert_data:
         alerts.append({
             "id": alert['id'],

@@ -216,7 +216,7 @@ and blast radius.
 - [x] Frontend: Vitest + React Testing Library (`ApiHelper`, `pollOperation`, `ConfirmationModal`,
       `PasswordCell`); `npm test` works. Upgraded `@vitejs/plugin-react` 1.x -> 6.x (required by Vite 8).
 - [x] Pin backend runtime and dev dependencies.
-- [x] Coverage reporting in CI with a ratchet (`--cov-fail-under`, currently 58%).
+- [x] Coverage reporting in CI with a ratchet (`--cov-fail-under`, currently 80%).
 
 Known gaps recorded as strict `xfail` / `it.fails` tests. Fixing one makes its test fail, which
 is the signal to turn it into a regular test:
@@ -229,8 +229,10 @@ is the signal to turn it into a regular test:
 
 Still open:
 
-- [ ] `OpenShiftClusterConnector` / `OpenShiftAgentManager` coverage is 10-15%; add tests with a
-      fake Kubernetes client as part of the Phase 2 split.
+- [x] `OpenShiftClusterConnector` coverage was 10-15%: the domain services that replace it are
+      tested against an in-memory Kubernetes API (`tests/fake_kube.py`), 91-100% each; backend
+      total 62% -> 83%.
+- [ ] `OpenShiftAgentManager` coverage is 16% (HTTP calls to agent pods; needs an HTTP fake).
 - [ ] Component tests for `LayoutCanvas`, `AgentInfo`, `AdminPage` (need Keycloak/Cytoscape fakes).
 
 ## Phase 2 - Modular monolith (backend)
@@ -257,12 +259,21 @@ Still open:
   - Existing installs: same as the rename, delete Job `bootstrap-keycloak-idp` before syncing so
     the secret gets `frontend-url`. Fresh installs need nothing. No longer needed once `bootstrap-keycloak-idp`
     is a Sync hook (Phase 3): the next sync adds the key.
-- [ ] Split `OpenShiftClusterConnector` into domain services:
-  - `TenantService` - users, namespaces, Keycloak sync job
-  - `SimulationService` - deployments, services, routes, kick
-  - `MonitoringService` - COO MonitoringStack, ServiceMonitors, alerts
-  - `OperationStore` - async operations persistence
-  - `CapabilityService` - cluster info, installed operators/features
+- [x] Split `OpenShiftClusterConnector` into domain services (`app/services`): interfaces in
+      `services/interfaces.py`, OpenShift implementations in `services/openshift/` (shared Kubernetes
+      helpers in `kube.py`), mocks in `services/mock.py`, wiring in `services.build_services`.
+      Routers and `operation_tasks` call the services directly; OpenAPI contract unchanged (diff).
+  - `TenantService` - user registry, Keycloak sync Job (lease lock)
+  - `SimulationService` - agent Deployments/Services, simulation Secret; delegates monitoring
+  - `MonitoringService` - COO MonitoringStack + Routes, ServiceMonitors, PrometheusRules, alert definitions
+  - `OperationStore` - async operations (shared logic; ConfigMap and file backends)
+  - `CapabilityService` - cluster info (Phase 4: operators, UWM)
+  - Fixed on the way: deleting an alert of a COO user targeted `monitoring.coreos.com` and failed
+    (400); the API group now follows the namespace's `observability-stack` label, as simulation
+    delete already did. Deleting a COO simulation whose MonitoringStack is already gone no longer
+    fails. `GET` simulation no longer returns 500 while an agent pod is being recreated (`pod: null`).
+    `JaegerUI`/`GrafanaURL` are `null` when the Route is missing (was `"(None, None)/obsdemo"` and
+    `[null, null]`; the console does not use them). Waiting for Service IPs polls instead of a watch.
 - [x] Settings via `pydantic-settings` (`app/settings.py`): every environment variable in one place,
       all optional, defaults reproduce the historical behaviour.
 - [x] Replace `print` with structured logging (~230 calls, mostly in the connectors): module

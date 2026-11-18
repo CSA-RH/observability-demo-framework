@@ -22,7 +22,7 @@ CUSTOM_ALERT = {
 
 def test_create_metric_alert_builds_cluster_resource(client, monkeypatch):
     calls = []
-    monkeypatch.setattr(deps.cluster_connector, "create_alert_resource", lambda *args: calls.append(args) or "ok")
+    monkeypatch.setattr(deps.monitoring, "create_alert", lambda *args: calls.append(args) or "ok")
 
     response = client.post(URL, json=METRIC_ALERT)
     assert response.status_code == 200
@@ -76,7 +76,7 @@ def test_list_alerts(client):
 
 
 def test_cluster_failure_returns_400_and_does_not_persist(client, monkeypatch):
-    monkeypatch.setattr(deps.cluster_connector, "create_alert_resource", lambda *args: None)
+    monkeypatch.setattr(deps.monitoring, "create_alert", lambda *args: None)
     response = client.post(URL, json=CUSTOM_ALERT)
     assert response.status_code == 400
     assert client.get(URL).json() == []
@@ -92,7 +92,7 @@ def test_delete_alert(client):
 def test_delete_alert_reports_cluster_errors(client, monkeypatch):
     alert_id = client.post(URL, json=CUSTOM_ALERT).json()["id"]
     monkeypatch.setattr(
-        deps.cluster_connector, "delete_alert", lambda user, name: {"success": False, "error": RuntimeError("x")}
+        deps.monitoring, "delete_alert", lambda user, name: {"success": False, "error": RuntimeError("x")}
     )
     response = client.delete(f"{URL}/{alert_id}")
     assert response.status_code == 400
@@ -111,7 +111,7 @@ def test_delete_alert_reports_cluster_errors(client, monkeypatch):
 )
 def test_invalid_alert_is_rejected_before_touching_the_cluster(client, monkeypatch, payload):
     calls = []
-    monkeypatch.setattr(deps.cluster_connector, "create_alert_resource", lambda *args: calls.append(args) or "ok")
+    monkeypatch.setattr(deps.monitoring, "create_alert", lambda *args: calls.append(args) or "ok")
     response = client.post(URL, json=payload)
     assert response.status_code == 422
     assert response.json()["message"].startswith("Invalid request:")

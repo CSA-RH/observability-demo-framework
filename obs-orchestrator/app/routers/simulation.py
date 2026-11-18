@@ -20,7 +20,7 @@ async def get_simulation(user_id: str, current_user: dict = Depends(get_current_
     log.info(f"Received user from path: {user_id}")
     user = user_id  # the console always sends the username, never the namespace
     # Get the simulation definition from storage    
-    simulation = deps.cluster_connector.retrieve_simulation(user)    
+    simulation = deps.simulations.get(user)    
     if simulation == {}:        
         raise HTTPException(status_code=404, detail="Simulation not found")    
     # Update agent metrics     
@@ -28,13 +28,13 @@ async def get_simulation(user_id: str, current_user: dict = Depends(get_current_
         id = item["id"]
         metrics = deps.agent_manager.get_agent_metrics(
             user_id, 
-            deps.cluster_connector.retrieve_hostname_from_service_id(user, id))
+            deps.simulations.agent_hostname(user, id))
         for metric in metrics:
             metric["alerts"] = []
         log.info(f"Pod: {item['pod']}. Metrics: {metrics}")        
         item["metrics"] = metrics
     # Update alerts of the metrics.
-    alerts = deps.cluster_connector.get_alert_definitions(user) 
+    alerts = deps.monitoring.get_alert_definitions(user) 
     for alert in alerts:
         if alert["scope"] != "metricAgent":
             continue
@@ -64,11 +64,11 @@ async def create_simulation(
     current_user: dict = Depends(get_current_user),
 ):
     payload = simulation.to_dict()
-    operation_id = deps.cluster_connector.create_operation(
+    operation_id = deps.operations.create(
         "simulation-create",
         {"userId": user_id},
     )
-    asyncio.create_task(run_simulation_create(deps.cluster_connector, operation_id, user_id, payload))
+    asyncio.create_task(run_simulation_create(deps.operations, deps.simulations, operation_id, user_id, payload))
     return {"operationId": operation_id, "status": "pending"}
 
 @router.delete("", status_code=status.HTTP_202_ACCEPTED)
@@ -76,11 +76,11 @@ async def delete_simulation(
     user_id: str,
     current_user: dict = Depends(get_current_user),
 ):
-    operation_id = deps.cluster_connector.create_operation(
+    operation_id = deps.operations.create(
         "simulation-delete",
         {"userId": user_id},
     )
-    asyncio.create_task(run_simulation_delete(deps.cluster_connector, operation_id, user_id, deps.agent_manager))
+    asyncio.create_task(run_simulation_delete(deps.operations, deps.simulations, operation_id, user_id, deps.agent_manager))
     return {"operationId": operation_id, "status": "pending"}
 
 @router.post("/kick/{agent_id}")
