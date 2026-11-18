@@ -1,0 +1,69 @@
+# Dependabot version updates. Security updates are enabled in the repository settings and do not
+# depend on this file; version updates keep pins fresh so security fixes land as small bumps.
+# Minor/patch bumps are grouped per ecosystem to keep the PR count low; majors stay separate.
+version: 2
+
+updates:
+  - package-ecosystem: pip
+    directories:
+      - /obs-orchestrator/app      # runtime (requirements.txt)
+      - /obs-orchestrator          # tests (requirements-dev.txt)
+    schedule:
+      interval: weekly
+    groups:
+      python-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /obs-console
+    schedule:
+      interval: weekly
+    groups:
+      console-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /obs-clients/obs-client-api-node
+    schedule:
+      interval: weekly
+    groups:
+      node-client-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: gomod
+    directory: /obs-clients/obs-client-api-go
+    schedule:
+      interval: monthly
+    groups:
+      go-client:
+        patterns: ["*"]
+
+  - package-ecosystem: nuget
+    directory: /obs-clients/obs-client-api-dotnet
+    schedule:
+      interval: monthly
+    groups:
+      dotnet-client:
+        patterns: ["*"]
+
+  # Base images. Only pinned references (tag or digest) are updated; floating tags are left alone.
+  - package-ecosystem: docker
+    directories:
+      - /obs-orchestrator/app
+      - /obs-console
+      - /obs-clients/obs-client-api-node
+      - /obs-clients/obs-client-api-dotnet
+      - /obs-sync-users
+    schedule:
+      interval: weekly
+    groups:
+      base-images:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]

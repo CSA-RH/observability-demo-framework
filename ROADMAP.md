@@ -368,8 +368,11 @@ See "Target model" above for the decided installation story.
 - [ ] Node 20 is EOL (2026-04-30): move the Node client image and CI to Node 22/24 LTS; the
       client base images are pinned to 2024 builds (`ubi9/nodejs-20:1-59...`,
       `ubi8/nodejs-20-minimal:1-62...`), refresh them and let Dependabot track them.
-- [ ] `.github/dependabot.yml`: version updates for pip, npm (console, Node client), Go, .NET,
-      Docker base images and GitHub Actions, so security fixes arrive as PRs.
+- [x] `.github/dependabot.yml`: version updates for pip, npm (console, Node client), Go, .NET,
+      Docker base images and GitHub Actions, so security fixes arrive as PRs. Minor/patch bumps
+      grouped per ecosystem (weekly; Go, .NET and Actions monthly). Docker updates only touch
+      pinned references, so floating tags (`ubi9/nginx-124`, `dotnet-100`, AAP EE `latest`) stay
+      as they are until they are pinned.
 
 ## Phase 4 - First extracted microservice: capabilities / gamification
 
