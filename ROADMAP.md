@@ -375,6 +375,9 @@ See "Target model" above for the decided installation story.
       grouped per ecosystem (weekly; Go, .NET and Actions monthly). Docker updates only touch
       pinned references, so floating tags (`ubi9/nginx-124`, `dotnet-100`, AAP EE `latest`) stay
       as they are until they are pinned.
+  - [x] .NET client: removed the unused `Microsoft.AspNetCore.OpenApi` and `Swashbuckle.AspNetCore`
+        template packages (never wired in `Program.cs`); their Dependabot bumps (#99) conflicted on
+        `Microsoft.OpenApi` 2.x vs 3.x.
 
 ## Phase 4 - First extracted microservice: capabilities / gamification
 
