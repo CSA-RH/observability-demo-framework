@@ -370,14 +370,14 @@ See "Target model" above for the decided installation story.
       to `ubi9/nodejs-24` / `ubi9/nodejs-24-minimal`, pinned as `tag@digest` so Dependabot bumps them.
   - [ ] Console still runs `npm install` in its image (not `npm ci`), and its nginx runtime
         (`ubi9/nginx-124`) is a floating tag; pin it and switch to `npm ci`.
+- [x] .NET client: removed the unused `Microsoft.AspNetCore.OpenApi` and `Swashbuckle.AspNetCore`
+      template packages (never wired in `Program.cs`); their Dependabot bumps (#99) conflicted on
+      `Microsoft.OpenApi` 2.x vs 3.x.
 - [x] `.github/dependabot.yml`: version updates for pip, npm (console, Node client), Go, .NET,
       Docker base images and GitHub Actions, so security fixes arrive as PRs. Minor/patch bumps
       grouped per ecosystem (weekly; Go, .NET and Actions monthly). Docker updates only touch
       pinned references, so floating tags (`ubi9/nginx-124`, `dotnet-100`, AAP EE `latest`) stay
       as they are until they are pinned.
-  - [x] .NET client: removed the unused `Microsoft.AspNetCore.OpenApi` and `Swashbuckle.AspNetCore`
-        template packages (never wired in `Program.cs`); their Dependabot bumps (#99) conflicted on
-        `Microsoft.OpenApi` 2.x vs 3.x.
 
 ## Phase 4 - First extracted microservice: capabilities / gamification
 
