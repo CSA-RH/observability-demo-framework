@@ -1,6 +1,10 @@
+"""Background workflows behind the 202 Accepted endpoints. Each one records its progress in the
+OperationStore and rolls back what it can when it fails."""
 import asyncio
 import inspect
 from typing import Any, Dict
+
+from services.interfaces import OperationStore, SimulationService, TenantService
 
 
 async def _invoke_agent_delete_metrics(agent_manager, user_id: str):
@@ -9,106 +13,80 @@ async def _invoke_agent_delete_metrics(agent_manager, user_id: str):
         await result
 
 
-def _set_running(cluster_connector, operation_id: str, message: str):
-    operation = cluster_connector.get_operation(operation_id)
+def _set_running(operations: OperationStore, operation_id: str, message: str):
+    operation = operations.get(operation_id)
     metadata = dict(operation.get("metadata") or {})
     metadata["message"] = message
-    cluster_connector.update_operation(operation_id, status="running", metadata=metadata)
+    operations.update(operation_id, status="running", metadata=metadata)
 
 
-async def run_user_create(cluster_connector, operation_id: str, user_payload: Dict[str, Any]):
+def _without_user(tenants: TenantService, username: str):
+    return [user for user in tenants.get_users() if user.get("username") != username]
+
+
+async def run_user_create(operations: OperationStore, tenants: TenantService, operation_id: str,
+                          user_payload: Dict[str, Any]):
     username = user_payload.get("username")
     try:
-        _set_running(cluster_connector, operation_id, "Updating user registry and syncing with Keycloak")
-        users = cluster_connector.get_users_json()
-        users.append(user_payload)
-        cluster_connector.update_users_json(users)
+        _set_running(operations, operation_id, "Updating user registry and syncing with Keycloak")
+        tenants.save_users(tenants.get_users() + [user_payload])
 
-        success = await asyncio.to_thread(cluster_connector.sync_users)
-        if success:
-            cluster_connector.update_operation(operation_id, status="succeeded")
+        if await asyncio.to_thread(tenants.sync_users):
+            operations.update(operation_id, status="succeeded")
             return
 
-        users = [
-            user for user in cluster_connector.get_users_json()
-            if user.get("username") != username
-        ]
-        cluster_connector.update_users_json(users)
-        cluster_connector.update_operation(
-            operation_id,
-            status="failed",
-            error="Keycloak user sync job failed",
-        )
+        tenants.save_users(_without_user(tenants, username))
+        operations.update(operation_id, status="failed", error="Keycloak user sync job failed")
     except Exception as exc:
         try:
-            users = [
-                user for user in cluster_connector.get_users_json()
-                if user.get("username") != username
-            ]
-            cluster_connector.update_users_json(users)
+            tenants.save_users(_without_user(tenants, username))
         except Exception:
             pass
-        cluster_connector.update_operation(operation_id, status="failed", error=str(exc))
+        operations.update(operation_id, status="failed", error=str(exc))
 
 
-async def run_user_delete(cluster_connector, operation_id: str, user_id: str):
-    previous_users = cluster_connector.get_users_json()
+async def run_user_delete(operations: OperationStore, tenants: TenantService, operation_id: str, user_id: str):
+    previous_users = tenants.get_users()
     try:
-        _set_running(cluster_connector, operation_id, "Removing user and syncing with Keycloak")
-        new_users_list = [
-            user for user in previous_users
-            if user.get("username") != user_id
-        ]
-        cluster_connector.update_users_json(new_users_list)
+        _set_running(operations, operation_id, "Removing user and syncing with Keycloak")
+        tenants.save_users([user for user in previous_users if user.get("username") != user_id])
 
-        success = await asyncio.to_thread(cluster_connector.sync_users)
-        if success:
-            cluster_connector.update_operation(operation_id, status="succeeded")
+        if await asyncio.to_thread(tenants.sync_users):
+            operations.update(operation_id, status="succeeded")
             return
 
-        cluster_connector.update_users_json(previous_users)
-        cluster_connector.update_operation(
-            operation_id,
-            status="failed",
-            error="Keycloak user sync job failed after delete",
-        )
+        tenants.save_users(previous_users)
+        operations.update(operation_id, status="failed", error="Keycloak user sync job failed after delete")
     except Exception as exc:
         try:
-            cluster_connector.update_users_json(previous_users)
+            tenants.save_users(previous_users)
         except Exception:
             pass
-        cluster_connector.update_operation(operation_id, status="failed", error=str(exc))
+        operations.update(operation_id, status="failed", error=str(exc))
 
 
-async def run_simulation_create(
-    cluster_connector,
-    operation_id: str,
-    user_id: str,
-    payload: Dict[str, Any],
-):
+async def run_simulation_create(operations: OperationStore, simulations: SimulationService, operation_id: str,
+                                user_id: str, payload: Dict[str, Any]):
     try:
-        _set_running(cluster_connector, operation_id, "Creating agent deployments and monitoring resources")
+        _set_running(operations, operation_id, "Creating agent deployments and monitoring resources")
         json_agents = await asyncio.to_thread(
-            cluster_connector.create_simulation_resources,
+            simulations.create_resources,
             user_id,
             payload["agents"],
             payload["user"]["monitoringType"],
         )
-        cluster_connector.save_simulation(user_id, payload)
-        cluster_connector.update_operation(
-            operation_id,
-            status="succeeded",
-            result=json_agents,
-        )
+        simulations.save(user_id, payload)
+        operations.update(operation_id, status="succeeded", result=json_agents)
     except Exception as exc:
-        cluster_connector.update_operation(operation_id, status="failed", error=str(exc))
+        operations.update(operation_id, status="failed", error=str(exc))
 
 
-async def run_simulation_delete(cluster_connector, operation_id: str, user_id: str, agent_manager):
+async def run_simulation_delete(operations: OperationStore, simulations: SimulationService, operation_id: str,
+                                user_id: str, agent_manager):
     try:
-        _set_running(cluster_connector, operation_id, "Deleting simulation resources")
-        await asyncio.to_thread(cluster_connector.delete_simulation, user_id)
+        _set_running(operations, operation_id, "Deleting simulation resources")
+        await asyncio.to_thread(simulations.delete, user_id)
         await _invoke_agent_delete_metrics(agent_manager, user_id)
-        cluster_connector.update_operation(operation_id, status="succeeded")
+        operations.update(operation_id, status="succeeded")
     except Exception as exc:
-        cluster_connector.update_operation(operation_id, status="failed", error=str(exc))
+        operations.update(operation_id, status="failed", error=str(exc))

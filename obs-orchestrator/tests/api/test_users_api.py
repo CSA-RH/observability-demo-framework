@@ -36,7 +36,7 @@ def test_create_user_rejects_invalid_username(client, payload):
 
 
 def test_create_user_rolls_back_when_keycloak_sync_fails(client, monkeypatch):
-    monkeypatch.setattr(deps.cluster_connector, "sync_users", lambda: False)
+    monkeypatch.setattr(deps.tenants, "sync_users", lambda: False)
     operation = wait_for_operation(client, create_user(client)["operationId"])
     assert operation["status"] == "failed"
     assert operation["error"] == "Keycloak user sync job failed"
@@ -73,7 +73,7 @@ def test_delete_user(client):
 
 def test_delete_user_restores_list_when_sync_fails(client, monkeypatch):
     wait_for_operation(client, create_user(client)["operationId"])
-    monkeypatch.setattr(deps.cluster_connector, "sync_users", lambda: False)
+    monkeypatch.setattr(deps.tenants, "sync_users", lambda: False)
     operation = wait_for_operation(client, client.delete("/api/v1/users/abc").json()["operationId"])
     assert operation["status"] == "failed"
     assert [u["username"] for u in client.get("/api/v1/users").json()] == ["abc"]

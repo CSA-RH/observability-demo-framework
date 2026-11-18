@@ -65,7 +65,7 @@ def test_create_simulation_failure_from_cluster_is_reported(client, monkeypatch)
     def boom(user, agents, stack):
         raise RuntimeError("quota exceeded")
 
-    monkeypatch.setattr(deps.cluster_connector, "create_simulation_resources", boom)
+    monkeypatch.setattr(deps.simulations, "create_resources", boom)
     operation = create_simulation(client)
     assert operation["status"] == "failed"
     assert operation["error"] == "quota exceeded"
@@ -135,7 +135,7 @@ def test_kick_with_missing_fields_is_a_validation_error(client):
 def test_simulation_payload_is_stored_as_sent(client):
     """Extra fields (layout, user.username, agent details) are not dropped by the request model."""
     create_simulation(client)
-    stored = deps.cluster_connector.retrieve_simulation(USER)
+    stored = deps.simulations.get(USER)
     assert stored["layout"] == SIMULATION["layout"]
     assert stored["user"] == SIMULATION["user"]
     assert stored["agents"][0]["nextHop"] == ["waiter-duda"]

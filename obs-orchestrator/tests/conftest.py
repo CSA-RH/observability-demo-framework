@@ -15,27 +15,21 @@ os.environ.setdefault("AGENT_MANAGER", "mock")
 from fastapi.testclient import TestClient  # noqa: E402
 
 import auth  # noqa: E402
+import dependencies as deps  # noqa: E402
 import main  # noqa: E402
 from agent_manager.MockAgentManager import MockAgentManager  # noqa: E402
-from cluster_connector.MockClusterConnector import MockClusterConnector  # noqa: E402
-from utils import JSONUtils  # noqa: E402
+from services import build_mock_services  # noqa: E402
 
 TEST_USER = "tester"
 
 
 @pytest.fixture(autouse=True)
 def isolated_storage(tmp_path, monkeypatch):
-    """Point every mock file path at tmp_path."""
-    for attr, name in [
-        ("PATH_SIMULATION_DEF", "sim.json"),
-        ("PATH_ALERTS_DEF", "alerts.json"),
-        ("PATH_USERS_DEF", "users.json"),
-        ("PATH_OPERATIONS_DEF", "operations.json"),
-    ]:
-        monkeypatch.setattr(MockClusterConnector, attr, str(tmp_path / name))
+    """Fresh mock services storing their state in tmp_path."""
+    services = build_mock_services(str(tmp_path))
+    for name in ("tenants", "simulations", "monitoring", "capabilities", "operations"):
+        monkeypatch.setattr(deps, name, getattr(services, name))
     monkeypatch.setattr(MockAgentManager, "ROOT_METRICS_DIR", str(tmp_path))
-    JSONUtils.save_json_to_file([], str(tmp_path / "users.json"))
-    JSONUtils.save_json_to_file({}, str(tmp_path / "operations.json"))
     return tmp_path
 
 

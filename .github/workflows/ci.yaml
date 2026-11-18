@@ -39,7 +39,7 @@ jobs:
             obs-orchestrator/requirements-dev.txt
       - run: pip install -r requirements-dev.txt
       # Coverage floor acts as a ratchet: raise it as coverage grows, never lower it.
-      - run: python -m pytest --cov=app --cov-report=term-missing --cov-fail-under=58
+      - run: python -m pytest --cov=app --cov-report=term-missing --cov-fail-under=80
 
   frontend:
     name: Frontend (obs-console)
