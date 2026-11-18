@@ -1,46 +1,25 @@
 # Roadmap
 
-Living plan for paying down technical debt and growing the Observability Demo Framework.
-Phases are ordered by dependency: each one makes the next one safer. Tick items as they land.
+Plan for paying down technical debt and growing the Observability Lab. Phases are ordered by
+dependency. Completed work is summarised at the end; details live in the linked PRs.
 
-> Guiding principle: **do not split the backend into microservices before it has tests and
-> clear internal module boundaries.** First a tested, modular monolith; then extract services
-> along the seams that prove real (mainly RBAC / privilege boundaries).
+> Guiding principle: **no microservices before tests and clear module boundaries.** First a tested,
+> modular monolith; then extract services along real seams (mainly RBAC / privilege boundaries).
 
----
+## Status (2026-11-18)
 
-## Status (2026-11-09)
+Phases 0 and 1 are done. Phase 2 is done except roles, the monitoring-type move and the API
+contract: the backend is a tested modular monolith (routers, auth, settings, domain services; 83%
+coverage). Dependencies are current and Dependabot keeps them so. Last full validation on a fresh
+CRC: 2026-11-09 (install, user creation, COO metrics, traces, logs).
 
-Phases 0 and 1 are done, plus the component rename (PR #67), the RHBK 26.6 Keycloak fix (PR #68)
-and the operators/operands GitOps split (PR #69). Validated end to end on a fresh CRC: base
-install, operators, MinIO/Loki/Tempo/OTel instances; user creation, COO metrics, traces in
-Observe > Traces and logs in Observe > Logs.
+**Next, in order:**
 
-**Next steps, in order:**
-
-1. Phase 2: move the monitoring stack choice from users to simulations; explicit `admin`/`user`
-   roles in the API; settings that remove the orchestrator's own-namespace assumptions; then split
-   `main.py` into routers and the connector into domain services.
-2. Phase 3: namespace split (`obs-idp`, then `obs-lab` + `obs-usr-<name>`, then `obs-images`);
-   operands-only module charts (`minio`, `loki`, `tempo`, `otel`) with per-platform
-   StorageClass overlays; one Application per operator; root app-of-apps.
-3. Phase 4: capability detection and admin actions (operators, user workload monitoring, real
-   health of LokiStack/TempoStack, which Argo CD cannot see as Degraded); user challenges verified
-   by outcome (see "Capabilities and challenges").
-
-## Starting point (pre-Phase 0 snapshot, Nov 2026)
-
-Kept for history; component names are the old ones.
-
-| Area | Observation |
-|---|---|
-| Backend `obs-main-api` | `main.py` (~500 lines) mixes 14 endpoints, JWT validation, CORS `*` and wiring. `OpenShiftClusterConnector.py` (~1200 lines) owns users, namespaces, workloads, COO stack, alerts, async operations, ConfigMap persistence, cluster info and the user-sync Job. Mock connectors already exist (good seam for tests). Container runs `uvicorn --reload`. JWKS fetched on every request. |
-| Tests | Backend `tests/test_main.py` is empty. Frontend `App.test.js` is a CRA leftover and `npm test` (`vite test`) is not a valid runner. Only the Node client has a real Jest suite. |
-| Frontend `obs-front` | React + Vite. API/IdP URLs baked in at build time via build args -> images must be built per cluster. |
-| Clients `obs-clients` | Node and .NET are real; Go and Java are stubs. No shared API contract. |
-| Install | Promoted path: ArgoCD + Helm (`install/helm`, waves 0-4) and `install/gitops/opentelemetry` (raw manifests). Legacy `install/bash` scripts still present. |
-| Docs | README from 2024 (claims no authZ, only Node client). Backlog lived in a local, git-ignored `NOTES.md`. |
-| Repo hygiene | `lab/` holds ~19 unrelated experiments. No CI. |
+1. **Explicit roles** (`admin` / `user`) enforced in the API. Today any authenticated user can
+   manage users and any other user's simulation. Non-breaking.
+2. **Breaking release** (fresh installs only): monitoring type moves from users to simulations,
+   together with namespace split step 2 (`obs-lab`, `obs-usr-<name>`).
+3. **Phase 3** modular install, then **Phase 4** capabilities and challenges.
 
 ---
 
@@ -50,385 +29,174 @@ Kept for history; component names are the old ones.
 
 | Role | Can do |
 |---|---|
-| **Administrator** | Create/delete users. Install optional modules (Loki, Tempo, OTel, Service Mesh). Set lab-wide profiles (pod naming themes, dashboards, ...). Act as any user by picking them in the user drop-down. |
-| **User** | Run simulations, metrics, alerts and logs inside their own namespace. Never installs cluster components. |
+| **Administrator** | Create/delete users, install optional modules (Loki, Tempo, OTel, Service Mesh), set lab-wide profiles. Acts as any user by picking them in the user drop-down. |
+| **User** | Runs simulations, metrics, alerts and logs in their own namespace. Never installs cluster components. |
 
-Users no longer pick a monitoring stack (`user-workload` / `coo`) when they are created. The choice
-moves to each **simulation**, so one user can run different kinds of simulations.
+Users no longer pick a monitoring stack (`user-workload` / `coo`) when created: each simulation
+chooses it.
 
-### Installation story
+### Installation
 
-1. **Bootstrap (GitOps):** a single root Argo CD application installs the minimal core:
-   Keycloak, COO, `obs-orchestrator`, `obs-console`.
-2. **The administrator logs in**, creates users and installs the remaining modules from the Admin
-   panel. Each module is an Argo CD `Application` created by the orchestrator in a restricted
-   `AppProject`. Argo CD does the installation; the orchestrator never installs operators or
-   operands itself.
-3. **Users** play with simulations in their namespace. The administrator can do the same for any
-   user by selecting them.
+1. **Bootstrap (GitOps):** one root Argo CD Application installs the core: Keycloak, COO,
+   `obs-orchestrator`, `obs-console`. The platform (`crc | rosa | aro | odf`) is chosen here and
+   published in a ConfigMap.
+2. **The administrator** creates users and installs modules from the Admin panel. Each module is an
+   Argo CD `Application` created by the orchestrator in a restricted `AppProject`; Argo CD installs,
+   the orchestrator never installs operators or operands itself.
+3. **Users** play in their namespace.
 
-**Operators vs. operands.** Operators (Subscriptions) are cluster-wide singletons and a cluster
-administrator's concern; a shared cluster (ROSA/ARO) may already have them. They live in their own
-Application (`observability-lab-operators`), separate from the operands (MinIO, LokiStack,
-TempoStack, OTel collector, UIPlugins). The lab's capability detection then tells the admin
-whether each operator is installed and healthy, regardless of who installed it.
-Users managing their own LokiStack/TempoStack (multi-tenant operands) is out of scope for now.
+**Operators vs operands.** Operators are cluster-wide singletons a shared cluster may already have;
+they live in their own Applications, one per operator, separate from the operands (MinIO, LokiStack,
+TempoStack, collector, UIPlugins). The Argo CD controller is not cluster-admin: namespaces need the
+`argocd.argoproj.io/managed-by` label and operand CRs an explicit ClusterRole.
 
-### Capabilities and challenges (decided 2026-11-13)
+### Capabilities and challenges
 
-The console shows what the cluster can do and lets the administrator act on it. Installation is
-not a one-off install-time choice: the lab detects the current state, whoever set it up.
-
-**Lab-level capabilities (administrator).** Each one has a detected *status* and, where the lab is
-allowed to change it, an *action*:
+The lab detects what the cluster offers, whoever installed it, and lets the admin act on it.
 
 | Capability | Detected from | Admin action |
 |---|---|---|
-| Loki / Tempo / OTel / COO operators | Subscription + CSV phase | Create that operator's Argo CD Application |
-| User workload monitoring (UWM) | `enableUserWorkload` in `openshift-monitoring/cluster-monitoring-config`, `prometheus-user-workload` pods | Enable, only where the lab may own that setting |
-| Shared operands (MinIO, LokiStack, TempoStack, lab collector, UIPlugins) | CR status conditions (not Argo CD health) | Create the module Application |
+| Loki / Tempo / OTel / COO operators | Subscription + CSV phase | Create that operator's Application |
+| User workload monitoring (UWM) | `enableUserWorkload` in `openshift-monitoring/cluster-monitoring-config` | Patch only that key (never own the ConfigMap) |
+| Shared operands | CR status conditions, not Argo CD health | Create the module Application |
 
-- **One Argo CD Application per operator** (today one Application holds all three), so the admin
-  can install Loki without Tempo. The manifests already work on any OpenShift flavour; the
-  orchestrator/`obs-capabilities` only creates the Application (RBAC to be designed with the
-  restricted `AppProject`).
-- **Status comes from the cluster, not from Argo CD.** An operator installed outside the lab shows
-  as present ("managed externally") and the console offers no Install button for it.
-- **UWM is cluster configuration, not an operator.** `cluster-monitoring-config` is shared: Argo CD
-  must not own the whole ConfigMap (it would overwrite other keys, e.g. the ones ARO sets), so the
-  enable action patches only `enableUserWorkload` (creating the ConfigMap if it is missing).
-  Who may change it depends on the platform:
-  - Self-managed OCP / CRC, **ARO**, **ROSA HCP**: the customer's cluster-admin (on ROSA HCP, UWM
-    is off by default on new clusters since early 2026 and is enabled through this ConfigMap):
-    the console offers the action.
-  - **ROSA Classic / OSD**: `cluster-monitoring-config` is SRE-managed and UWM is toggled in
-    OpenShift Cluster Manager (the toggle can overwrite related config): the console shows the
-    status plus a hint, no action.
-- Simulation options unlock from capabilities: `user-workload` simulations need UWM, the logs view
-  needs Loki ready, traces need Tempo + OTel ready.
+- Something installed outside the lab shows as "managed externally", with no Install button.
+- UWM may be enabled by the lab on self-managed OCP/CRC, ARO and ROSA HCP. On ROSA Classic/OSD the
+  ConfigMap is SRE-managed: show status plus an OpenShift Cluster Manager hint, no action.
+- Simulation options unlock from capabilities (`user-workload` needs UWM, logs need Loki, traces
+  need Tempo + OTel).
+- **User challenges** are namespace-scoped resources users create (`OpenTelemetryCollector`,
+  `Instrumentation`, later ServiceMonitor, PrometheusRule, AlertmanagerConfig), completed by
+  **outcome**, not object existence: traces arrive in Tempo, logs in Loki, the alert fires.
+  Per-user LokiStack/TempoStack is out of scope.
 
-**User-level challenges (gamification).** Users work only in their own namespace, so challenges are
-namespace-scoped resources they create themselves (by hand with `oc` or guided from the console):
+### Storage
 
-- an `OpenTelemetryCollector` (deployment or sidecar) forwarding to the lab's TempoStack/LokiStack;
-- an `Instrumentation` CR plus annotation for auto-instrumentation of a simulated workload;
-- later: ServiceMonitors, PrometheusRules, AlertmanagerConfig receivers.
+- **Object storage:** MinIO on a PVC of the default StorageClass, on every platform.
+- **Block storage:** `LokiStack.spec.storageClassName` is mandatory (`""` means no class) and Helm
+  `lookup` does not work under Argo CD, so each module chart gets a one-line overlay per platform:
+  `values-crc.yaml` (`crc-csi-hostpath-provisioner`), `values-rosa.yaml` (`gp3-csi`),
+  `values-aro.yaml` (`managed-csi`), `values-odf.yaml` (`ocs-storagecluster-ceph-rbd`), with a
+  `required` check.
 
-A challenge is completed by **outcome, not object existence**: "your traces arrive in Tempo",
-"your logs show up in Loki", "your alert fired". `obs-capabilities` queries the backends for the
-user's tenant/namespace and records the achievement.
+### Namespaces
 
-Per-user LokiStack/TempoStack stays out of scope: users consume the shared, lab-level operands.
+Split by ownership and privilege, not technology.
 
-**Argo CD RBAC.** The OpenShift GitOps controller is not cluster-admin. Namespaced workloads need
-the namespace label `argocd.argoproj.io/managed-by: openshift-gitops`; operand CRs (and the
-cluster-scoped UIPlugin) need an explicit ClusterRole, shipped with the operators Application.
-
-### Platform differences (storage)
-
-**Object storage: MinIO on every platform.** MinIO runs on a PVC of the cluster's default
-StorageClass, and Loki/Tempo use it via S3. Good enough for demo purposes, so no Azure Storage
-Accounts, ODF ObjectBucketClaims or AWS S3 credentials are needed.
-
-**Block storage:** `LokiStack.spec.storageClassName` is mandatory in the CRD schema (and `""`
-means "no class", not "default"), so it must be set explicitly. Helm `lookup` does not work under
-Argo CD. Approach:
-
-- Each module chart has a default `values.yaml` plus a one-line overlay per platform with the
-  StorageClass name: `values-crc.yaml` (`crc-csi-hostpath-provisioner`), `values-rosa.yaml`
-  (`gp3-csi`), `values-aro.yaml` (`managed-csi`), `values-odf.yaml`
-  (`ocs-storagecluster-ceph-rbd`).
-- The module `Application` lists `valueFiles: [values.yaml, values-<platform>.yaml]`.
-- The platform is chosen once at bootstrap (root app value) and published in a ConfigMap that the
-  orchestrator reads when it creates module Applications.
-- Charts fail rendering with a clear message if `storageClassName` is missing (`required`).
-
-### Namespace layout (decided 2026-11-09)
-
-Split by ownership and privilege, not by technology: everything in a namespace shares lifecycle
-and blast radius.
-
-| Namespace | Contents | Why separate |
-|---|---|---|
-| `obs-lab` | `obs-orchestrator`, `obs-console`, state ConfigMaps/Secret, user-sync Job | The app and its own privileged work |
-| `obs-idp` | RHBK operator (OwnNamespace), Keycloak, PostgreSQL | Own lifecycle; replaceable (e.g. OpenShift IdP integration); Keycloak secrets isolated |
-| `obs-images` | BuildConfigs and ImageStreams (app, clients, sync image) | Build concern only; optional once images come from Quay |
-| `obs-usr-<name>` | One per lab user | Consistent prefix, distinct from system namespaces |
-| `obs-minio`, `obs-loki`, `obs-tempo`, `obs-otel` | Logging/tracing modules | Already split |
-
-- The **user-sync Job stays with the app**, not in `obs-idp`: it provisions tenants (namespaces,
-  RoleBindings, image-puller bindings, OTel resources) with cluster-wide privileges, besides
-  syncing Keycloak users. It belongs to the orchestrator's tenant domain (`TenantService`, first
-  candidate for extraction in Phase 4).
-- **Cross-namespace config is published, not read:** the IdP bootstrap writes the connection info
-  (`idp-data`, Keycloak CA) into `obs-lab`; consumers never read from `obs-idp`.
-- **Image pulls:** `system:image-puller` bindings on `obs-images` for `obs-lab` service accounts
-  and for each `obs-usr-*` namespace (the sync playbook already creates per-user bindings).
-- User namespaces keep being discovered by label (`observability-demo-framework=users`), never by
-  name prefix.
-- Renaming `obs-demo` -> `obs-lab` and `obs-demo-<name>` -> `obs-usr-<name>` orphans existing
-  user namespaces: fresh installs only.
-
-### Component names
-
-| Old | New |
+| Namespace | Contents |
 |---|---|
-| `obs-main-api` | `obs-orchestrator` |
-| `obs-front` | `obs-console` |
-| (Phase 4) | `obs-capabilities` |
+| `obs-lab` | Orchestrator, console, state ConfigMaps/Secret, user-sync Job (it provisions tenants with cluster-wide privileges, so it stays with the app) |
+| `obs-idp` | RHBK operator, Keycloak, PostgreSQL; publishes `idp-data` and the CA into `obs-lab` (consumers never read from `obs-idp`) |
+| `obs-images` | BuildConfigs/ImageStreams; optional once images come from Quay |
+| `obs-usr-<name>` | One per user, discovered by label (`observability-demo-framework=users`), never by prefix |
+| `obs-minio`, `obs-loki`, `obs-tempo`, `obs-otel` | Modules (already split) |
+
+Renaming `obs-demo` / `obs-demo-<name>` orphans existing user namespaces: fresh installs only.
 
 ---
 
-## Phase 0 - Hygiene
+## Open work
 
-- [x] Tag pre-cleanup state (`legacy-before-phase-0`) so removed content stays reachable.
-- [x] Remove `lab/` experiments (recoverable from the tag).
-- [x] Remove legacy `install/bash` scripts and `step-by-step-instructions.md`.
-  - [x] Relocate the still-used sync-users job image (`install/bash/sync-users/job-image`) to
-        `obs-sync-users/` and update the BuildConfig `contextDir`.
-- [x] Images: ImageStreams `lookupPolicy.local: false`; Deployments reference fully-qualified
-      image names, configurable via `values.yaml` (`images.*`), defaulting to the internal registry.
-- [x] Minimal CI (GitHub Actions): Helm lint/template, backend smoke test, frontend build, Node
-      client tests, .NET client build.
-  - [x] Fixed on the way: mock mode was broken (`MockClusterConnector` lacked
-        `retrieve_hostname_from_service_id`); Node client test imported a wrong path and the
-        module bound ports on import.
-- [ ] Remove now-redundant per-component `deploy.sh` scripts once the GitOps flow covers dev loops.
-- [x] Rewrite README with accurate architecture and links; consolidate the local `NOTES.md` backlog
-      into this roadmap. Replace CRA boilerplate in `obs-front/README.md`.
-- [ ] Keycloak secrets: the promoted install generates them (`bootstrap-keycloak-idp` in the chart).
-      `obs-orchestrator/scripts/import/realm-definition.json` is only used by local dev
-      (`scripts/dev-start.sh`); replace its hardcoded client secrets with placeholders generated at
-      dev-start time (low priority, local only).
+### Phase 0-1 leftovers
 
-## Phase 1 - Safety net
+- [ ] Local dev realm export (`obs-orchestrator/scripts/import/realm-definition.json`) has hardcoded
+      client secrets; generate them in `dev-start.sh` (local only, low priority).
+- [ ] Tests: `OpenShiftAgentManager` (16%, needs an HTTP fake); console components `LayoutCanvas`,
+      `AgentInfo`, `AdminPage` (need Keycloak/Cytoscape fakes).
 
-- [x] Characterization tests for all 14 endpoints using FastAPI `TestClient` with mock connectors
-      and `get_current_user` overridden (`obs-main-api/tests/api`). Async operations are polled to
-      completion; mock storage is isolated per test.
-- [x] Auth tests: real JWT validation path with a throwaway RSA key (expired, wrong audience/issuer,
-      missing/unknown `kid`, bad signature, Keycloak unreachable).
-- [x] Unit tests for `validators.py`, `utils.py`, `operations/*` (operation store, async tasks with
-      rollback, lease lock) and alert-rule helpers (`obs-main-api/tests/unit`).
-- [x] Fixed on the way: `MockClusterConnector` signatures had drifted from the interface
-      (`create_simulation_resources`, `save_alert_definition`, `delete_alert`,
-      `delete_alert_definition`), breaking simulation and alerts in mock mode.
-- [x] Frontend: Vitest + React Testing Library (`ApiHelper`, `pollOperation`, `ConfirmationModal`,
-      `PasswordCell`); `npm test` works. Upgraded `@vitejs/plugin-react` 1.x -> 6.x (required by Vite 8).
-- [x] Pin backend runtime and dev dependencies.
-- [x] Coverage reporting in CI with a ratchet (`--cov-fail-under`, currently 80%).
+### Phase 2 - Modular monolith
 
-Known gaps recorded as strict `xfail` / `it.fails` tests. Fixing one makes its test fail, which
-is the signal to turn it into a regular test:
+- [ ] **Explicit roles:** `admin` / `user` realm roles from the token (`realm_access.roles`);
+      admin-only user management; `/users/{user_id}/...` limited to that user or an admin; console
+      shows admin views by role, not by username.
+- [ ] **Monitoring type per simulation** instead of per user (`AdminPage.jsx`, `ApiHelper.js`,
+      `AgentInfo.jsx`, `AlertManagement.jsx`, `SimulationPage.jsx`, `operation_tasks.py`, the
+      `observability-stack` namespace label). Ships with namespace split step 2.
+- [ ] **API contract:** response models in the OpenAPI spec and a common contract for `obs-clients`
+      (discovery, capabilities). Align the agent payload (`dns` on OpenShift, `ip` in the mock).
 
-- [x] Duplicate usernames accepted (expected 409). Fixed in Phase 2 (request models).
-- [x] Deleting an unknown user succeeds (expected 404). Fixed in Phase 2 (request models).
-- [x] Missing payload fields return 500 instead of 422 (no request models). Fixed in Phase 2.
-- [x] JWKS fetched from Keycloak on every request (no cache). Fixed in Phase 2 (auth module).
-- [ ] UI username validation does not reject reserved names (`admin`, `cluster-admin`).
+### Phase 3 - Installation experience
 
-Still open:
+- [ ] Namespace split step 1: Keycloak stack to `obs-idp`.
+- [ ] Namespace split step 2: `obs-lab` and `obs-usr-<name>`, Keycloak group `obs-demo-users`
+      renamed (with the monitoring-type move).
+- [ ] Namespace split step 3: builds to `obs-images`, with Quay publishing.
+- [ ] One Helm chart per module (`minio`, `loki`, `tempo`, `otel`, later `service-mesh`), operands
+      only, with per-platform StorageClass overlays; replaces `install/gitops/opentelemetry`.
+- [ ] One Argo CD Application per operator, each with the RBAC for its operand CRs.
+- [ ] Root app-of-apps for the core, with the `platform` value.
+- [ ] Restricted `AppProject` (`obs-lab-modules`): this repo only, whitelisted destinations and kinds.
+- [ ] Orchestrator `ModuleService` (create/delete module Applications, report status) and an Admin
+      panel "Modules" section.
+- [ ] Generated MinIO credentials instead of hardcoded ones.
+- [ ] Console runtime configuration (`config.json` at container start instead of Vite build args),
+      so images are cluster-independent.
+- [ ] Images built in CI and published to Quay; in-cluster BuildConfigs become optional (and the
+      `bootstrap-build-*` Jobs, deliberately not Sync hooks, go away).
+- [ ] Consolidate duplicated wave hooks (operator-check Jobs).
+- [ ] Document install / uninstall / upgrade; uninstall cleanup Job.
 
-- [x] `OpenShiftClusterConnector` coverage was 10-15%: the domain services that replace it are
-      tested against an in-memory Kubernetes API (`tests/fake_kube.py`), 91-100% each; backend
-      total 62% -> 83%.
-- [ ] `OpenShiftAgentManager` coverage is 16% (HTTP calls to agent pods; needs an HTTP fake).
-- [ ] Component tests for `LayoutCanvas`, `AgentInfo`, `AdminPage` (need Keycloak/Cytoscape fakes).
+### Maintenance
 
-## Phase 2 - Modular monolith (backend)
+- [ ] Dismiss the `deepmerge` Dependabot alert (Jest config merging, dev-only, no patched release).
+- [ ] Console image: `npm ci` instead of `npm install`; pin `ubi9/nginx-124` so Dependabot tracks it.
 
-- [x] **Rename components first** (one dedicated commit, CI as safety net): `obs-main-api` ->
-      `obs-orchestrator`, `obs-front` -> `obs-console`. Covers folders, ImageStreams,
-      BuildConfigs, Deployments, Services/Routes, RBAC, `values.yaml` `images.*`, CI workflow,
-      README, dev scripts. Keycloak clients use wildcard redirect URIs, so only `backend-url`
-      (derived from the API Route name) changed.
-  - Existing installs: delete Job `bootstrap-keycloak-idp` before syncing (its pod template is
-    immutable and now carries the new API host), then rebuild the console image (API URL is
-    baked in at build time). Fresh installs need nothing.
-- [x] Split `main.py` into FastAPI routers: `users`, `simulation`, `metrics`, `alerts`,
-      `operations`, `cluster-info`. `main.py` keeps only app setup; backends in `dependencies.py`,
-      alert helpers in `alert_rules.py`. OpenAPI contract unchanged (verified by diff).
-- [x] Extract auth into its own module; cache JWKS; restrict CORS to the frontend route.
-  - Security: `python-jose` replaced by PyJWT (GHSA-3qf3-8w2g-rqmx, algorithm confusion, no
-    patched release). Key built for RS256 explicitly, `exp`/`iss`/`aud` required, JWKS keys with
-    `"use": "enc"` ignored; regression tests for HS256-with-public-key and `alg: none`.
-  - `app/auth.py`: JWKS cached for 5 min; an unknown `kid` (key rotation) forces a re-fetch at
-    most every 10 s; cached keys keep working if Keycloak is briefly unreachable; fetch timeout.
-  - CORS: `CORS_ALLOWED_ORIGINS` from the new `frontend-url` key of `keycloak-route-ca-secret`
-    (optional: unset falls back to any origin with a warning). No credentials (Bearer header).
-  - Existing installs: same as the rename, delete Job `bootstrap-keycloak-idp` before syncing so
-    the secret gets `frontend-url`. Fresh installs need nothing. No longer needed once `bootstrap-keycloak-idp`
-    is a Sync hook (Phase 3): the next sync adds the key.
-- [x] Split `OpenShiftClusterConnector` into domain services (`app/services`): interfaces in
-      `services/interfaces.py`, OpenShift implementations in `services/openshift/` (shared Kubernetes
-      helpers in `kube.py`), mocks in `services/mock.py`, wiring in `services.build_services`.
-      Routers and `operation_tasks` call the services directly; OpenAPI contract unchanged (diff).
-  - `TenantService` - user registry, Keycloak sync Job (lease lock)
-  - `SimulationService` - agent Deployments/Services, simulation Secret; delegates monitoring
-  - `MonitoringService` - COO MonitoringStack + Routes, ServiceMonitors, PrometheusRules, alert definitions
-  - `OperationStore` - async operations (shared logic; ConfigMap and file backends)
-  - `CapabilityService` - cluster info (Phase 4: operators, UWM)
-  - Fixed on the way: deleting an alert of a COO user targeted `monitoring.coreos.com` and failed
-    (400); the API group now follows the namespace's `observability-stack` label, as simulation
-    delete already did. Deleting a COO simulation whose MonitoringStack is already gone no longer
-    fails. `GET` simulation no longer returns 500 while an agent pod is being recreated (`pod: null`).
-    `JaegerUI`/`GrafanaURL` are `null` when the Route is missing (was `"(None, None)/obsdemo"` and
-    `[null, null]`; the console does not use them). Waiting for Service IPs polls instead of a watch.
-- [x] Settings via `pydantic-settings` (`app/settings.py`): every environment variable in one place,
-      all optional, defaults reproduce the historical behaviour.
-- [x] Replace `print` with structured logging (~230 calls, mostly in the connectors): module
-      loggers, JSON lines by default (`ts`, `level`, `logger`, `message`, `exception`) so OpenShift
-      Logging/Loki can filter by level; `LOG_FORMAT=text` and `LOG_LEVEL` for local development.
-      4xx responses are logged at INFO, unhandled errors at ERROR with traceback.
-- [x] Remove "everything lives in my namespace" assumptions from the orchestrator (prerequisite for
-      the namespace split): `APP_NAMESPACE`, `USER_NAMESPACE_PREFIX` (`obs-usr-` in step 2),
-      `IMAGE_REGISTRY`, `IMAGE_NAMESPACE`. The connector builds every namespace and image through
-      `NamespaceLayout`; the sync Job passes `APP_NAMESPACE`/`USER_NAMESPACE_PREFIX` to the playbook
-      (no more `root_namespace: obs-demo`); `/escotilla` publishes `AppNamespace` and
-      `UserNamespacePrefix` and the console builds user namespaces from them (fixes pod links for
-      non-admin users, which pointed to `obs-demo-<user>-<user>`). The sync Job, its `idp-data`
-      ConfigMap and the users ConfigMap stay in `APP_NAMESPACE`.
-  - [ ] Keycloak group naming (`obs-demo-users`) is still fixed; rename with namespace split step 2.
-- [x] Pydantic request models for every endpoint with a body (`app/models.py`; fixes the
-      500-vs-422 gap). Only fields the backend reads are declared; extra fields are kept because
-      user and simulation payloads are stored as sent. 422s use the `{"message": ...}` shape.
-  - [ ] Response models (typed responses in the OpenAPI spec); useful for the client contract.
-  - [ ] Agent managers disagree on the metric payload (`dns` in OpenShift, `ip` in the mock).
-- [ ] Move the monitoring stack choice (`user-workload` / `coo`) from user creation to
-      simulation creation. Today `monitoringType` lives on the user (`AdminPage.jsx`,
-      `operation_tasks.py`, `ApiHelper.js`, `AgentInfo.jsx`, `AlertManagement.jsx`,
-      `SimulationPage.jsx`). Includes migrating existing users stored in the ConfigMap.
-- [ ] Explicit roles: `admin` vs `user` Keycloak realm roles enforced in the API (admin-only:
-      user management, modules, profiles). Admin can target any user's namespace; users only
-      their own.
-- [x] Remove `--reload` from the production container command (local dev keeps it in `dev-start.sh`).
-- [ ] Define a common client API contract (OpenAPI) for `obs-clients` (discovery, capabilities).
+### Phase 4 - Capabilities and gamification (first extracted service)
 
-## Phase 3 - Installation experience
+- [ ] `obs-capabilities`: operator/CSV and UWM detection, real operand health, who manages each module.
+- [ ] Admin actions: install an operator/module, enable UWM where allowed (needs `platform` to tell
+      ROSA Classic from HCP).
+- [ ] User challenges verified by outcome; achievements per user.
+- [ ] Simulation options enabled by detected capabilities.
+- [ ] Template for future services: shared auth library, Helm sub-chart, CI, least-privilege SA.
+- [ ] Next extraction candidates by RBAC boundary: tenant management vs simulation.
 
-See "Target model" above for the decided installation story.
+### Phase 5 - Features
 
-- [ ] Namespace split, step 1: move RHBK operator, Keycloak and PostgreSQL to `obs-idp` (the
-      namespace already exists in the chart, `idpNamespace`, but is empty). IdP bootstrap
-      publishes `idp-data` and the Keycloak CA into the app namespace.
-- [ ] Namespace split, step 2: rename `obs-demo` -> `obs-lab` and user namespaces to
-      `obs-usr-<name>`, together with the monitoring-type migration (both break existing installs).
-      Update the Keycloak group/realm naming (`obs-demo-users`) at the same time.
-- [ ] Namespace split, step 3: BuildConfigs/ImageStreams to `obs-images`, tied to Quay publishing
-      (in-cluster builds become optional); image-puller bindings for `obs-lab` and `obs-usr-*`.
-- [ ] Single entry point: one root Argo CD application for the minimal core (Keycloak, COO,
-      orchestrator, console). Bootstrap value `platform: crc | rosa | aro | odf`, published in a
-      ConfigMap for the orchestrator.
-- [x] Restore a working `observability-lab-otel` on fresh clusters: new
-      `observability-lab-operators` Application (Loki, Tempo, OTel Subscriptions + Argo CD RBAC
-      for operand CRs); `managed-by` label on operand namespaces; `SkipDryRunOnMissingResource`
-      and retry on the operands Application. StorageClass still hardcoded for CRC.
-- [ ] Split `install/gitops/opentelemetry` raw manifests into one Helm chart per module
-      (`minio`, `loki`, `tempo`, `otel`, later `service-mesh`), operands only. Module
-      Applications keep `SkipDryRunOnMissingResource=true` and retry.
-- [ ] Split `observability-lab-operators` into one Application per operator (Loki, Tempo, OTel),
-      each carrying the Argo CD RBAC for its operand CRs, so the admin installs them independently
-      and a cluster that already has an operator skips it.
-- [ ] Per-platform overlays `values-<platform>.yaml` (StorageClass name only) in each module
-      chart; remove the hardcoded `crc-csi-hostpath-provisioner` from the LokiStack; `required`
-      check on `storageClassName`. MinIO stays the only object store on all platforms.
-- [ ] Restricted `AppProject` (`obs-lab-modules`): source repo limited to this repository,
-      allowed destinations/namespaces and resource kinds whitelisted. Without it, creating
-      Applications in `default` is effectively cluster-admin.
-- [ ] Orchestrator `ModuleService`: create/delete module Applications (`valueFiles: [values.yaml,
-      values-<platform>.yaml]`) and report their Argo CD sync/health status. RBAC limited to
-      `applications.argoproj.io` in `openshift-gitops`.
-- [ ] Admin panel "Modules" section: install / uninstall / status per module.
-- [ ] Move the hardcoded MinIO credentials out of the manifests (generated Secret).
-- [ ] ~~Enable user workload monitoring at install time~~: replaced by the UWM capability
-      (Phase 4), detected and enabled from the console. Until then, `user-workload` simulations
-      show no metrics on a fresh cluster unless UWM is enabled by hand.
-- [ ] Runtime configuration for the frontend (serve `config.json`/env at container start instead of
-      Vite build args) so images become cluster-independent.
-- [ ] Build images in CI and publish to Quay; chart defaults switch from in-cluster builds to
-      `quay.io/...` (in-cluster BuildConfigs kept as an optional value).
-- [ ] Consolidate duplicated wave hooks (e.g. operator-check jobs).
-- [x] Bootstrap Jobs with `ttlSecondsAfterFinished` (`bootstrap-keycloak-realm`,
-      `minio-buckets-creation-job`) were deleted by Kubernetes and recreated by Argo CD selfHeal,
-      so they re-ran every few minutes. Now Argo CD Sync hooks (`BeforeHookCreation`): they run
-      once per sync and the last run is kept for its logs.
-  - [x] The other bootstrap Jobs: `operator-waiter-job` and `bootstrap-keycloak-idp` are now Sync
-        hooks too. `bootstrap-keycloak-idp` reuses the existing CA/certificate while it is valid
-        for the Keycloak host (not expiring within 30 days), so re-running it never rotates the CA,
-        and it re-applies `keycloak-route-ca-secret`, so new keys (`frontend-url`, renamed hosts)
-        reach existing installs without deleting the Job by hand.
-  - [ ] `bootstrap-build-*` stay tracked Jobs on purpose: as hooks every sync would rebuild all
-        images and block the sync on them. They go away with Quay publishing.
-- [x] RHBK 26.6+: Admin REST API rejects tokens without the `kc-admin-api` scope audience (bare
-      401). `bootstrap-keycloak-realm` now attaches the scope to `automation-client`.
-  - [x] Local dev (`dev-start.sh`): not affected. Only the sync Job uses `automation-client`
-        against the Admin REST API, and the orchestrator skips that Job when the issuer is the
-        local Keycloak, so the realm export is left unchanged.
-- [ ] Document install / uninstall / upgrade; add an uninstall cleanup job.
+- [ ] Service Mesh: per-simulation sidecar injection, Kiali link.
+- [ ] Multitenancy: OpenShift IdP <-> Keycloak ([article](https://access.redhat.com/articles/7062788));
+      admin-managed profiles (pod naming themes, dashboards).
+- [ ] Grafana / Perses dashboards; better LogQL for the logs view.
+- [ ] Alerting receivers from the UI (AlertmanagerConfig).
+- [ ] Exemplars (metrics <-> traces), korrel8r.
+- [ ] More clients: Go, Python, Java (Go and Java are stubs).
+- [ ] cert-manager for internal certificates (replaces the openssl-based generation).
 
-### Security maintenance (Nov 2026)
+---
 
-- [x] `python-jose` (critical, unpatched) replaced by PyJWT.
-- [x] Node client: `axios` pinned to `^1.21.1` (36 alerts; the `>=1.15.0` range and missing lockfile
-      left nothing for Dependabot to bump); `package-lock.json` committed, `npm ci` in the image
-      and CI; unused `@opentelemetry/sdk-logs` / `exporter-logs-otlp-http` removed (tracing comes
-      from operator auto-instrumentation); `overrides` for `glob`/`minimatch` in Jest's tree.
-      CI fails on moderate+ vulnerabilities in runtime dependencies.
-  - [ ] `deepmerge` (Jest config merging, dev-only, trusted input) has no patched release: dismiss
-        the Dependabot alerts as "risk is tolerable" until Jest drops or patches it.
-- [x] Node 20 is EOL (2026-04-30): Node client, console build stage and CI moved to Node 24
-      (active LTS). Client images moved from 2024 builds (`ubi9/nodejs-20`, `ubi8/nodejs-20-minimal`)
-      to `ubi9/nodejs-24` / `ubi9/nodejs-24-minimal`, pinned as `tag@digest` so Dependabot bumps them.
-  - [ ] Console still runs `npm install` in its image (not `npm ci`), and its nginx runtime
-        (`ubi9/nginx-124`) is a floating tag; pin it and switch to `npm ci`.
-- [x] .NET client: removed the unused `Microsoft.AspNetCore.OpenApi` and `Swashbuckle.AspNetCore`
-      template packages (never wired in `Program.cs`); their Dependabot bumps (#99) conflicted on
-      `Microsoft.OpenApi` 2.x vs 3.x.
-- [x] `.github/dependabot.yml`: version updates for pip, npm (console, Node client), Go, .NET,
-      Docker base images and GitHub Actions, so security fixes arrive as PRs. Minor/patch bumps
-      grouped per ecosystem (weekly; Go, .NET and Actions monthly). Docker updates only touch
-      pinned references, so floating tags (`ubi9/nginx-124`, `dotnet-100`, AAP EE `latest`) stay
-      as they are until they are pinned.
-  - [x] React 19 (`react` + `react-dom` 19.3.1 together; Dependabot had split them into #95/#97,
-        which could never pass `npm ci`). New `react` Dependabot group keeps them in one PR.
+## Done
 
-## Phase 4 - First extracted microservice: capabilities / gamification
+**Phase 0 - Hygiene.** Pre-cleanup state tagged `legacy-before-phase-0`; `lab/` experiments and
+legacy `install/bash` removed; image references parametrised (`images.*`); CI (Helm, backend,
+console, Node and .NET clients); README rewritten. Per-component `deploy.sh` scripts removed: the
+chart's BuildConfigs build local commits with `oc start-build --from-repo` (README).
 
-See "Capabilities and challenges" in the target model.
+**Phase 1 - Safety net.** API characterisation and auth tests against mock backends, unit tests,
+Vitest for the console, pinned dependencies, coverage ratchet in CI (now 80%). The known gaps
+recorded as expected-failure tests are all fixed (409/404/422, JWKS cache, reserved usernames in the
+UI validator).
 
-- [ ] `obs-capabilities`: detects installed operators/CSVs and options (UWM, COO, Loki, Tempo,
-      OTel, Service Mesh, Grafana/Perses) and the real health of shared operands (CR conditions).
-      Reports *who* manages each module (lab-managed Argo CD Application vs. installed outside
-      the lab) so the Admin panel does not offer "Install" on something already present.
-- [ ] Admin actions: install an operator or module (create its Argo CD Application); enable UWM
-      by patching only `enableUserWorkload` (not offered on ROSA Classic/OSD, where the console
-      shows an OpenShift Cluster Manager hint). Needs the `platform` value to tell ROSA Classic
-      from ROSA HCP.
-- [ ] User challenges verified by outcome (traces in Tempo, logs in Loki, alert fired) for
-      namespace-scoped resources the user creates (`OpenTelemetryCollector`, `Instrumentation`,
-      ServiceMonitor, PrometheusRule); progress shown as achievements per user.
-- [ ] Simulation options in the console are enabled/disabled based on detected capabilities
-      (e.g. logs view only when Loki is ready, traces only when Tempo + OTel are ready).
-- [ ] Establish the template for future services: shared auth library, Helm sub-chart, CI
-      pipeline, least-privilege ServiceAccount.
-- [ ] Next candidates for extraction, driven by RBAC boundaries: tenant management (high
-      privilege) vs. simulation (namespace-scoped).
+**Phase 2 - Modular monolith** (PRs #67, #73, #75-#79, #100).
+- Components renamed: `obs-main-api` -> `obs-orchestrator`, `obs-front` -> `obs-console`.
+- `main.py` split into routers; request models (422s with the `{"message": ...}` shape).
+- Auth module: PyJWT (RS256 only, `exp`/`iss`/`aud` required), JWKS cache with rotation handling;
+  CORS limited to the console.
+- `pydantic-settings`; namespaces and images from `NamespaceLayout` (`APP_NAMESPACE`,
+  `USER_NAMESPACE_PREFIX`, `IMAGE_REGISTRY`, `IMAGE_NAMESPACE`); JSON structured logging; no
+  `--reload` in the image.
+- `OpenShiftClusterConnector` split into `TenantService`, `SimulationService`, `MonitoringService`,
+  `CapabilityService`, `OperationStore` (`app/services`), tested against an in-memory Kubernetes
+  API (`tests/fake_kube.py`).
 
-## Phase 5 - Features
+**Phase 3 so far** (PRs #68, #69, #72, #80).
+- `observability-lab-operators` Application (Subscriptions + Argo CD RBAC) makes the OTel stack
+  work on fresh clusters.
+- Bootstrap Jobs are Argo CD Sync hooks; `bootstrap-keycloak-idp` keeps a valid CA and re-applies
+  `keycloak-route-ca-secret`.
+- RHBK 26.6+: `kc-admin-api` scope attached to `automation-client`.
 
-- [ ] **Service Mesh**: per-simulation option to enroll user namespaces and inject sidecars; link
-      to Kiali graph.
-- [ ] **Multitenancy**: OpenShift IdP <-> Keycloak integration
-      ([article](https://access.redhat.com/articles/7062788)); admin-managed **profiles**
-      (pod naming themes from labelled ConfigMaps, dashboards/graphics) assignable per user; namespace separation for loki / otel / tempo / user namespaces.
-- [ ] Grafana / Perses dashboards; better LogQL queries for the logs view.
-- [ ] Alerting receivers configurable from the UI (AlertmanagerConfig).
-- [ ] Exemplars (metrics <-> traces), korrel8r integration.
-- [ ] Additional clients: Go, Python, Java.
-- [ ] cert-manager for internal certificates: self-signed bootstrap Issuer -> root CA Certificate ->
-      ClusterIssuer -> per-route Certificates (replaces the openssl-based generation).
-
-## Documentation (continuous)
-
-Write docs alongside each phase under `docs/`:
-`architecture.md`, `installation.md`, `development.md`, `user-guide.md`, one page per client.
+**Security and dependencies (Nov 2026)** (PRs #86-#89, #101, #102).
+- `python-jose` -> PyJWT; Node client `axios` fixed, lockfile committed, CI audits runtime deps.
+- Node 24 LTS with pinned UBI images; React 19.
+- Unused packages removed (.NET OpenAPI/Swagger, Node OTel logs, `web-vitals`).
+- `.github/dependabot.yml` for every ecosystem, with grouped minor/patch updates and a `react` group.

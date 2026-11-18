@@ -96,9 +96,9 @@ describe('username validation (mirrors backend validators.py)', () => {
         expect(getUsernameValidationError(name)).toContain(fragment);
     });
 
-    // Known gap: the backend rejects reserved names, the UI only finds out after submitting.
-    it.fails('rejects reserved usernames like the backend', () => {
-        expect(isValidUsername('admin')).toBe(false);
+    it.each(['admin', 'cluster-admin'])('rejects the reserved username "%s" like the backend', (name) => {
+        expect(isValidUsername(name)).toBe(false);
+        expect(getUsernameValidationError(name)).toContain('reserved');
     });
 
     it('validates k8s DNS subdomain names', () => {

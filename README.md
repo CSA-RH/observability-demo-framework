@@ -127,9 +127,21 @@ cd obs-console && npm ci && npm test
 cd obs-clients/obs-client-api-node && npm install && npm test
 ```
 
+To try changes on the cluster, commit them locally (no push needed) and build that commit with the
+chart's BuildConfig; the Deployment picks up the new image:
+
+```bash
+oc start-build obs-orchestrator -n obs-demo --from-repo=. --commit=HEAD --follow
+# also: obs-console, obs-client-node, obs-client-dotnet
+```
+
+`--from-repo` uploads the committed tree, so the BuildConfig's `contextDir` still applies. A pushed
+branch can be built with `--commit=<sha>` instead. Argo CD does not revert it: the BuildConfig is
+unchanged, only a new image is pushed.
+
 CI (`.github/workflows/ci.yaml`) lints and renders the Helm chart, runs the tests above (with a
-backend coverage floor), builds the frontend and builds the .NET client. Known gaps are recorded as
-expected-failure tests; see [ROADMAP.md](ROADMAP.md).
+backend coverage floor), builds the frontend and builds the .NET client. Open work is tracked in
+[ROADMAP.md](ROADMAP.md).
 
 ## Using the UI
 

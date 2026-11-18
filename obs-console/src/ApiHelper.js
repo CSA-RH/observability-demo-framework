@@ -282,12 +282,11 @@ export function isValidK8sName(name) {
     return DNS_SUBDOMAIN_NAME_REGEX.test(name);
 }
 
-export function isValidUsername(name) {
-    if (!name || name.length < USERNAME_MIN_LENGTH || name.length > USERNAME_MAX_LENGTH) {
-        return false;
-    }
+// Same list as the orchestrator (`validators.RESERVED_USERNAMES`).
+export const RESERVED_USERNAMES = ["admin", "cluster-admin"];
 
-    return USERNAME_LABEL_REGEX.test(name);
+export function isValidUsername(name) {
+    return getUsernameValidationError(name) === null;
 }
 
 export function getUsernameValidationError(name) {
@@ -305,6 +304,10 @@ export function getUsernameValidationError(name) {
 
     if (!USERNAME_LABEL_REGEX.test(name)) {
         return "Username must be a valid DNS label (lowercase letters, numbers, hyphens; cannot start or end with a hyphen).";
+    }
+
+    if (RESERVED_USERNAMES.includes(name)) {
+        return `Username ${name} is reserved.`;
     }
 
     return null;
