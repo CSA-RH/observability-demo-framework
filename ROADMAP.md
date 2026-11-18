@@ -169,7 +169,8 @@ Renaming `obs-demo` / `obs-demo-<name>` orphans existing user namespaces: fresh 
 **Phase 0 - Hygiene.** Pre-cleanup state tagged `legacy-before-phase-0`; `lab/` experiments and
 legacy `install/bash` removed; image references parametrised (`images.*`); CI (Helm, backend,
 console, Node and .NET clients); README rewritten. Per-component `deploy.sh` scripts removed: the
-chart's BuildConfigs build local commits with `oc start-build --from-repo` (README).
+chart's BuildConfigs build local commits with `oc start-build --from-repo` (README, "Upgrading
+images on a cluster").
 
 **Phase 1 - Safety net.** API characterisation and auth tests against mock backends, unit tests,
 Vitest for the console, pinned dependencies, coverage ratchet in CI (now 80%). The known gaps

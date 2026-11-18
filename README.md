@@ -127,21 +127,42 @@ cd obs-console && npm ci && npm test
 cd obs-clients/obs-client-api-node && npm install && npm test
 ```
 
-To try changes on the cluster, commit them locally (no push needed) and build that commit with the
-chart's BuildConfig; the Deployment picks up the new image:
-
-```bash
-oc start-build obs-orchestrator -n obs-demo --from-repo=. --commit=HEAD --follow
-# also: obs-console, obs-client-node, obs-client-dotnet
-```
-
-`--from-repo` uploads the committed tree, so the BuildConfig's `contextDir` still applies. A pushed
-branch can be built with `--commit=<sha>` instead. Argo CD does not revert it: the BuildConfig is
-unchanged, only a new image is pushed.
-
 CI (`.github/workflows/ci.yaml`) lints and renders the Helm chart, runs the tests above (with a
 backend coverage floor), builds the frontend and builds the .NET client. Open work is tracked in
 [ROADMAP.md](ROADMAP.md).
+
+### Upgrading images on a cluster
+
+Images come from the chart's BuildConfigs in the app namespace (`obs-orchestrator`, `obs-console`,
+`obs-client-node`, `obs-client-dotnet`). They build `<name>:latest` from this repository's `main`
+branch, once at install time and then only when you start a build: no triggers.
+
+1. **Build** the new image (from the repository root):
+
+   ```bash
+   # Change merged to main, or a pushed commit
+   oc start-build obs-client-dotnet -n obs-demo --follow
+   oc start-build obs-client-dotnet -n obs-demo --commit=<sha> --follow
+
+   # Change committed locally only (no push needed): uploads that commit instead of the Git source
+   oc start-build obs-client-dotnet -n obs-demo --from-repo=. --commit=HEAD --follow
+   ```
+
+2. **Restart** what runs the image. Pods use `:latest` and pull it again when they are recreated:
+
+   ```bash
+   # obs-orchestrator / obs-console
+   oc rollout restart deployment/obs-console -n obs-demo
+
+   # Agent clients (obs-client-node / obs-client-dotnet) run in each user's namespace
+   for ns in $(oc get ns -l observability-demo-framework=users -o name | cut -d/ -f2); do
+     oc rollout restart deployment -n "$ns" -l observability-demo-framework=agent
+   done
+   ```
+
+   Deleting and recreating a simulation from the console also recreates its agents.
+
+Argo CD does not interfere: builds and restarts do not change the manifests it tracks.
 
 ## Using the UI
 
