@@ -1,5 +1,5 @@
 # Install the application dependencies in a full UBI Node docker image
-FROM registry.access.redhat.com/ubi9/nodejs-24:9.9-1794494359@sha256:d843698c5564f9a066a9f45bb1b0392b0b0926f3aa1b37a242b99ed19f16408a
+FROM registry.access.redhat.com/ubi9/nodejs-24:1795496937@sha256:0067c15398ece743e462637c8581b1b31027a7a2d3112e610ad700bde3b03f1b
 
 # Copy the manifest and the lockfile: the image gets exactly the audited dependency tree
 COPY package.json package-lock.json ./
@@ -8,7 +8,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 # Copy the dependencies into a minimal Node.js image
-FROM registry.access.redhat.com/ubi9/nodejs-24-minimal:9.9-1794493509@sha256:ea0ea1db6a8cce73129156de5153bd34e2d176162e7511343b3136d6f7e2a318
+FROM registry.access.redhat.com/ubi9/nodejs-24-minimal:1795226993@sha256:b28ac707c01bc8c9a1cbaacc26b8f1589ae1d16fe4927e502928cbb36f7271e0
 
 # Install app dependencies
 COPY --from=0 /opt/app-root/src/node_modules /opt/app-root/src/node_modules
