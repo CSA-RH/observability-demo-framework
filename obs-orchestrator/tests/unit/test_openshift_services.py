@@ -341,11 +341,21 @@ def test_cluster_info_for_admin_with_routes(make_services):
     routes.create("obs-demo", {"metadata": {"name": "grafana", "labels": {"observability-demo-framework": "grafana"}},
                                "spec": {"host": "grafana.example.com"}})
 
-    info = services.capabilities.get_cluster_info("admin")
+    info = services.capabilities.get_cluster_info("admin", is_admin=True)
     assert info["Namespace"] == "obs-demo"
     assert info["Users"] == [{"username": "abc"}]
     assert info["JaegerUI"] == "https://tempo.example.com/obsdemo"
     assert info["GrafanaURL"] == "http://grafana.example.com"
+
+
+def test_cluster_info_admin_comes_from_the_role_not_the_username(make_services):
+    services, apis, _ = make_services()
+    add_console(apis)
+    services.tenants.save_users([{"username": "abc", "password": "x"}])
+
+    info = services.capabilities.get_cluster_info("admin")
+    assert info["Namespace"] == "obs-demo-admin"
+    assert info["Users"] == []  # not a lab user: an empty list, not [None]
 
 
 def test_cluster_info_without_console(make_services):

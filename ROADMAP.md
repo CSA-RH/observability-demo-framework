@@ -6,20 +6,18 @@ dependency. Completed work is summarised at the end; details live in the linked 
 > Guiding principle: **no microservices before tests and clear module boundaries.** First a tested,
 > modular monolith; then extract services along real seams (mainly RBAC / privilege boundaries).
 
-## Status (2026-11-18)
+## Status (2026-11-27)
 
-Phases 0 and 1 are done. Phase 2 is done except roles, the monitoring-type move and the API
-contract: the backend is a tested modular monolith (routers, auth, settings, domain services; 83%
+Phases 0 and 1 are done. Phase 2 is done except the monitoring-type move and the API contract: the
+backend is a tested modular monolith (routers, auth, roles, settings, domain services; 85%
 coverage). Dependencies are current and Dependabot keeps them so. Last full validation on a fresh
 CRC: 2026-11-09 (install, user creation, COO metrics, traces, logs).
 
 **Next, in order:**
 
-1. **Explicit roles** (`admin` / `user`) enforced in the API. Today any authenticated user can
-   manage users and any other user's simulation. Non-breaking.
-2. **Breaking release** (fresh installs only): monitoring type moves from users to simulations,
+1. **Breaking release** (fresh installs only): monitoring type moves from users to simulations,
    together with namespace split step 2 (`obs-lab`, `obs-usr-<name>`).
-3. **Phase 3** modular install, then **Phase 4** capabilities and challenges.
+2. **Phase 3** modular install, then **Phase 4** capabilities and challenges.
 
 ---
 
@@ -106,9 +104,6 @@ Renaming `obs-demo` / `obs-demo-<name>` orphans existing user namespaces: fresh 
 
 ### Phase 2 - Modular monolith
 
-- [ ] **Explicit roles:** `admin` / `user` realm roles from the token (`realm_access.roles`);
-      admin-only user management; `/users/{user_id}/...` limited to that user or an admin; console
-      shows admin views by role, not by username.
 - [ ] **Monitoring type per simulation** instead of per user (`AdminPage.jsx`, `ApiHelper.js`,
       `AgentInfo.jsx`, `AlertManagement.jsx`, `SimulationPage.jsx`, `operation_tasks.py`, the
       `observability-stack` namespace label). Ships with namespace split step 2.
@@ -177,7 +172,7 @@ Vitest for the console, pinned dependencies, coverage ratchet in CI (now 80%). T
 recorded as expected-failure tests are all fixed (409/404/422, JWKS cache, reserved usernames in the
 UI validator).
 
-**Phase 2 - Modular monolith** (PRs #67, #73, #75-#79, #100).
+**Phase 2 - Modular monolith** (PRs #67, #73, #75-#79, #100, #112).
 - Components renamed: `obs-main-api` -> `obs-orchestrator`, `obs-front` -> `obs-console`.
 - `main.py` split into routers; request models (422s with the `{"message": ...}` shape).
 - Auth module: PyJWT (RS256 only, `exp`/`iss`/`aud` required), JWKS cache with rotation handling;
@@ -188,6 +183,10 @@ UI validator).
 - `OpenShiftClusterConnector` split into `TenantService`, `SimulationService`, `MonitoringService`,
   `CapabilityService`, `OperationStore` (`app/services`), tested against an in-memory Kubernetes
   API (`tests/fake_kube.py`).
+- Roles: administrators have the `obs-admin` realm role (`ADMIN_ROLE`, read from
+  `realm_access.roles`); every other authenticated user is a user, with no role needed. User
+  management is admin-only, `/users/{user_id}/...` is that user or an admin (403), operations are
+  visible to their owner or an admin (404), and admin views no longer depend on the username.
 
 **Phase 3 so far** (PRs #68, #69, #72, #80).
 - `observability-lab-operators` Application (Subscriptions + Argo CD RBAC) makes the OTel stack

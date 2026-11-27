@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse  # type: ignore
 
 import alert_rules
 import dependencies as deps
-from auth import get_current_user
+from auth import CurrentUser, require_user_access
 from models import AlertCreate
 from utils import print_exception
 
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/v1/users/{user_id}/simulation/alerts", tags=["al
 
 
 @router.post("")
-async def create_alert(user_id: str, alert: AlertCreate, current_user: dict = Depends(get_current_user)):
+async def create_alert(user_id: str, alert: AlertCreate, current_user: CurrentUser = Depends(require_user_access)):
     payload = alert.to_dict()
     log.info("Creating alert: ")   
     
@@ -55,7 +55,7 @@ async def create_alert(user_id: str, alert: AlertCreate, current_user: dict = De
     return JSONResponse(content=response_data)
     
 @router.delete("/{alert_id}")
-def delete_alert(user_id, alert_id: str, current_user: dict = Depends(get_current_user)):
+def delete_alert(user_id, alert_id: str, current_user: CurrentUser = Depends(require_user_access)):
     alert_name=alert_id
     log.info(f"Delete alert: {alert_name}")
     
@@ -77,7 +77,7 @@ def delete_alert(user_id, alert_id: str, current_user: dict = Depends(get_curren
     return None
 
 @router.get("")
-def get_alerts(user_id: str, current_user: dict = Depends(get_current_user)):
+def get_alerts(user_id: str, current_user: CurrentUser = Depends(require_user_access)):
     alerts = []
     alert_data=deps.monitoring.get_alert_definitions(user_id)
     for alert in alert_data:

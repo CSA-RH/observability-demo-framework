@@ -38,7 +38,7 @@ def test_client_errors_are_info_not_error(client, caplog):
 def test_unhandled_errors_are_logged_with_traceback(client, caplog, monkeypatch):
     import dependencies as deps
 
-    def boom(user):
+    def boom(user, is_admin=False):
         raise RuntimeError("cluster unreachable")
 
     monkeypatch.setattr(deps.capabilities, "get_cluster_info", boom)

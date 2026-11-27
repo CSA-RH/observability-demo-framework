@@ -105,7 +105,7 @@ class MockSimulationService(SimulationService):
 
 
 class MockCapabilityService(CapabilityService):
-    def get_cluster_info(self, user):
+    def get_cluster_info(self, user, is_admin=False):
         return {
             "Connected": True,
             "Name": "Fake Cluster",

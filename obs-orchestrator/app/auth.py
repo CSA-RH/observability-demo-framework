@@ -6,7 +6,8 @@ endpoint and are cached in memory (see `JWKSCache`), so Keycloak is not called o
 import logging
 import threading
 import time
-from typing import Callable, Dict, Optional
+from dataclasses import dataclass, field
+from typing import Callable, Dict, FrozenSet, Optional
 
 import requests                                                     # type: ignore
 from fastapi import Depends, HTTPException                          # type: ignore
@@ -20,6 +21,7 @@ log = logging.getLogger(__name__)
 KEYCLOAK_ISSUER = settings.issuer
 KEYCLOAK_AUDIENCE = settings.keycloak_audience
 KEYCLOAK_CERTS_URL = settings.certs_url
+ADMIN_ROLE = settings.admin_role
 ALGORITHM = "RS256"
 log.info(f"IdP issuer: {KEYCLOAK_ISSUER}")
 
@@ -110,13 +112,47 @@ def decode_token(token: str) -> Dict:
 security = HTTPBearer()
 
 
-def get_current_user(authorization=Depends(security)) -> str:
-    """FastAPI dependency: the `preferred_username` of the caller. Any failure is a 401."""
+@dataclass(frozen=True)
+class CurrentUser:
+    """The authenticated caller: Keycloak username and realm roles."""
+    username: str
+    roles: FrozenSet[str] = field(default_factory=frozenset)
+
+    @property
+    def is_admin(self) -> bool:
+        return ADMIN_ROLE in self.roles
+
+    def can_act_as(self, user_id: str) -> bool:
+        """Admins act on any user (the console's user drop-down); users only on themselves."""
+        return self.is_admin or self.username == user_id
+
+
+def user_from_claims(claims: Dict) -> CurrentUser:
+    roles = (claims.get("realm_access") or {}).get("roles") or []
+    return CurrentUser(username=claims["preferred_username"], roles=frozenset(roles))
+
+
+def get_current_user(authorization=Depends(security)) -> CurrentUser:
+    """FastAPI dependency: the caller, from a valid token. Any failure is a 401."""
     try:
-        return decode_token(authorization.credentials)["preferred_username"]
+        return user_from_claims(decode_token(authorization.credentials))
     except HTTPException as e:
         log.warning(f"rejected token ({e.status_code}): {e.detail}")
         raise HTTPException(status_code=401, detail=f"Unauthorized: {e.detail}")
     except Exception as e:
         log.warning(f"rejected token: {e}")
         raise HTTPException(status_code=401, detail=f"Unauthorized: {e}")
+
+
+def require_admin(current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+    """FastAPI dependency: 403 unless the caller has the admin realm role."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail=f"Forbidden: requires the '{ADMIN_ROLE}' role")
+    return current_user
+
+
+def require_user_access(user_id: str, current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+    """FastAPI dependency for `/users/{user_id}/...`: 403 unless the caller is that user or an admin."""
+    if not current_user.can_act_as(user_id):
+        raise HTTPException(status_code=403, detail=f"Forbidden: {current_user.username} cannot act on user {user_id}")
+    return current_user

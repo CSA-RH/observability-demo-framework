@@ -14,8 +14,7 @@ const ClusterInfo = ({ selectedUser, setSelectedUser }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const { keycloak, initialized } = useKeycloak();
-    const userRoles = keycloak.realmAccess?.roles
-    const isAdmin = userRoles?.includes("obs-admin") || false
+    const isAdmin = ApiHelper.isAdmin(keycloak)
 
     const fetchData = useCallback(async () => {
         var data = []

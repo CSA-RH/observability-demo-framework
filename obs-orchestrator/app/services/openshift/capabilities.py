@@ -9,9 +9,6 @@ from settings import NamespaceLayout, Settings
 
 log = logging.getLogger(__name__)
 
-ADMIN_USER = "admin"
-
-
 class OpenShiftCapabilityService(CapabilityService):
     """Cluster identity and links for the console. Phase 4 adds operator/UWM detection here."""
 
@@ -21,16 +18,16 @@ class OpenShiftCapabilityService(CapabilityService):
         self._settings = settings
         self._tenants = tenants
 
-    def _visible_users(self, user: str):
+    def _visible_users(self, user: str, is_admin: bool):
         users = [{k: v for k, v in u.items() if k != "password"} for u in self._tenants.get_users()]
-        if user == ADMIN_USER:
+        if is_admin:
             return users
-        return [next((u for u in users if u.get("username") == user), None)]
+        return [u for u in users if u.get("username") == user]
 
-    def get_cluster_info(self, user: str) -> Dict[str, Any]:
+    def get_cluster_info(self, user: str, is_admin: bool = False) -> Dict[str, Any]:
         app_namespace = self._layout.app_namespace
-        user_namespace = app_namespace if user == ADMIN_USER else self._layout.user_namespace(user)
-        users = self._visible_users(user)
+        user_namespace = app_namespace if is_admin else self._layout.user_namespace(user)
+        users = self._visible_users(user, is_admin)
         try:
             console = self._custom.get_cluster_custom_object(
                 group="config.openshift.io", version="v1", plural="consoles", name="cluster")

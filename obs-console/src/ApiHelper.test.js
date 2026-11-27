@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+    ADMIN_ROLE,
     MASTER_API_ADDRESS,
     generateRandomPassword,
     getClusterAlertDefinitionUrl,
@@ -12,6 +13,8 @@ import {
     getPrometheusRoute,
     getSimulationUrl,
     getUsernameValidationError,
+    hasRealmRole,
+    isAdmin,
     isValidK8sName,
     isValidUsername,
     pollOperation,
@@ -180,5 +183,21 @@ describe('pollOperation', () => {
         const assertion = expect(promise).rejects.toThrow('Operation timed out');
         await vi.runAllTimersAsync();
         await assertion;
+    });
+});
+
+describe('roles', () => {
+    it('detects the admin realm role', () => {
+        expect(isAdmin({ realmAccess: { roles: ['default-roles-csa', ADMIN_ROLE] } })).toBe(true);
+    });
+
+    it('is not admin without the role, whatever the username', () => {
+        expect(isAdmin({ realmAccess: { roles: ['default-roles-csa'] }, tokenParsed: { preferred_username: 'admin' } })).toBe(false);
+    });
+
+    it('tolerates tokens without realm_access', () => {
+        expect(isAdmin({})).toBe(false);
+        expect(isAdmin(undefined)).toBe(false);
+        expect(hasRealmRole({ realmAccess: {} }, ADMIN_ROLE)).toBe(false);
     });
 });
