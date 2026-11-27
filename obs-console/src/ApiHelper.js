@@ -282,6 +282,17 @@ export function isValidK8sName(name) {
     return DNS_SUBDOMAIN_NAME_REGEX.test(name);
 }
 
+// Realm role of lab administrators; the orchestrator enforces the same one (`ADMIN_ROLE`).
+export const ADMIN_ROLE = "obs-admin";
+
+export function hasRealmRole(keycloak, role) {
+    return keycloak?.realmAccess?.roles?.includes(role) ?? false;
+}
+
+export function isAdmin(keycloak) {
+    return hasRealmRole(keycloak, ADMIN_ROLE);
+}
+
 // Same list as the orchestrator (`validators.RESERVED_USERNAMES`).
 export const RESERVED_USERNAMES = ["admin", "cluster-admin"];
 

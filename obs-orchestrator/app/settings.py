@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     keycloak_certs_url: Optional[str] = None
     """JWKS endpoint. Unset: derived from the issuer."""
     keycloak_audience: str = "account"
+    admin_role: str = "obs-admin"
+    """Realm role of lab administrators (user management, acting on any user). Any other
+    authenticated user only acts on their own namespace."""
 
     # --- HTTP
     cors_allowed_origins: str = ""

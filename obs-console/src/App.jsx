@@ -9,6 +9,7 @@ import ClusterInfo from './components/ClusterInfo';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { LoadingProvider } from './context/LoadingContext';
+import { ADMIN_ROLE } from './ApiHelper';
 
 const App = () => {
 
@@ -49,7 +50,7 @@ const App = () => {
             selectedUser={selectedUser}
             setSelectedUser={setSelectedUser} />
           <Routes>
-            <Route path="/admin" element={<PrivateRoute roles={["obs-admin"]}><AdminPage /></PrivateRoute>} />
+            <Route path="/admin" element={<PrivateRoute roles={[ADMIN_ROLE]}><AdminPage /></PrivateRoute>} />
             <Route
               path="/simulation"
               element={selectedUser

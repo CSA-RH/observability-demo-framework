@@ -5,7 +5,7 @@ from typing import Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, status  # type: ignore
 
 import dependencies as deps
-from auth import get_current_user
+from auth import CurrentUser, require_user_access
 from models import AgentKick, SimulationCreate
 from operations.operation_tasks import run_simulation_create, run_simulation_delete
 
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/v1/users/{user_id}/simulation", tags=["simulatio
 
 
 @router.get("")
-async def get_simulation(user_id: str, current_user: dict = Depends(get_current_user)
+async def get_simulation(user_id: str, current_user: CurrentUser = Depends(require_user_access)
 ):
     log.info(f"Received user from path: {user_id}")
     user = user_id  # the console always sends the username, never the namespace
@@ -61,7 +61,7 @@ async def get_simulation(user_id: str, current_user: dict = Depends(get_current_
 async def create_simulation(
     user_id: str,
     simulation: SimulationCreate,
-    current_user: dict = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_user_access),
 ):
     payload = simulation.to_dict()
     operation_id = deps.operations.create(
@@ -74,7 +74,7 @@ async def create_simulation(
 @router.delete("", status_code=status.HTTP_202_ACCEPTED)
 async def delete_simulation(
     user_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_user_access),
 ):
     operation_id = deps.operations.create(
         "simulation-delete",
@@ -84,6 +84,6 @@ async def delete_simulation(
     return {"operationId": operation_id, "status": "pending"}
 
 @router.post("/kick/{agent_id}")
-async def agent_kick(user_id: str, agent_id: str, kick: AgentKick, current_user: dict = Depends(get_current_user)):
+async def agent_kick(user_id: str, agent_id: str, kick: AgentKick, current_user: CurrentUser = Depends(require_user_access)):
     log.info(f"DNS: {kick.dns}")
     return deps.agent_manager.kick(user_id, agent_id, kick.dns, kick.count)

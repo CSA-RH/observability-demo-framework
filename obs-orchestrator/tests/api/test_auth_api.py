@@ -258,3 +258,22 @@ def test_encryption_keys_are_not_used_for_signatures(anonymous_client, monkeypat
     enc_key = {**PUBLIC_JWK, "use": "enc"}
     monkeypatch.setattr(auth.requests, "get", lambda *a, **k: FakeResponse({"keys": [enc_key]}))
     assert get_info(anonymous_client, make_token()).status_code == 401
+
+
+def list_users(client, token):
+    return client.get("/api/v1/users", headers={"Authorization": f"Bearer {token}"})
+
+
+def test_admin_role_comes_from_realm_access(anonymous_client, jwks_requests):
+    admin = make_token(preferred_username="boss", realm_access={"roles": ["default-roles-csa", auth.ADMIN_ROLE]})
+    assert list_users(anonymous_client, admin).status_code == 200
+
+
+@pytest.mark.parametrize("claims", [
+    pytest.param({}, id="no-realm-access"),
+    pytest.param({"realm_access": {"roles": ["default-roles-csa"]}}, id="other-roles"),
+    pytest.param({"preferred_username": "admin"}, id="admin-username-without-role"),
+    pytest.param({"resource_access": {"obs-console": {"roles": [auth.ADMIN_ROLE]}}}, id="client-role-is-not-enough"),
+])
+def test_tokens_without_the_admin_realm_role_are_forbidden(anonymous_client, jwks_requests, claims):
+    assert list_users(anonymous_client, make_token(**claims)).status_code == 403

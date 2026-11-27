@@ -89,7 +89,8 @@ class CapabilityService(ABC):
     """What the cluster offers: identity, console links, namespace layout (Phase 4: operators)."""
 
     @abstractmethod
-    def get_cluster_info(self, user: str) -> Dict[str, Any]:
+    def get_cluster_info(self, user: str, is_admin: bool = False) -> Dict[str, Any]:
+        """`Users` lists every user for an admin, only `user` itself otherwise."""
         ...
 
 

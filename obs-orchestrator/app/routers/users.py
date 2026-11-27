@@ -3,7 +3,7 @@ import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status  # type: ignore
 
 import dependencies as deps
-from auth import get_current_user
+from auth import CurrentUser, require_admin
 from models import UserCreate
 from operations.operation_tasks import run_user_create, run_user_delete
 from validators import validate_username
@@ -16,14 +16,14 @@ def _find_user(username: str):
 
 
 @router.get("")
-def get_users(current_user: dict = Depends(get_current_user)):
+def get_users(current_user: CurrentUser = Depends(require_admin)):
     return deps.tenants.get_users()
 
 
 @router.post("", status_code=status.HTTP_202_ACCEPTED)
 async def post_user(
     user: UserCreate,
-    current_user: dict = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     username_error = validate_username(user.username)
     if username_error:
@@ -43,7 +43,7 @@ async def post_user(
 @router.delete("/{user_id}", status_code=status.HTTP_202_ACCEPTED)
 async def delete_user(
     user_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: CurrentUser = Depends(require_admin),
 ):
     if _find_user(user_id) is None:
         raise HTTPException(status_code=404, detail=f"User {user_id} not found")
