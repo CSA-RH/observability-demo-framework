@@ -1,5 +1,5 @@
 # Stage 1: Build the React app using Red Hat UBI Node.js 24 image
-FROM registry.access.redhat.com/ubi9/nodejs-24:9.9-1794494359@sha256:d843698c5564f9a066a9f45bb1b0392b0b0926f3aa1b37a242b99ed19f16408a AS build
+FROM registry.access.redhat.com/ubi9/nodejs-24:1795496937@sha256:0067c15398ece743e462637c8581b1b31027a7a2d3112e610ad700bde3b03f1b AS build
 
 WORKDIR /app
 USER 0
