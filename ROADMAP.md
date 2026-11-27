@@ -172,7 +172,7 @@ Vitest for the console, pinned dependencies, coverage ratchet in CI (now 80%). T
 recorded as expected-failure tests are all fixed (409/404/422, JWKS cache, reserved usernames in the
 UI validator).
 
-**Phase 2 - Modular monolith** (PRs #67, #73, #75-#79, #100).
+**Phase 2 - Modular monolith** (PRs #67, #73, #75-#79, #100, #112).
 - Components renamed: `obs-main-api` -> `obs-orchestrator`, `obs-front` -> `obs-console`.
 - `main.py` split into routers; request models (422s with the `{"message": ...}` shape).
 - Auth module: PyJWT (RS256 only, `exp`/`iss`/`aud` required), JWKS cache with rotation handling;
